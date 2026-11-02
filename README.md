@@ -29,8 +29,12 @@ matching, recommendations, natural-language assistance, and reporting.
 - [Read the finalized specification (PDF)](docs/phase-3/COSC336_Group6_Phase3_SRS_v1.2.pdf)
 - [Download the editable specification (DOCX)](docs/phase-3/COSC336_Group6_Phase3_SRS_v1.2.docx)
 
-PDFs are the reading copies; DOCX files are their editable counterparts. The next
-project phase is architecture and detailed design.
+**Phases 4–5 — Architecture and Detailed Design, version 1.4**
+
+- [Read the design document (PDF)](docs/phase-4-5/COSC336_Group6_Phase4_5_Design_v1.4.pdf)
+- [Download the editable design document (DOCX)](docs/phase-4-5/COSC336_Group6_Phase4_5_Design_v1.4.docx)
+
+PDFs are the reading copies; DOCX files are their editable counterparts.
 
 ## Repository organization
 
@@ -43,14 +47,17 @@ docs/
 ├── phase-2/
 │   ├── COSC336_Group6_Phase2_v1.1.pdf
 │   └── COSC336_Group6_Phase2_v1.1.docx
-└── phase-3/
-    ├── COSC336_Group6_Phase3_SRS_v1.2.pdf
-    └── COSC336_Group6_Phase3_SRS_v1.2.docx
+├── phase-3/
+│   ├── COSC336_Group6_Phase3_SRS_v1.2.pdf
+│   └── COSC336_Group6_Phase3_SRS_v1.2.docx
+└── phase-4-5/
+    ├── COSC336_Group6_Phase4_5_Design_v1.4.pdf
+    └── COSC336_Group6_Phase4_5_Design_v1.4.docx
 ```
 
 Reviewed deliverables are organized by phase, with the latest version in each folder.
-Earlier versions remain available in Git history. Later phase folders
-and implementation structure will be added when their deliverables and tools are defined.
+Earlier versions remain available in Git history. Implementation structure will be
+added when its deliverables and tools are defined.
 
 ## Team
 
