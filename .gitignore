@@ -21,3 +21,5 @@ coverage/
 playwright-report/
 test-results/
 .supabase/
+supabase/.temp/
+supabase/.branches/

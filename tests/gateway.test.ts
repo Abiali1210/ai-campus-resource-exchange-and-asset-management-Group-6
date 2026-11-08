@@ -9,11 +9,9 @@ const id = "00000000-0000-4000-8000-000000000001";
 const targetId = "00000000-0000-4000-8000-000000000002";
 const departmentId = "00000000-0000-4000-8000-000000000003";
 const operationKey = "00000000-0000-4000-8000-000000000004";
-const config: GatewayConfig = {
+const config: Omit<GatewayConfig, "adminAuth"> = {
   supabaseUrl: "https://project.supabase.co",
-  anonKey: "public-test-key",
   allowedOrigins: ["http://localhost:5173"],
-  serviceKey: "secret-service-test",
 };
 const json = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), {
@@ -37,6 +35,7 @@ const request = (
     method: "POST",
     headers: {
       authorization: "Bearer token",
+      apikey: "sb_publishable_test",
       origin: "http://localhost:5173",
       ...headers,
     },
@@ -52,6 +51,7 @@ function backend(
     profileFailure?: boolean;
     rollbackFailure?: boolean;
     createFailure?: boolean;
+    createNetworkFailure?: boolean;
   } = {},
 ) {
   const calls: {
@@ -60,6 +60,15 @@ function backend(
     headers: Headers;
     method: string;
   }[] = [];
+  const adminAuth = {
+    createUser: vi.fn(async (_email: string, _password: string) => {
+      if (options.createNetworkFailure)
+        throw new Error("server-only-secret-diagnostic");
+      if (options.createFailure) return null;
+      return targetId;
+    }),
+    deleteUser: vi.fn(async (_userId: string) => !options.rollbackFailure),
+  };
   const fetcher = vi.fn(
     async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
@@ -82,14 +91,6 @@ function backend(
             roles: options.roles ?? ["system_administrator"],
           },
         });
-      if (url.endsWith("/admin/users"))
-        return options.createFailure
-          ? json({ message: "raw diagnostics secret-service-test" }, 422)
-          : json({ id: targetId });
-      if (url.includes("/admin/users/"))
-        return options.rollbackFailure
-          ? json({ message: "operator detail" }, 500)
-          : json({});
       if (url.endsWith("/save_profile"))
         return options.profileFailure
           ? json({ message: "Validation: invalid department diagnostic" }, 400)
@@ -97,13 +98,19 @@ function backend(
       throw new Error(`Unexpected test request: ${url}`);
     },
   );
-  return { fetcher: fetcher as unknown as typeof fetch, calls };
+  return { fetcher: fetcher as unknown as typeof fetch, calls, adminAuth };
 }
+
+const createHandler = (mock: ReturnType<typeof backend>, adminEnabled = true) =>
+  createFoundationHandler(
+    { ...config, adminAuth: adminEnabled ? mock.adminAuth : undefined },
+    mock.fetcher,
+  );
 
 describe("authenticated account gateway", () => {
   it("denies hostile origins and missing sessions before any backend access", async () => {
-    const { fetcher, calls } = backend();
-    const handle = createFoundationHandler(config, fetcher);
+    const mock = backend();
+    const handle = createHandler(mock);
     expect(
       (
         await handle(
@@ -120,7 +127,16 @@ describe("authenticated account gateway", () => {
         )
       ).status,
     ).toBe(401);
-    expect(calls).toHaveLength(0);
+    expect(
+      (
+        await handle(
+          request("adminCreateAccount", account, {
+            apikey: "sb_secret_not-a-publishable-key",
+          }),
+        )
+      ).status,
+    ).toBe(401);
+    expect(mock.calls).toHaveLength(0);
   });
   it("rejects expired, inactive and subject-mismatched sessions", async () => {
     for (const options of [
@@ -128,21 +144,18 @@ describe("authenticated account gateway", () => {
       { active: false },
       { mismatchedSubject: true },
     ]) {
-      const { fetcher, calls } = backend(options);
+      const mock = backend(options);
       expect([401, 403]).toContain(
-        (await createFoundationHandler(config, fetcher)(request())).status,
+        (await createHandler(mock)(request())).status,
       );
-      expect(calls.some((call) => call.url.includes("/admin/"))).toBe(false);
+      expect(mock.adminAuth.createUser).not.toHaveBeenCalled();
     }
   });
   it("denies provisioning to representatives despite forged browser role fields", async () => {
-    const { fetcher, calls } = backend({ roles: ["representative"] });
+    const mock = backend({ roles: ["representative"] });
     expect(
       (
-        await createFoundationHandler(
-          config,
-          fetcher,
-        )(
+        await createHandler(mock)(
           request("adminCreateAccount", {
             ...account,
             callerId: id,
@@ -151,22 +164,33 @@ describe("authenticated account gateway", () => {
         )
       ).status,
     ).toBe(403);
-    expect(calls.some((call) => call.url.includes("/admin/"))).toBe(false);
+    expect(mock.adminAuth.createUser).not.toHaveBeenCalled();
   });
-  it("creates accounts with privileged Auth only and saves the audited profile as caller", async () => {
-    const { fetcher, calls } = backend();
-    const response = await createFoundationHandler(config, fetcher)(request());
+  it("uses the publishable key and caller JWT for RPCs, with Admin Auth isolated behind its adapter", async () => {
+    const mock = backend();
+    const response = await createHandler(mock)(
+      request("adminCreateAccount", account, {
+        apikey: "sb_publishable_caller-test",
+      }),
+    );
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual({
       profile: { userId: targetId, name: "Synthetic" },
     });
-    expect(
-      calls
-        .find((call) => call.url.endsWith("/admin/users"))!
-        .headers.get("Authorization"),
-    ).toBe("Bearer secret-service-test");
-    const saved = calls.find((call) => call.url.endsWith("/save_profile"))!;
+    expect(mock.adminAuth.createUser).toHaveBeenCalledWith(
+      account.email,
+      account.password,
+    );
+    expect(mock.adminAuth.deleteUser).not.toHaveBeenCalled();
+    const authCall = mock.calls.find((call) =>
+      call.url.endsWith("/auth/v1/user"),
+    )!;
+    expect(authCall.headers.get("apikey")).toBe("sb_publishable_caller-test");
+    expect(authCall.headers.get("Authorization")).toBe("Bearer token");
+    const saved = mock.calls.find((call) => call.url.endsWith("/save_profile"))!;
+    expect(saved.headers.get("apikey")).toBe("sb_publishable_caller-test");
     expect(saved.headers.get("Authorization")).toBe("Bearer token");
+    expect([...authCall.headers.values(), ...saved.headers.values()].join(" ")).not.toContain("server-only-secret");
     expect(saved.body.p_input).toMatchObject({
       userId: targetId,
       departmentId,
@@ -177,11 +201,8 @@ describe("authenticated account gateway", () => {
     expect(saved.body.p_input).not.toHaveProperty("password");
   });
   it("updates active state and role assignments through caller-authorized profile RPC", async () => {
-    const { fetcher, calls } = backend();
-    const response = await createFoundationHandler(
-      config,
-      fetcher,
-    )(
+    const mock = backend();
+    const response = await createHandler(mock)(
       request("adminUpdateAccount", {
         ...account,
         userId: targetId,
@@ -189,8 +210,8 @@ describe("authenticated account gateway", () => {
       }),
     );
     expect(response.status).toBe(200);
-    expect(calls.some((call) => call.url.includes("/admin/"))).toBe(false);
-    expect(calls.at(-1)?.body.p_input).toMatchObject({
+    expect(mock.adminAuth.createUser).not.toHaveBeenCalled();
+    expect(mock.calls.at(-1)?.body.p_input).toMatchObject({
       userId: targetId,
       active: false,
     });
@@ -202,67 +223,68 @@ describe("authenticated account gateway", () => {
       ["adminCreateAccount", { ...account, departmentId: "invalid" }],
       ["adminUpdateAccount", { ...account, userId: targetId, active: "false" }],
     ] as const) {
-      const { fetcher, calls } = backend();
+      const mock = backend();
       expect(
         (
-          await createFoundationHandler(
-            config,
-            fetcher,
-          )(request(action, payload))
+          await createHandler(mock)(request(action, payload))
         ).status,
       ).toBe(400);
-      expect(calls.some((call) => call.url.includes("/admin/"))).toBe(false);
-      expect(calls.some((call) => call.url.endsWith("/save_profile"))).toBe(
+      expect(mock.adminAuth.createUser).not.toHaveBeenCalled();
+      expect(mock.calls.some((call) => call.url.endsWith("/save_profile"))).toBe(
         false,
       );
     }
   });
-  it("does not provision accounts without the private service configuration", async () => {
-    const { fetcher, calls } = backend();
+  it("does not provision accounts without the private Admin Auth adapter", async () => {
+    const mock = backend();
     expect(
       (
-        await createFoundationHandler(
-          { ...config, serviceKey: undefined },
-          fetcher,
-        )(request())
+        await createHandler(mock, false)(request())
       ).status,
     ).toBe(503);
-    expect(calls.some((call) => call.url.includes("/admin/"))).toBe(false);
+    expect(mock.adminAuth.createUser).not.toHaveBeenCalled();
   });
   it("deletes just-created Auth accounts after failed transactional profile setup", async () => {
-    const { fetcher, calls } = backend({ profileFailure: true });
-    const response = await createFoundationHandler(config, fetcher)(request());
+    const mock = backend({ profileFailure: true });
+    const response = await createHandler(mock)(request());
     expect(response.status).toBe(400);
-    expect(calls.at(-1)).toMatchObject({
-      url: `${config.supabaseUrl}/auth/v1/admin/users/${targetId}`,
-      method: "DELETE",
-    });
+    expect(mock.adminAuth.deleteUser).toHaveBeenCalledWith(targetId);
     const body = await response.text();
-    expect(body).not.toContain("secret-service-test");
+    expect(body).not.toContain("server-only-secret");
     expect(body).not.toContain("local-only-password");
     expect(body).not.toContain("diagnostic");
   });
   it("reports operator reconciliation when compensating deletion also fails", async () => {
-    const { fetcher } = backend({
+    const mock = backend({
       profileFailure: true,
       rollbackFailure: true,
     });
-    const response = await createFoundationHandler(config, fetcher)(request());
+    const response = await createHandler(mock)(request());
     expect(response.status).toBe(409);
     expect(await response.text()).toContain("operator reconciliation");
   });
   it("does not disclose raw Auth administration errors", async () => {
-    const { fetcher, calls } = backend({ createFailure: true });
-    const response = await createFoundationHandler(config, fetcher)(request());
+    const mock = backend({ createFailure: true });
+    const response = await createHandler(mock)(request());
     expect(response.status).toBe(409);
-    expect(await response.text()).not.toContain("secret-service-test");
-    expect(calls.some((call) => call.url.endsWith("/save_profile"))).toBe(
+    expect(await response.text()).not.toContain("server-only-secret-diagnostic");
+    expect(mock.calls.some((call) => call.url.endsWith("/save_profile"))).toBe(
+      false,
+    );
+  });
+  it("maps thrown Admin Auth failures to a safe unavailable response", async () => {
+    const mock = backend({ createNetworkFailure: true });
+    const response = await createHandler(mock)(request());
+    const body = await response.text();
+    expect(response.status).toBe(503);
+    expect(body).not.toContain("server-only-secret-diagnostic");
+    expect(mock.calls.some((call) => call.url.endsWith("/save_profile"))).toBe(
       false,
     );
   });
   it("has no classification, embedding or other AI action", async () => {
-    const { fetcher, calls } = backend();
-    const handler = createFoundationHandler(config, fetcher);
+    const mock = backend();
+    const handler = createHandler(mock);
     for (const action of [
       "classify",
       "retryEmbedding",
@@ -270,23 +292,23 @@ describe("authenticated account gateway", () => {
       "generateReport",
     ])
       expect((await handler(request(action, {}))).status).toBe(400);
-    expect(calls.every((call) => call.url.startsWith(config.supabaseUrl))).toBe(
+    expect(mock.calls.every((call) => call.url.startsWith(config.supabaseUrl))).toBe(
       true,
     );
-    expect(calls.some((call) => call.url.includes("/admin/"))).toBe(false);
+    expect(mock.adminAuth.createUser).not.toHaveBeenCalled();
   });
   it("bounds streamed request bodies without trusting Content-Length", async () => {
     await expect(boundedBytes(new Response("oversized"), 3)).rejects.toThrow(
       "size limit",
     );
-    const { fetcher } = backend();
-    const response = await createFoundationHandler(
-      config,
-      fetcher,
-    )(
+    const mock = backend();
+    const response = await createHandler(mock)(
       new Request("https://edge.test/foundation", {
         method: "POST",
-        headers: { authorization: "Bearer token" },
+        headers: {
+          authorization: "Bearer token",
+          apikey: "sb_publishable_test",
+        },
         body: "x".repeat(100_001),
       }),
     );
