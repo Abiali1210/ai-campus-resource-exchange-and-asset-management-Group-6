@@ -1,0 +1,65 @@
+{
+  "scope": "Planned acceptance cases, not executed application results.",
+  "cases": [
+    {
+      "id": "P1-01",
+      "requirement": "FR-USER-004",
+      "action": "Direct unauthorized catalogue mutation",
+      "expected": "Forbidden; no source/audit mutation"
+    },
+    {
+      "id": "P1-02",
+      "requirement": "FR-USER-004",
+      "action": "System Administrator without representative role publishes asset",
+      "expected": "Forbidden; technical role grants no business authority"
+    },
+    {
+      "id": "P1-03",
+      "requirement": "FR-USER-002",
+      "action": "Inactive profile attempts protected access with an existing token",
+      "expected": "Rejected server-side"
+    },
+    {
+      "id": "P1-04",
+      "requirement": "FR-ASSET-005",
+      "action": "Omit each publication-required field; try zero, negative and fractional quantity",
+      "expected": "Specific field error; preserve entered input; no publication"
+    },
+    {
+      "id": "P1-05",
+      "requirement": "FR-ASSET-006",
+      "action": "View published unknown-condition projector",
+      "expected": "Unknown/needs assessment visible; publication is not transfer approval"
+    },
+    {
+      "id": "P1-06",
+      "requirement": "FR-SEARCH-004",
+      "action": "Search available listings",
+      "expected": "No unfit or retired fixture appears as available"
+    },
+    {
+      "id": "P1-07",
+      "requirement": "FR-SEARCH-002",
+      "action": "Combine all supported search filters; request forbidden financial range",
+      "expected": "Matching permitted projection only; financial restriction enforced before filtering/counts"
+    },
+    {
+      "id": "P1-08",
+      "requirement": "FR-ASSET-008",
+      "action": "Edit metadata with stale expectedVersion",
+      "expected": "Conflict; no overwrite; history retains actual human change"
+    },
+    {
+      "id": "P1-13",
+      "requirement": "FR-USER-005",
+      "action": "Administrator changes roles and deactivates account",
+      "expected": "Authorized audit event; next sign-in sees changed permissions; inactive access denied"
+    },
+    {
+      "id": "P1-14",
+      "requirement": "FR-ASSET-002",
+      "action": "Load batch seed and individual seed",
+      "expected": "Batch has 10 active leaf units; individual quantity is 1; no duplicated parent quantity"
+    }
+  ]
+}

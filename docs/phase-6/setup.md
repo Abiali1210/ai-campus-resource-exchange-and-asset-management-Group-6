@@ -1,8 +1,21 @@
 # Part 1 minimum-scope setup
 
 Scope: C1–C3 plus asset/account audit groundwork. The current implementation is on
-Abdulrahman's **local** `codex/phase6-01-foundation` branch and has not been published.
+Abdulrahman's draft-review `codex/phase6-01-foundation` branch; it is not merged into main.
 These commands require that implementation, not a planning-only main checkout.
+
+## Get the implementation branch
+
+For a new checkout:
+
+```powershell
+git clone --branch codex/phase6-01-foundation https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6.git
+cd ai-campus-resource-exchange-and-asset-management-Group-6
+```
+
+For an existing clean checkout, run `git fetch origin` then
+`git switch codex/phase6-01-foundation`. Preserve local edits before switching.
+The task/plan documents on main do not themselves contain the application source.
 
 ## Preview
 

@@ -1,0 +1,351 @@
+{
+  "schemaVersion": 1,
+  "description": "Synthetic domain fixture only. No live accounts, credentials, provider results or measured outcomes.",
+  "roles": [
+    "requester",
+    "representative",
+    "business_administrator",
+    "maintenance",
+    "facilities",
+    "procurement",
+    "finance",
+    "sustainability",
+    "system_administrator"
+  ],
+  "departments": [
+    {
+      "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "name": "Engineering",
+      "active": true
+    },
+    {
+      "departmentId": "d7e4c63b-396f-5d67-820a-88cfcca0d650",
+      "name": "Science",
+      "active": true
+    }
+  ],
+  "users": [
+    {
+      "userId": "9c71c695-2679-5d10-a2ad-ee8278480bda",
+      "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "name": "Synthetic requester-Engineering",
+      "active": true,
+      "roles": [
+        "requester"
+      ]
+    },
+    {
+      "userId": "e1b543cf-5f21-56fb-bf1d-5f580341fac8",
+      "departmentId": "d7e4c63b-396f-5d67-820a-88cfcca0d650",
+      "name": "Synthetic requester-Science",
+      "active": true,
+      "roles": [
+        "requester"
+      ]
+    },
+    {
+      "userId": "3f7b19ba-aa96-5306-9fd6-4179ce7533af",
+      "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "name": "Synthetic representative-Engineering",
+      "active": true,
+      "roles": [
+        "representative"
+      ]
+    },
+    {
+      "userId": "af38cdf9-6f08-518e-942b-1cef8d917525",
+      "departmentId": "d7e4c63b-396f-5d67-820a-88cfcca0d650",
+      "name": "Synthetic representative-Science",
+      "active": true,
+      "roles": [
+        "representative"
+      ]
+    },
+    {
+      "userId": "c9b03a7d-a220-510d-9e66-70ac8e3b54f3",
+      "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "name": "Synthetic business administrator-Engineering",
+      "active": true,
+      "roles": [
+        "business_administrator"
+      ]
+    },
+    {
+      "userId": "3e161ee7-bdd4-5b5f-bb99-df27639753d0",
+      "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "name": "Synthetic maintenance-Engineering",
+      "active": true,
+      "roles": [
+        "maintenance"
+      ]
+    },
+    {
+      "userId": "8b82b441-ec03-5ee8-b6aa-340a2d850922",
+      "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "name": "Synthetic facilities-Engineering",
+      "active": true,
+      "roles": [
+        "facilities"
+      ]
+    },
+    {
+      "userId": "bd673cbe-abdb-5157-aaff-5b61dc9d1b13",
+      "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "name": "Synthetic procurement-Engineering",
+      "active": true,
+      "roles": [
+        "procurement"
+      ]
+    },
+    {
+      "userId": "a29adbbc-e65f-5dc8-8ff0-5121a21ff26c",
+      "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "name": "Synthetic finance-Engineering",
+      "active": true,
+      "roles": [
+        "finance"
+      ]
+    },
+    {
+      "userId": "c63f7c40-1b2e-58af-8984-1225bed378be",
+      "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "name": "Synthetic sustainability-Engineering",
+      "active": true,
+      "roles": [
+        "sustainability"
+      ]
+    },
+    {
+      "userId": "5d67735d-494a-5eb3-a81e-eee6f548d0f8",
+      "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "name": "Synthetic system administrator-Engineering",
+      "active": true,
+      "roles": [
+        "system_administrator"
+      ]
+    },
+    {
+      "userId": "b6883b6d-e25a-586d-9e94-43e38677297f",
+      "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "name": "Synthetic inactive requester",
+      "active": false,
+      "roles": [
+        "requester"
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "categoryId": "7ac508b5-f1f1-5963-9048-dfe8dcf8661a",
+      "parentCategoryId": null,
+      "name": "Monitors"
+    },
+    {
+      "categoryId": "91421637-c467-58e9-ae33-b3ed1e5bd969",
+      "parentCategoryId": null,
+      "name": "Chairs"
+    },
+    {
+      "categoryId": "66b9aef5-f952-58a8-b819-702b25b9d494",
+      "parentCategoryId": null,
+      "name": "Projectors"
+    }
+  ],
+  "assets": [
+    {
+      "assetId": "13f10bc3-4158-5057-8aee-d241700510a2",
+      "name": "Dell 24-inch display",
+      "description": "Dell 24-inch display — synthetic coursework record, not actual university inventory.",
+      "categoryId": "7ac508b5-f1f1-5963-9048-dfe8dcf8661a",
+      "specifications": {
+        "connector": "HDMI",
+        "screenInches": 24
+      },
+      "tags": [],
+      "materials": [],
+      "trackingMode": "individual",
+      "totalQty": 1,
+      "purchaseDate": "2022-09-01",
+      "unitValue": 600,
+      "unitMassKg": 5,
+      "version": 1
+    },
+    {
+      "assetId": "abcc48c3-d042-5eb1-9bc9-1430f03243bc",
+      "name": "Ten reusable lab chairs",
+      "description": "Ten reusable lab chairs — synthetic coursework record, not actual university inventory.",
+      "categoryId": "91421637-c467-58e9-ae33-b3ed1e5bd969",
+      "specifications": {
+        "material": "steel and plastic"
+      },
+      "tags": [],
+      "materials": [],
+      "trackingMode": "batch",
+      "totalQty": 10,
+      "purchaseDate": "2022-09-01",
+      "unitValue": 120,
+      "unitMassKg": 4,
+      "version": 1
+    },
+    {
+      "assetId": "2a71abf0-a7d7-5375-adb9-17dfe1f73f35",
+      "name": "Projector awaiting condition assessment",
+      "description": "Projector awaiting condition assessment — synthetic coursework record, not actual university inventory.",
+      "categoryId": "66b9aef5-f952-58a8-b819-702b25b9d494",
+      "specifications": {},
+      "tags": [],
+      "materials": [],
+      "trackingMode": "individual",
+      "totalQty": 1,
+      "purchaseDate": null,
+      "unitValue": null,
+      "unitMassKg": null,
+      "version": 1
+    },
+    {
+      "assetId": "db4a61ca-5a16-57c2-bf38-b5a6923ccbdd",
+      "name": "Display with cracked housing",
+      "description": "Display with cracked housing — synthetic coursework record, not actual university inventory.",
+      "categoryId": "7ac508b5-f1f1-5963-9048-dfe8dcf8661a",
+      "specifications": {
+        "safetyNote": "Cracked housing; not for ordinary use"
+      },
+      "tags": [],
+      "materials": [],
+      "trackingMode": "individual",
+      "totalQty": 1,
+      "purchaseDate": "2022-09-01",
+      "unitValue": 600,
+      "unitMassKg": 5,
+      "version": 1
+    },
+    {
+      "assetId": "7e1415a7-dc28-57e2-b1b8-7a4dba0c1b29",
+      "name": "Retired display retained for history",
+      "description": "Retired display retained for history — synthetic coursework record, not actual university inventory.",
+      "categoryId": "7ac508b5-f1f1-5963-9048-dfe8dcf8661a",
+      "specifications": {},
+      "tags": [],
+      "materials": [],
+      "trackingMode": "individual",
+      "totalQty": 1,
+      "purchaseDate": "2022-09-01",
+      "unitValue": 400,
+      "unitMassKg": null,
+      "version": 1
+    },
+    {
+      "assetId": "4b4e5bf6-133d-58ba-ac17-7a3709a7e7e3",
+      "name": "Chair with incomplete valuation",
+      "description": "Chair with incomplete valuation — synthetic coursework record, not actual university inventory.",
+      "categoryId": "91421637-c467-58e9-ae33-b3ed1e5bd969",
+      "specifications": {},
+      "tags": [],
+      "materials": [],
+      "trackingMode": "individual",
+      "totalQty": 1,
+      "purchaseDate": null,
+      "unitValue": null,
+      "unitMassKg": null,
+      "version": 1
+    }
+  ],
+  "stockPortions": [
+    {
+      "portionId": "021de482-12ac-5907-8d3f-1fd8e25fa26b",
+      "assetId": "13f10bc3-4158-5057-8aee-d241700510a2",
+      "parentPortionId": null,
+      "qty": 1,
+      "active": true,
+      "state": "Available",
+      "condition": "Good",
+      "ownerDepartmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "custodianId": "3f7b19ba-aa96-5306-9fd6-4179ce7533af",
+      "assignedLocation": "Engineering / Store 1",
+      "holderId": "3f7b19ba-aa96-5306-9fd6-4179ce7533af",
+      "physicalLocation": "Engineering / Store 1",
+      "priorState": null,
+      "published": true
+    },
+    {
+      "portionId": "756617aa-80ea-5f9d-b610-5651ea941514",
+      "assetId": "abcc48c3-d042-5eb1-9bc9-1430f03243bc",
+      "parentPortionId": null,
+      "qty": 10,
+      "active": true,
+      "state": "Available",
+      "condition": "Good",
+      "ownerDepartmentId": "d7e4c63b-396f-5d67-820a-88cfcca0d650",
+      "custodianId": "af38cdf9-6f08-518e-942b-1cef8d917525",
+      "assignedLocation": "Science / Store 1",
+      "holderId": "af38cdf9-6f08-518e-942b-1cef8d917525",
+      "physicalLocation": "Science / Store 1",
+      "priorState": null,
+      "published": true
+    },
+    {
+      "portionId": "05413861-427b-569f-b6bc-5d4c61cc930a",
+      "assetId": "2a71abf0-a7d7-5375-adb9-17dfe1f73f35",
+      "parentPortionId": null,
+      "qty": 1,
+      "active": true,
+      "state": "Available",
+      "condition": "Unknown",
+      "ownerDepartmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "custodianId": "3f7b19ba-aa96-5306-9fd6-4179ce7533af",
+      "assignedLocation": "Engineering / Store 1",
+      "holderId": "3f7b19ba-aa96-5306-9fd6-4179ce7533af",
+      "physicalLocation": "Engineering / Store 1",
+      "priorState": null,
+      "published": true
+    },
+    {
+      "portionId": "9a3ade59-f772-5941-9c45-1a33c4c0f4c7",
+      "assetId": "db4a61ca-5a16-57c2-bf38-b5a6923ccbdd",
+      "parentPortionId": null,
+      "qty": 1,
+      "active": true,
+      "state": "Unfit",
+      "condition": "Poor",
+      "ownerDepartmentId": "d7e4c63b-396f-5d67-820a-88cfcca0d650",
+      "custodianId": "af38cdf9-6f08-518e-942b-1cef8d917525",
+      "assignedLocation": "Science / Store 1",
+      "holderId": "af38cdf9-6f08-518e-942b-1cef8d917525",
+      "physicalLocation": "Science / Store 1",
+      "priorState": null,
+      "published": false
+    },
+    {
+      "portionId": "0039a962-c089-54b8-8d86-9fd59ea84931",
+      "assetId": "7e1415a7-dc28-57e2-b1b8-7a4dba0c1b29",
+      "parentPortionId": null,
+      "qty": 1,
+      "active": true,
+      "state": "Retired",
+      "condition": "Poor",
+      "ownerDepartmentId": "0e601277-1784-5bfa-884f-942326d527c6",
+      "custodianId": "3f7b19ba-aa96-5306-9fd6-4179ce7533af",
+      "assignedLocation": "Engineering / Store 1",
+      "holderId": "3f7b19ba-aa96-5306-9fd6-4179ce7533af",
+      "physicalLocation": "Engineering / Store 1",
+      "priorState": null,
+      "published": false
+    },
+    {
+      "portionId": "c49090fc-f2cf-565a-957a-6597afb4fb37",
+      "assetId": "4b4e5bf6-133d-58ba-ac17-7a3709a7e7e3",
+      "parentPortionId": null,
+      "qty": 1,
+      "active": true,
+      "state": "Registered",
+      "condition": "Fair",
+      "ownerDepartmentId": "d7e4c63b-396f-5d67-820a-88cfcca0d650",
+      "custodianId": "af38cdf9-6f08-518e-942b-1cef8d917525",
+      "assignedLocation": "Science / Store 1",
+      "holderId": "af38cdf9-6f08-518e-942b-1cef8d917525",
+      "physicalLocation": "Science / Store 1",
+      "priorState": null,
+      "published": false
+    }
+  ]
+}
