@@ -51,7 +51,7 @@ records the selected scope: C1–C6 and AI #2/#5 only. Other features are deferr
 Part 1 is merged into main; live Supabase acceptance remains pending. Abdulrahman
 reported instructor stack approval on 8 November.
 
-## Run the local Part 1 implementation
+## Run the local Parts 1 and 2 implementation
 
 Use Node.js 22 (`npm ci`, then `npm run dev`) and open http://127.0.0.1:5173.
 For local database development/testing, start Docker Desktop with WSL integration,
@@ -61,6 +61,14 @@ Supabase stack is for local development, not deployment. CI validates with GitHu
 Actions and does not deploy. No hosted Supabase project is linked or configured, and
 no hosted service is deployed. See [setup and verification](docs/phase-6/setup.md).
 No Gemini access is needed until the matching/report stages.
+
+Part 2 adds requests, separate reservation/release decisions, scheduling/dispatch,
+accepted receipt, disputes/returns and conserved partial quantities. Open **Requests
+and transfers** after sign-in. Read [Ahmed's handoff](docs/phase-6/handoffs/02-ahmed.md)
+for migrations, synthetic workflow fixtures, native concurrency checks and the
+demonstration. Hosted Supabase acceptance remains pending. `npm run test:db` runs
+both foundation and workflow checks; `npm run test:db:native` requires a disposable
+PostgreSQL test cluster. No shared database reset is needed.
 
 ## Repository organization
 

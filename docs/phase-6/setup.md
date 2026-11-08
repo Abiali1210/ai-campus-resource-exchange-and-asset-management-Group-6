@@ -1,7 +1,7 @@
-# Part 1 minimum-scope setup
+# Parts 1 and 2 minimum-scope setup
 
-Scope: C1–C3 plus asset/account audit groundwork. The implementation is merged into
-main; these commands run from the repository root.
+Scope: C1–C6. Part 1 is merged into main; Part 2 is on
+`codex/phase6-02-workflows` for review. Commands run from the repository root.
 
 ## Get the implementation branch
 
@@ -40,9 +40,10 @@ they are not deployment. No hosted Supabase project is currently linked/configur
    npx supabase db push
    ```
 
-   Apply the core migration only. Do not reset a shared project. Local Docker/Supabase
+   Apply pending core/workflow migrations from the reviewed branch. Do not reset a shared project. Local Docker/Supabase
    is available for development/testing using `npm run supabase:start`; it is not a
    substitute for hosted acceptance checks.
+
 4. Set a strong local-only `DEMO_ACCOUNT_PASSWORD` of at least 16 characters and
    `CONFIRM_SYNTHETIC_SEED=yes`, then run `npm run seed:accounts`.
    This script creates real synthetic Auth accounts, maps profile IDs, provisions
@@ -56,6 +57,10 @@ they are not deployment. No hosted Supabase project is currently linked/configur
    file blindly or expose the service key in the frontend.
 6. Restart the frontend after editing its environment. Sign in using the provisioned
    synthetic accounts and your local demo password.
+7. For Part 2 demonstration records, run `npm run seed:workflows` after applying
+   the workflow migration and provisioning accounts. Existing records are preserved.
+   Follow [Part 2's handoff](handoffs/02-ahmed.md) for native race tests, fixture
+   limitations, contracts and the full four-role walkthrough.
 
 Part 1 needs **no Gemini key, embedding model, pgvector, file bucket or provider trial**.
 Abi Ali adds the configuration/migration for AI #2 later; Awais adds AI #5 later.

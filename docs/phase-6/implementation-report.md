@@ -25,7 +25,42 @@ live service acceptance. Report exact narrowed-scope results in the handoff.
 
 ## 2 Requests and transfers — Ahmed
 
-Pending C4–C6 implementation and actual verification evidence.
+Implemented C4–C6 on `codex/phase6-02-workflows`, extending the existing
+React/TypeScript/Vite and Supabase/PostgreSQL application with an additive migration.
+Staff submit and track permitted requests with requested, accepted, actively
+allocated and remaining quantities. Published-item selection creates linked Interest;
+supplier reservation approval performs allocation. Release is a separate recorded
+decision. Both reject requester/Interest-creator self-approval across multiple roles.
+
+The implementation follows SRS UC-04/07/08 and design v1.4 Sections 5 and 9–11.
+Request/stock row locks serialize competing approvals, and partial allocation splits
+conserved leaf StockPortions. Assigned Facilities schedule and dispatch; physical
+holder/location change during movement, while formal department/custodian/location
+change only on full suitable accepted receipt. Disputes retain allocation until
+full reconciled acceptance or supplier-confirmed return. Unsafe/unknown stock remains
+unavailable. Current roles/department scope, expected versions, stable retry keys and
+transactional actor/time/reason audit are enforced in PostgreSQL.
+
+Local verification: **25 unit tests, 16 inherited plus 23 workflow PGlite checks,
+the same 23 workflow checks on native PostgreSQL, four genuinely overlapping native
+transaction races, nine Chrome flows, production build and fixture integrity passed**.
+Browser evidence comprises five inherited HTTP-mocked foundation flows, a read-only
+preview, and three workflow flows running actual SQL with synthetic Auth/HTTP
+adapters. These are local checks, not hosted Supabase acceptance. This machine used
+Node 24.15.0; the repository/CI target remains Node 22.
+
+A read-only independent reviewer examined requirements, implementation and checks,
+independently reproduced defects, and verified fixes for unsafe cancellation,
+observer/holder separation, terminal tracking privacy and immutable Interest supplier
+authority. Regression checks cover those findings. Seven synthetic workflow recipes
+provide ordinary inputs for the later matching/report owners; no AI or report module
+was added. See [Part 2 handoff](handoffs/02-ahmed.md) for tested revision, commands,
+contracts, demonstration and resolved failures.
+
+Hosted Auth/JWT/PostgREST, account provisioning, migration/seed execution and actual
+browser-to-Supabase acceptance remain blocked by absent project configuration.
+Human owner review/demo and remote CI remain pending; no deployment, push or merge
+was performed.
 
 ## 3 Matching and ranking — Abi Ali
 
@@ -38,13 +73,13 @@ demonstration. Keep the report short and distinguish recorded outcomes from esti
 
 ## Status
 
-| Required feature | Owner | Status |
-| --- | --- | --- |
-| C1 accounts/roles/departments | Abdulrahman | Source exists; narrowed checks/live setup pending |
-| C2 assets/status; C3 publication/search | Abdulrahman | Source exists; narrowed checks/live setup pending |
-| C4 requests; C5 approval/transfer; C6 workflow/history | Ahmed | Planned; Part 1 audit groundwork exists |
-| AI #2 matching/ranking | Abi Ali | Planned |
-| AI #5 generated report | Muhammad Awais | Planned |
+| Required feature                                       | Owner          | Status                                                                   |
+| ------------------------------------------------------ | -------------- | ------------------------------------------------------------------------ |
+| C1 accounts/roles/departments                          | Abdulrahman    | Source exists; narrowed checks/live setup pending                        |
+| C2 assets/status; C3 publication/search                | Abdulrahman    | Source exists; narrowed checks/live setup pending                        |
+| C4 requests; C5 approval/transfer; C6 workflow/history | Ahmed          | Implemented and locally verified; hosted acceptance/human review pending |
+| AI #2 matching/ranking                                 | Abi Ali        | Planned                                                                  |
+| AI #5 generated report                                 | Muhammad Awais | Planned                                                                  |
 
 Deferred now: C7–C9 as standalone modules, AI #1/#3/#4, maintenance and end-of-life.
 No synthetic data establishes actual campus savings/adoption or general AI accuracy.

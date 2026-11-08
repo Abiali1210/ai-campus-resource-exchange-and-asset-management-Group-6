@@ -2,8 +2,10 @@
 
 Part 1 implements accounts, role enforcement, departments, assets, publication,
 keyword/category/condition/department search and auditable catalogue changes. The
-single migration supports the Phase 6 C1–C6 core workflow foundation; Ahmed adds
-requests, approvals, transfers and their state changes in part 2.
+foundation migration supports C1–C3. The additive
+`202611090001_workflows.sql` implements C4–C6 requests, approvals, transfers,
+receipt/dispute/return, quantities and history. See
+[Part 2 contracts](../docs/phase-6/contracts/part-2-workflows.md).
 
 AI feature 2 (matching/ranking) belongs to Abi Ali's later part and AI feature 5
 (generated reports) belongs to Awais. No classification, assistant, sustainable-action,
@@ -58,10 +60,13 @@ provisioning script alone uses service-only `bootstrap_administrator(p_input)`.
 
 ## Verification
 
-Run `npm run test:db`. Sixteen isolated PostgreSQL/PGlite core checks execute the
-actual migration with a minimal Auth schema adapter. They cover scoped grants and
+Run `npm run test:db`. Sixteen foundation and 23 workflow PostgreSQL/PGlite checks execute
+the actual migrations with a minimal Auth schema adapter. They cover scoped grants and
 roles, protected financial projection, validation, optimistic versions/idempotency,
 conserved batch quantities, immutable audit and supported synthetic seed payloads.
+`npm run test:db:native` runs the 23 workflow checks and four true overlapping-session
+checks against fresh databases in a disposable native PostgreSQL cluster. See the
+[handoff](../docs/phase-6/handoffs/02-ahmed.md) for configuration and actual results.
 
 These are not live Supabase tests. Actual JWT verification, Auth Admin provisioning
 and hosted Edge account administration require configured services and separate
