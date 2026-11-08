@@ -13,7 +13,7 @@ import type {
 } from "./types";
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim();
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
 const configured = Boolean(
   url && key && !url.includes("your-project") && !key.includes("your-"),
 );

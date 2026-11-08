@@ -1,77 +1,112 @@
-# Part 1 minimum-scope setup
+# Phase 6 setup
 
-Scope: C1–C3 plus asset/account audit groundwork. The implementation is merged into
-main; these commands run from the repository root.
+Scope is the merged Part 1 foundation: C1–C3 and asset/account audit groundwork.
+This guide distinguishes the shared hosted project from an isolated local Supabase
+stack. No C4–C6, AI2, or AI5 feature behavior is implemented here.
 
-## Get the implementation branch
+## Shared hosted project
 
-For a new checkout:
+The user-created Free project is `campus-exchange-group6-dev` (ref
+`gcctwsxullabhkddbzgo`), on PostgreSQL 17.11. The initial migration
+`202611080001` is already applied. Synthetic provisioning has already created 12 Auth
+users/profiles, 2 departments, 3 categories, 6 assets/stock portions, and 23 audit
+rows. Do not rerun migrations or provisioning for a new checkout. The project owner
+selected the Free plan; collaborators should review current usage and plan terms with
+the owner rather than assume limits or upgrade the project.
+
+## Run the app
+
+Use Node 22, run `npm ci`, copy `.env.example` to ignored `.env.local`, set
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, then run `npm run dev` and
+open http://127.0.0.1:5173. The browser uses only the publishable key. Never put a
+secret key in a `VITE_` variable, browser code, or a client build. `.env.local` is
+git-ignored; do not commit or share its contents.
+
+`npm run seed:accounts` reads `.env.local`; its `SUPABASE_URL` selects the database it
+will write to. The current file targets the shared hosted project, so this command is
+a hosted Auth/data mutation—not a local test. Do not rerun it for this project or use
+`.env.local` with a locally served Edge Function.
+
+All synthetic accounts use the same synthetic demo password. It is not recorded in
+this repository; obtain it through an approved private channel and keep it out of Git.
+Short sign-in aliases are:
+
+| Synthetic role/department | Sign-in email |
+| --- | --- |
+| System administrator — Engineering | `admin@demo.test` |
+| Requester — Engineering | `req-eng@demo.test` |
+| Requester — Science | `req-sci@demo.test` |
+| Representative — Engineering | `rep-eng@demo.test` |
+| Representative — Science | `rep-sci@demo.test` |
+| Business administrator — Engineering | `biz-eng@demo.test` |
+| Maintenance — Engineering | `maint@demo.test` |
+| Facilities — Engineering | `fac@demo.test` |
+| Procurement — Engineering | `proc@demo.test` |
+| Finance — Engineering | `fin@demo.test` |
+| Sustainability — Engineering | `sust@demo.test` |
+| Inactive requester | `inactive@demo.test` |
+
+To verify the alias locally, sign out and sign in again as `admin@demo.test` using the
+same shared synthetic demo password. Successful local sign-in and provisioning checks
+are not full live acceptance.
+
+## Local Supabase only
+
+Docker Desktop with WSL integration is needed only for the local stack. The project
+CLI is installed locally; use `npm run supabase:start`, `npm run supabase:status`, and
+`npm run supabase:stop`. Local CLI config targets PostgreSQL 17. This stack is separate
+from the shared hosted project and is not deployment. `npm run supabase:reset` is
+destructive to local database state; do
+not use reset or destructive seed operations casually, and never point a reset at a
+shared project.
+
+## Fresh project only: migrations and provisioning
+
+The commands below are **not needed for the shared project**. Use them only for a
+separate, fresh project explicitly intended for synthetic coursework. Confirm the
+project ref and plan with its owner. After user CLI login and linking the exact target,
+review the remote dry-run before any schema change:
 
 ```sh
-git clone https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6.git
-cd ai-campus-resource-exchange-and-asset-management-Group-6
+npx supabase login
+npx supabase link --project-ref YOUR_FRESH_PROJECT_REF
+npx supabase db push --dry-run --remote
 ```
 
-For an existing checkout on main, pull the merged implementation. Preserve local
-edits before switching branches.
+Only after separate migration review and approval, apply migrations with
+`npx supabase db push --remote`. Never reset the shared project. For provisioning on
+that separately approved fresh project, set `SUPABASE_URL`,
+`SUPABASE_PUBLISHABLE_KEY`, and private `SUPABASE_SECRET_KEY` in ignored `.env.local`,
+plus `DEMO_ACCOUNT_PASSWORD` (at least 12 characters) and
+`CONFIRM_SYNTHETIC_SEED=yes`; then run `npm run seed:accounts` only for that fresh
+project. This creates Auth accounts and fixture data using real hosted writes. The
+script preserves existing accounts/records; it is not a routine checkout or test
+command. The publishable key is public; the secret key is server-only and must never
+be exposed or committed.
 
-## Preview
+## Edge Function and Cloudflare
 
-With Node.js 22, run `npm ci` then `npm run dev` from the repository root. Open
-http://127.0.0.1:5173. Without credentials this is an explicitly read-only,
-synthetic catalogue, not simulated authentication or successful writes.
+The account-administration Edge Function is modernized locally but is **not deployed**.
+The authenticated browser sends its publishable key in `apikey` and its user JWT in
+`Authorization`; the function keeps them separate. Hosted Edge runtime reads
+`SUPABASE_SECRET_KEYS` and selects the named key using
+`SUPABASE_SECRET_KEY_NAME=phase6-provisioner`, with a `default` fallback. Locally, serve
+the function only with a separate ignored environment file (for example,
+`.env.functions.local`) whose `SUPABASE_URL` and `SUPABASE_SECRET_KEY` both belong to
+the local Supabase stack; set the local `ALLOWED_ORIGINS` there too. Never pass the
+hosted `.env.local` to local function serving. The server secret is used only by the
+function's Supabase JS Admin Auth client. Hosted secret/origin configuration and
+function deployment require separate review and explicit approval; do not deploy as
+part of routine setup.
 
-For local Supabase development/testing, start Docker Desktop with WSL integration,
-then run `npm run supabase:start`. The project-local CLI and stack are for local use;
-they are not deployment. No hosted Supabase project is currently linked/configured.
+Cloudflare Pages remains the frontend deployment target, but its Supabase environment
+variables are not configured. When separately approved, only the project URL and
+publishable key belong in frontend build settings—never the secret key. GitHub Actions
+performs validation only; it does not deploy.
 
-## Actual Supabase setup
+## Checks
 
-1. Create a synthetic coursework Supabase project; no paid upgrade is required by
-   this guide. Copy `.env.example` to untracked `.env.local`.
-2. Set the public `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` values. Separately
-   set `SUPABASE_URL`, `SUPABASE_ANON_KEY` and private `SUPABASE_SERVICE_ROLE_KEY`
-   for provisioning. Never prefix a service secret with VITE_.
-3. Use your own Supabase CLI account and review the selected project before changes:
-
-   ```sh
-   npx supabase login
-   npx supabase link --project-ref YOUR_PROJECT_REF
-   npx supabase db push
-   ```
-
-   Apply the core migration only. Do not reset a shared project. Local Docker/Supabase
-   is available for development/testing using `npm run supabase:start`; it is not a
-   substitute for hosted acceptance checks.
-4. Set a strong local-only `DEMO_ACCOUNT_PASSWORD` of at least 16 characters and
-   `CONFIRM_SYNTHETIC_SEED=yes`, then run `npm run seed:accounts`.
-   This script creates real synthetic Auth accounts, maps profile IDs, provisions
-   the first technical administrator and seeds the catalogue. It prints emails and
-   roles, not passwords. Existing records are preserved. It is written but has not
-   been executed against a hosted project.
-5. Set the server `ALLOWED_ORIGINS` to the exact frontend origins, then run
-   `npx supabase functions deploy foundation`. Keep JWT verification enabled.
-   The current function is **account administration only**. Supabase supplies its
-   server connection/service secrets; do not upload a mixed browser/server environment
-   file blindly or expose the service key in the frontend.
-6. Restart the frontend after editing its environment. Sign in using the provisioned
-   synthetic accounts and your local demo password.
-
-Part 1 needs **no Gemini key, embedding model, pgvector, file bucket or provider trial**.
-Abi Ali adds the configuration/migration for AI #2 later; Awais adds AI #5 later.
-
-## Verification
-
-Run `npm test`, `npm run test:db`, `npm run test:browser`, `npm run build`,
-and `python3 scripts/validate-foundation-fixture.py`.
-Browser tests require an installed Chrome. Database checks use actual PostgreSQL
-functions/constraints in PGlite with a minimal Auth adapter, not hosted Supabase.
-
-Before handing off, verify actual login/logout, inactive and wrong-role/department
-denials, registration, publication/withdrawal, the four filters and audited changes.
-No hosted Auth, account provisioning, cloud deployment or live service result is
-claimed by local tests.
-
-Primary references:
-[Supabase functions authentication](https://supabase.com/docs/guides/functions/auth),
-[database migrations](https://supabase.com/docs/guides/deployment/database-migrations).
+Run `npm test`, `npm run test:db`, `npm run test:browser`, `npm run build`, and
+`python3 scripts/validate-foundation-fixture.py`. Browser tests require Chrome; database
+checks use PGlite with a minimal Auth adapter, not the hosted project. Hosted schema,
+Auth, function, and frontend acceptance remains distinct from local checks.

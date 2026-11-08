@@ -2,8 +2,10 @@ import { GatewayError, ROLE_KEYS, boundedBytes, object, stringList, text, uuid, 
 
 export interface GatewayConfig {
   supabaseUrl: string;
-  anonKey: string;
-  serviceKey?: string;
+  adminAuth?: {
+    createUser(email: string, password: string): Promise<string | null>;
+    deleteUser(userId: string): Promise<boolean>;
+  };
   allowedOrigins: string[];
 }
 type Fetch = typeof fetch;
@@ -27,7 +29,9 @@ export function createFoundationHandler(config: GatewayConfig, requestFetch: Fet
       if (!url.startsWith('https://') && !/^http:\/\/(localhost|127\.0\.0\.1|kong)(:|\/)/.test(url + '/')) throw new GatewayError('Configuration', 'Service configuration is unavailable.', 503);
       const authorization = request.headers.get('authorization') ?? '';
       if (!/^Bearer \S+$/i.test(authorization)) throw new GatewayError('Unauthorized', 'Sign in to continue.', 401);
-      const callerHeaders = { apikey: config.anonKey, Authorization: authorization, 'Content-Type': 'application/json' };
+      const publishableKey = request.headers.get('apikey') ?? '';
+      if (!publishableKey.startsWith('sb_publishable_')) throw new GatewayError('Unauthorized', 'A valid publishable API key is required.', 401);
+      const callerHeaders = { apikey: publishableKey, Authorization: authorization, 'Content-Type': 'application/json' };
       const auth = await requestFetch(`${url}/auth/v1/user`, { headers: callerHeaders });
       if (!auth.ok) throw new GatewayError('Unauthorized', 'Your session is invalid or expired.', 401);
       const subject = object(await auth.json());
@@ -65,21 +69,20 @@ export function createFoundationHandler(config: GatewayConfig, requestFetch: Fet
           const result = await rpc('save_profile', { p_input: { userId: uuid(payload.userId, 'User'), name, departmentId, roles: assigned, active: payload.active, operationKey } });
           return json({ profile: result });
         }
-        if (!config.serviceKey) throw new GatewayError('Configuration', 'Account provisioning has not been configured.', 503);
+        const adminAuth = config.adminAuth;
+        if (!adminAuth) throw new GatewayError('Configuration', 'Account provisioning has not been configured.', 503);
         const email = text(payload.email, 'Email', 254).toLowerCase();
         const password = payload.password;
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof password !== 'string' || password.length < 12 || password.length > 128) throw new GatewayError('Validation', 'Use a valid email and an initial password of 12–128 characters.');
-        const adminHeaders = { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}`, 'Content-Type': 'application/json' };
-        const created = await requestFetch(`${url}/auth/v1/admin/users`, { method: 'POST', headers: adminHeaders, body: JSON.stringify({ email, password, email_confirm: true }) });
-        if (!created.ok) throw new GatewayError('Conflict', 'The account could not be created. Check whether it already exists.', 409);
-        const createdId = uuid(object(await created.json()).id, 'Created user');
+        const createdUserId = await adminAuth.createUser(email, password);
+        if (!createdUserId) throw new GatewayError('Conflict', 'The account could not be created. Check whether it already exists.', 409);
+        const createdId = uuid(createdUserId, 'Created user');
         try {
           const result = await rpc('save_profile', { p_input: { userId: createdId, name, departmentId, roles: assigned, active: true, operationKey } });
           return json({ profile: result }, 201);
         } catch (error) {
           try {
-            const rollback = await requestFetch(`${url}/auth/v1/admin/users/${createdId}`, { method: 'DELETE', headers: adminHeaders });
-            if (!rollback.ok) throw new Error('Compensation failed');
+            if (!(await adminAuth.deleteUser(createdId))) throw new Error('Compensation failed');
           } catch {
             throw new GatewayError('Conflict', 'Account setup needs operator reconciliation. Check Auth and profile records before retrying.', 409);
           }
