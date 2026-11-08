@@ -1,4 +1,4 @@
-# Part 2 — Ahmed — requests, approval and transfer
+# Part 2 — Ahmed/Awais — requests, approval and transfer
 
 Read [the shared plan](../README.md) and Abdulrahman's reviewed handoff.
 **Scope: C4–C6 only.** Run inherited setup/checks before extending the application.
