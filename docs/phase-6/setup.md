@@ -1,27 +1,29 @@
 # Part 1 minimum-scope setup
 
-Scope: C1–C3 plus asset/account audit groundwork. The current implementation is on
-Abdulrahman's draft-review `codex/phase6-01-foundation` branch; it is not merged into main.
-These commands require that implementation, not a planning-only main checkout.
+Scope: C1–C3 plus asset/account audit groundwork. The implementation is merged into
+main; these commands run from the repository root.
 
 ## Get the implementation branch
 
 For a new checkout:
 
-```powershell
-git clone --branch codex/phase6-01-foundation https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6.git
+```sh
+git clone https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6.git
 cd ai-campus-resource-exchange-and-asset-management-Group-6
 ```
 
-For an existing clean checkout, run `git fetch origin` then
-`git switch codex/phase6-01-foundation`. Preserve local edits before switching.
-The task/plan documents on main do not themselves contain the application source.
+For an existing checkout on main, pull the merged implementation. Preserve local
+edits before switching branches.
 
 ## Preview
 
-With Node.js 22.12 or newer, run `npm ci` then `npm run dev` from the implementation
-root. Open http://127.0.0.1:5173. Without credentials this is an explicitly read-only,
+With Node.js 22, run `npm ci` then `npm run dev` from the repository root. Open
+http://127.0.0.1:5173. Without credentials this is an explicitly read-only,
 synthetic catalogue, not simulated authentication or successful writes.
+
+For local Supabase development/testing, start Docker Desktop with WSL integration,
+then run `npm run supabase:start`. The project-local CLI and stack are for local use;
+they are not deployment. No hosted Supabase project is currently linked/configured.
 
 ## Actual Supabase setup
 
@@ -32,14 +34,15 @@ synthetic catalogue, not simulated authentication or successful writes.
    for provisioning. Never prefix a service secret with VITE_.
 3. Use your own Supabase CLI account and review the selected project before changes:
 
-   ```powershell
+   ```sh
    npx supabase login
    npx supabase link --project-ref YOUR_PROJECT_REF
    npx supabase db push
    ```
 
-   Apply the core migration only. Do not reset a shared project. A disposable local
-   Docker/Supabase instance is an alternative; Docker was unavailable here.
+   Apply the core migration only. Do not reset a shared project. Local Docker/Supabase
+   is available for development/testing using `npm run supabase:start`; it is not a
+   substitute for hosted acceptance checks.
 4. Set a strong local-only `DEMO_ACCOUNT_PASSWORD` of at least 16 characters and
    `CONFIRM_SYNTHETIC_SEED=yes`, then run `npm run seed:accounts`.
    This script creates real synthetic Auth accounts, maps profile IDs, provisions
@@ -60,7 +63,7 @@ Abi Ali adds the configuration/migration for AI #2 later; Awais adds AI #5 later
 ## Verification
 
 Run `npm test`, `npm run test:db`, `npm run test:browser`, `npm run build`,
-and `python scripts/validate-foundation-fixture.py`.
+and `python3 scripts/validate-foundation-fixture.py`.
 Browser tests require an installed Chrome. Database checks use actual PostgreSQL
 functions/constraints in PGlite with a minimal Auth adapter, not hosted Supabase.
 
