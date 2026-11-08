@@ -40,9 +40,9 @@ PDFs are the reading copies; DOCX files are their editable counterparts.
 
 Start with [the shared plan](docs/phase-6/README.md), then your assigned task:
 
-1. [Abi Ali — foundation, catalogue and classification](docs/phase-6/tasks/01-abi-ali.md)
+1. [Abdulrahman — foundation, catalogue and classification](docs/phase-6/tasks/01-abdulrahman.md)
 2. [Ahmed — exchange and asset life cycle](docs/phase-6/tasks/02-ahmed.md)
-3. [Abdulrahman — matching, advice, assistant and notifications](docs/phase-6/tasks/03-abdulrahman.md)
+3. [Abi Ali — matching, advice, assistant and notifications](docs/phase-6/tasks/03-abi-ali.md)
 4. [Muhammad Awais — reporting and final integration](docs/phase-6/tasks/04-muhammad-awais.md)
 
 Each task includes prerequisites, acceptance checks, an AI-assistant starting prompt

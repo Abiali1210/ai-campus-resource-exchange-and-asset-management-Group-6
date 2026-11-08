@@ -1,4 +1,4 @@
-# Part 3 — Abdulrahman — matching, advice, assistant and notifications
+# Part 3 — Abi Ali — matching, advice, assistant and notifications
 
 Read [the shared plan](../README.md). Status: waiting for part 2.
 Start from Ahmed's reviewed, merged work and both earlier handoffs. Run inherited
@@ -49,7 +49,7 @@ checks; reuse the existing AI gateway, authorization, records and business opera
 ## Documentation and handoff
 
 Complete report Section 3 and update feature/requirement status. Create
-`docs/phase-6/handoffs/03-abdulrahman.md`: AI task contracts, model/config identifiers,
+`docs/phase-6/handoffs/03-abi-ali.md`: AI task contracts, model/config identifiers,
 score inputs, known limitations, notification event mapping, test cases/results and
 instructions for reusing the gateway for report drafting. Never include secret values.
 
@@ -59,7 +59,7 @@ FR-REPORT-006–009 and related AI/privacy/safety requirements.
 
 ## Prompt for the member's AI assistant
 
-> Implement only docs/phase-6/tasks/03-abdulrahman.md. Read the shared plan and
+> Implement only docs/phase-6/tasks/03-abi-ali.md. Read the shared plan and
 > previous handoffs, verify inherited work, and explain your approach. Reuse normal
 > business operations and scoped AI gateway. Finish my report, checks and handoff;
 > honor user/AGENTS instructions and record failures honestly.

@@ -1,7 +1,7 @@
 # Part 2 — Ahmed — exchange and asset life cycle
 
 Read [the shared plan](../README.md). Status: waiting for part 1.
-Start only from Abi Ali's reviewed, merged work and `handoffs/01-abi-ali.md`.
+Start only from Abdulrahman's reviewed, merged work and `handoffs/01-abdulrahman.md`.
 Run his setup/checks first. Reuse his services, authorization and stock model.
 
 ## Build
@@ -51,7 +51,7 @@ may remain pending. They do not excuse missing separate decisions or purchase-ba
 
 Complete report Section 2 and update feature/requirement status. Create
 `docs/phase-6/handoffs/02-ahmed.md` with exact migrations, service contracts, states,
-event payloads, demonstration data, checks and limitations. Abdulrahman must consume
+event payloads, demonstration data, checks and limitations. Abi Ali must consume
 these ordinary business operations rather than create AI-specific mutation paths.
 
 Suggested branch: `codex/phase6-02-workflows`.

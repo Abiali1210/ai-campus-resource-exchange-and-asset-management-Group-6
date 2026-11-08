@@ -1,7 +1,7 @@
-# Part 1 — Abi Ali — foundation, catalogue and classification
+# Part 1 — Abdulrahman — foundation, catalogue and classification
 
 **Order: first.** Read [the shared plan](../README.md) before implementation.
-Status: not started. Intended owner: Abi Ali Murtaza Ghadiyali.
+Status: not started. Intended owner: Abdulrahman Feras Junaid.
 
 ## Start here
 
@@ -60,7 +60,7 @@ Avoid empty "working" buttons that suggest unimplemented capabilities are comple
 
 Complete report Section 1 and initialize the feature-status table. Add actual setup,
 environment-variable names, migrations/seeding instructions and a developer start
-command to the repository README. Create `docs/phase-6/handoffs/01-abi-ali.md` using
+command to the repository README. Create `docs/phase-6/handoffs/01-abdulrahman.md` using
 the shared template. Ahmed must be able to run the catalogue before adding workflows.
 
 Suggested branch: `codex/phase6-01-foundation`.
@@ -70,7 +70,7 @@ coverage where later workflow guards are not implemented yet.
 
 ## Prompt for the member's AI assistant
 
-> Implement my assigned Part 1 in docs/phase-6/tasks/01-abi-ali.md. Read the shared
+> Implement my assigned Part 1 in docs/phase-6/tasks/01-abdulrahman.md. Read the shared
 > plan and current repository sources first. Explain the approach, honor applicable
 > user/AGENTS instructions, work in small verified steps, and update my report and
 > handoff. Do not implement the other members' parts or claim unrun checks passed.

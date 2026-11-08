@@ -1,16 +1,16 @@
 # Phase 6 implementation plan
 
 Prepared 8 November 2026. Status: **planning only; implementation has not started**.
-Abi Ali's part is first. Work sequentially on the same application; each successor
+Abdulrahman's part is first. Work sequentially on the same application; each successor
 starts from the predecessor's merged, verified work.
 
 ## Owners and order
 
 | Order | Owner | Task file | Target dates | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Abi Ali | [Foundation, catalogue and classification](tasks/01-abi-ali.md) | 8–11 Nov | Ready to start; technology confirmation pending |
+| 1 | Abdulrahman | [Foundation, catalogue and classification](tasks/01-abdulrahman.md) | 8–11 Nov | Ready to start; technology confirmation pending |
 | 2 | Ahmed | [Exchange and life cycle](tasks/02-ahmed.md) | 12–14 Nov | Waiting for part 1 |
-| 3 | Abdulrahman | [Matching, advice, assistant and notifications](tasks/03-abdulrahman.md) | 15–17 Nov | Waiting for part 2 |
+| 3 | Abi Ali | [Matching, advice, assistant and notifications](tasks/03-abi-ali.md) | 15–17 Nov | Waiting for part 2 |
 | 4 | Muhammad Awais | [Reporting and final integration](tasks/04-muhammad-awais.md) | 18–20 Nov | Waiting for part 3 |
 
 21 November is a proposed correction/practice buffer. These dates are planning
