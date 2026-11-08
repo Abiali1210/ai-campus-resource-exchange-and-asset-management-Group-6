@@ -1207,3 +1207,81 @@ small {
 .specification-row + .button {
   margin-top: 3px;
 }
+/* Request and transfer forms reuse the catalogue's typography and controls. */
+.workflow-panel {
+  max-width: 1120px;
+}
+.workflow-panel h2 {
+  margin: 1.6rem 0 1rem;
+}
+.workflow-panel details {
+  margin: 1rem 0;
+}
+.workflow-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.6rem 0;
+}
+.workflow-card {
+  border-top: 1px solid var(--border, #dce1d7);
+  padding: 1.25rem 0;
+  overflow-wrap: anywhere;
+}
+.workflow-card h3 {
+  margin: 0 0 0.7rem;
+}
+.workflow-card p {
+  line-height: 1.6;
+}
+.workflow-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
+  min-width: 0;
+}
+.workflow-field input,
+.workflow-field select,
+.workflow-field textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid #cad3c7;
+  border-radius: 5px;
+  background: white;
+  color: #26352a;
+  font: inherit;
+}
+.workflow-form,
+.workflow-action {
+  max-width: 650px;
+  padding: 0.8rem 0;
+}
+.workflow-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+.workflow-facts dt {
+  color: #5f6e62;
+  font-size: 0.8rem;
+}
+.workflow-facts dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+.workflow-history pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.78rem;
+  background: #f0f3ec;
+  padding: 0.8rem;
+}
+@media (max-width: 600px) {
+  .workflow-facts {
+    grid-template-columns: 1fr;
+  }
+  .workflow-panel .results-heading {
+    flex-wrap: wrap;
+  }
+}
