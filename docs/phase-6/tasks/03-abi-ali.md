@@ -1,65 +1,44 @@
-# Part 3 — Abi Ali — matching, advice, assistant and notifications
+# Part 3 — Abi Ali — AI feature 2 matching and ranking
 
-Read [the shared plan](../README.md). Status: waiting for part 2.
-Start from Ahmed's reviewed, merged work and both earlier handoffs. Run inherited
-checks; reuse the existing AI gateway, authorization, records and business operations.
+Read [the shared plan](../README.md) and the first two handoffs.
+**Scope: AI #2 only.** Reuse the functioning request, stock and approval operations.
 
-## Build
+## Implement
 
-- [ ] Asset/request semantic retrieval using compatible model/version/dimension vectors
-      alongside keyword/category retrieval. Invalidate stale embeddings; retain manual
-      retrieval during failures. Saved assets remain searchable without vectors.
-- [ ] Mandatory safety/suitability/permission gates before deterministic compatibility
-      and ranking calculations from design Section 12.1. Do not invent scores with an LLM.
-      Missing mandatory evidence blocks reservation and shows Needs review.
-- [ ] Up to five candidates with factor explanations, missing evidence, model/run and
-      review outcome. Rank below 60 is Weak match, not a probability. Missing optional
-      factors use the documented treatment, not ad hoc weight redistribution.
-- [ ] Candidate accept/dismiss records review; selection records Interest only. Cover
-      active remaining unmet demand and closed requests, without reimplementing allocation.
-- [ ] Sustainable-action suggestions from actual condition/history/demand/cost evidence.
-      Show alternatives, reasons and uncertainty; missing essential evidence means Needs
-      review. Accept/reject/override records the reason and opens the normal workflow.
-- [ ] Scoped assistant for search, history/status, supplied policy, sustainability and
-      navigation; request preparation opens the normal editable form. Do not fabricate
-      institutional policy. Missing/restricted evidence produces an honest abstention.
-- [ ] Assistant has no approval/reservation/transfer/disposal execution tools. Permission
-      checks run before retrieval/provider calls, not merely on links after generation.
-- [ ] In-app notices for matches, approvals/exceptions, status, dispatch/receipt/return,
-      assignment, maintenance and final-action events already implemented in part 2.
-      Unique recipient/event keys, authorized links, visible retryable delivery failure.
-- [ ] Validate structured outputs/evidence, record provenance and reviewed corrections,
-      and handle provider timeout/outage/usage limits. Use provisional design timeouts;
-      record observed timings separately without claiming benchmarks were achieved.
+- [ ] Server-side Gemini embedding integration with secret-only provider credentials.
+  Verify available model ID/dimension; add the required model/run/embedding schema
+  and pgvector migration without changing previously applied migrations.
+- [ ] Compute/store asset embeddings after saved metadata. Retain source version/hash,
+  model/dimension and pending/ready/failed status. Failure never removes a saved asset.
+- [ ] Semantic candidates alongside conventional retrieval. Apply permission, safety,
+  specification, condition, quantity and current availability gates before ranking.
+- [ ] Up to five eligible surplus matches with compatibility score and one-line
+  reason. Use design Section 12.1's deterministic scoring and missing-data rules;
+  do not train a ranker or fabricate scores with generation calls.
+- [ ] Show missing mandatory evidence as Needs review and prevent allocation;
+  show weak scores/uncertainty clearly. Scores are not probabilities.
+- [ ] Requester accept/reject review, retained run/review evidence and normal Interest
+  creation on selection. AI cannot reserve or bypass supplier approval.
+- [ ] Conventional search/manual selection remains available on outage, malformed
+  provider output, incompatible/stale embeddings or no matches.
 
-## Acceptance evidence
+Do not implement classification (AI #1), sustainable-action advice (AI #3), assistant
+(AI #4), notifications, maintenance, dashboards or reporting.
 
-- [ ] Same seeded catalogue: compare keyword search and semantic matching with expected
-      synonym, exact, incompatible, unsafe, unknown, partial-stock and no-match cases.
-- [ ] Test stale embeddings, invalid provider output and AI outage; conventional paths work.
-- [ ] Equivalent synthetic cases changing only department identity reveal no unexplained
-      ranking difference. Record findings and dataset limitations, not accuracy claims.
-- [ ] Advice cannot execute an action or bypass end-of-life/maintenance approvals.
-- [ ] Assistant handles permitted questions, missing policy, forbidden finance/department
-      queries, attempted approvals and editable request confirmation safely.
-- [ ] Correct notification recipients/links; duplicate event and delivery-failure cases
-      do not duplicate notices or reverse business outcomes.
-- [ ] Existing checks pass; record actual service calls versus simulated failure tests.
+## Finish evidence
 
-## Documentation and handoff
+- [ ] Synonym and exact matches, incompatible/unsafe/unknown cases, partial quantity
+  and remaining-demand cases with declared synthetic expected results.
+- [ ] Human accept/reject; no selection-driven allocation or authority bypass.
+- [ ] Invalid output, stale vectors and outage leave ordinary workflows usable.
+- [ ] Local tests and actual configured embedding call recorded separately.
+- [ ] Existing catalogue/transfer checks continue to pass.
 
-Complete report Section 3 and update feature/requirement status. Create
-`docs/phase-6/handoffs/03-abi-ali.md`: AI task contracts, model/config identifiers,
-score inputs, known limitations, notification event mapping, test cases/results and
-instructions for reusing the gateway for report drafting. Never include secret values.
+Complete report Section 3 and `docs/phase-6/handoffs/03-abi-ali.md` with model config,
+contracts, test data/results and limitations. Branch: `codex/phase6-03-matching`.
 
-Suggested branch: `codex/phase6-03-ai-notifications`.
-Requirement focus: FR-AI-MATCH-001–011, FR-AI-SUST-001–004, FR-ASSIST-001–005,
-FR-REPORT-006–009 and related AI/privacy/safety requirements.
+## AI starting prompt
 
-## Prompt for the member's AI assistant
-
-> Implement only docs/phase-6/tasks/03-abi-ali.md. Read the shared plan and
-> previous handoffs, verify inherited work, and explain your approach. Reuse normal
-> business operations and scoped AI gateway. Finish my report, checks and handoff;
-> honor user/AGENTS instructions and record failures honestly.
+> Implement only AI feature #2 from docs/phase-6/tasks/03-abi-ali.md. Read the shared
+> minimum scope and prior handoffs, reuse ordinary operations, explain the approach,
+> and finish checks/report/handoff. Do not add the other AI features or notifications.

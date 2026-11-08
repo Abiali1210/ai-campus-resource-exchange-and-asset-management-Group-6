@@ -1,130 +1,95 @@
-# Phase 6 implementation plan
+# Phase 6 minimum implementation plan
 
-Prepared 8 November 2026. Status: **planning only; implementation has not started**.
-Abdulrahman's part is first. Work sequentially on the same application; each successor
-starts from the predecessor's merged, verified work.
+Updated 8 November 2026. **Current scope: C1–C6 and AI features #2 and #5 only.**
+Abdulrahman clarified that the team should implement only the highlighted lab
+minimum for now. This supersedes the broader Phase 6 task allocation previously
+published. The full SRS/design remain references for later phases; deferred
+features are not deleted from those submitted documents.
 
-## Owners and order
+## Required deliverables
 
-| Order | Owner | Task file | Target dates | Status |
-| --- | --- | --- | --- | --- |
-| 1 | Abdulrahman | [Foundation, catalogue and classification](tasks/01-abdulrahman.md) | 8–11 Nov | Ready to start; technology confirmation pending |
-| 2 | Ahmed | [Exchange and life cycle](tasks/02-ahmed.md) | 12–14 Nov | Waiting for part 1 |
-| 3 | Abi Ali | [Matching, advice, assistant and notifications](tasks/03-abi-ali.md) | 15–17 Nov | Waiting for part 2 |
-| 4 | Muhammad Awais | [Reporting and final integration](tasks/04-muhammad-awais.md) | 18–20 Nov | Waiting for part 3 |
+The [Phase 6 slides](sources/phase-6-draft-implementation.pptx), slides 3–5, require:
 
-21 November is a proposed correction/practice buffer. These dates are planning
-targets, not effort estimates or completion promises. The brief tentatively lists
-Phase 6 in labs of the week starting 22 November; the confirmed lab schedule governs.
+- C1: login and at least three roles; server-side permission checks.
+- C2: departments and asset registration with category, condition, department/status.
+- C3: publish surplus; keyword/category/condition/department search and filters.
+- C4: request submission and tracking of the user's own requests.
+- C5: at least one approval, no self-approval, receiver confirmation, correct
+  ownership/department update and no double allocation of the last item.
+- C6: guarded state transitions and asset history showing who did what and when.
+- AI #2: up to five matching/ranked eligible surplus items with scores, one-line
+  reasons and requester accept/reject. Selection does not bypass approval.
+- AI #5: database-calculated report numbers, AI-written short summary and human
+  admin editing before publication.
 
-## Read these sources first
+**Deferred for now:** C7 sustainability dashboard, C8 in-app notifications, C9
+standalone operational reporting/CSV, AI #1 classification, AI #3 sustainable-action
+advice, AI #4 conversational assistant, maintenance/repair and end-of-life workflows.
+A small calculated report snapshot/page is necessary for AI #5; it is not a request
+to build the full dashboard or C9 report suite. Do not implement these deferred
+features opportunistically or add them to another member's checklist.
 
-1. [Project brief](../Project-September2026.pdf), Phase 6 on PDF pages 8–9 and schedule on page 10.
-2. [Phase 1](../phase-1/COSC336_Group6_Phase1_v1.0.docx): scope and business intent.
-3. [Phase 2](../phase-2/COSC336_Group6_Phase2_v1.1.docx): proposed environment and feasibility checks.
-4. [Current SRS v1.2](../phase-3/COSC336_Group6_Phase3_SRS_v1.2.docx): requirements, acceptance criteria, role matrix and state tables.
-5. [Design v1.4](../phase-4-5/COSC336_Group6_Phase4_5_Design_v1.4.docx): particularly Sections 5–6 and 10–12.
-6. [Phase 6 lab slides](sources/phase-6-draft-implementation.pptx): slides 3–5.
+## Sequential owners
 
-Reviewed baseline: repository commit `3dcf69c7cc7e28a4da5c110d107287346e53d983`.
-Use newer reviewed repository documents if they change. Do not use old local drafts,
-untracked generated sources, or Downloads copies in preference to repository files.
-If requirements conflict, record the conflict and ask the team/instructor; do not
-silently replace the SRS with this plan.
+| Order | Owner | Task | Target dates |
+| --- | --- | --- | --- |
+| 1 | Abdulrahman | [Foundation and catalogue: C1–C3, audit foundation](tasks/01-abdulrahman.md) | 8–11 Nov |
+| 2 | Ahmed | [Requests, approval and transfer: C4–C6](tasks/02-ahmed.md) | 12–14 Nov |
+| 3 | Abi Ali | [AI #2 matching/ranking](tasks/03-abi-ali.md) | 15–17 Nov |
+| 4 | Muhammad Awais | [AI #5 generated report and integration](tasks/04-muhammad-awais.md) | 18–20 Nov |
 
-## Scope and decisions
+Dates are targets, not completion promises. Reserve 21 November for corrections and
+practice. The brief's tentative Phase 6 deadline is the lab week starting 22 November;
+confirm the actual lab instructions. Each member starts from the previous reviewed,
+merged part and leaves a working application, actual check results and a handoff.
 
-- The slides require at least C1–C6 and say "atleast 2 and 5 AI features". Implement
-  numbered AI features 2 (matching) and 5 (reports) to cover that wording.
-- The brief also lists classification, maintenance, notifications, dashboard and
-  reports as prototype minimums. The SRS retains all five AI capabilities. This
-  plan therefore includes basic versions of C1–C9, classification, matching,
-  sustainable-action advice, assistant and generated reporting.
-- This is a working draft, not a claim of complete SRS verification. Map each
-  implemented, partial and pending requirement to evidence. Comprehensive Phase 7
-  testing follows, but every part must be tested before handoff.
-- Working proposal: React/TypeScript/Vite, Supabase Auth/storage/functions,
-  PostgreSQL/pgvector, Gemini, and Cloudflare static frontend hosting. TBD-001
-  remains unresolved. Confirm instructor acceptance before substantial stack-specific
-  work; do not mark approval obtained merely because the feasibility report passed.
-- Keep one modular application, one database and one server-side AI gateway. Follow
-  class-diagram responsibilities with domain/service classes; functional React
-  components are appropriate for screens. Do not introduce another application
-  server or a general autonomous-agent framework without a recorded reason.
-- Verify actual provider model identifiers, embedding dimensions and account access
-  during the initial trial. Do not assume proposed model names are currently usable.
-- Use synthetic records and permitted sample files. The approximately $35/month
-  feasibility allowance is not authorization to buy services or upgrade plans.
-- Optional SRS Should refinements may remain pending: combined approval interaction
-  (FR-TRANSFER-002), escalation routing (FR-TRANSFER-008), purchase indicator
-  (FR-REQUEST-008). Institutional integration, forecasting, training and production
-  infrastructure are outside this draft. Required controls cannot be dropped as polish.
+## Baseline and implementation rules
 
-## Shared implementation rules
+Read the [brief](../Project-September2026.pdf), [SRS v1.2](../phase-3/COSC336_Group6_Phase3_SRS_v1.2.docx),
+[design v1.4](../phase-4-5/COSC336_Group6_Phase4_5_Design_v1.4.docx) and the lab slides.
+Repository versions take priority over old attached/local drafts.
+User-reported instructor approval of React/TypeScript + Supabase was confirmed on
+8 November. Keep the proposed React/Vite, Supabase/PostgreSQL managed backend;
+Gemini and pgvector are introduced only by the AI stages that need them.
 
-- Preserve all nine human role classes. System Administrator is technical authority,
-  not a universal business approver. Enforce scope in backend/database and file access.
-- Use Asset + StockPortion. Active leaf quantities sum to asset total. Each transfer
-  handles one asset or homogeneous portion. Never replace this with a single mutable
-  batch owner/status or introduce a multi-asset transfer engine.
-- Selection creates Interest only. Supplying Representative/Custodian approves a
-  reservation, then records a distinct release decision. No self-approval in the prototype.
-- Lock/check stock and outstanding demand together. Commit allocation, reservation,
-  pending transfer, approval and audit atomically. Retries must not duplicate outcomes.
-- Dispatch changes physical tracking. Only accepted full approved receipt changes
-  formal assignment/custody and fulfilled quantity. Disputes stay allocated; supplier-
-  confirmed return restores unmet demand and condition-controlled stock.
-- Maintenance work completion and authorized condition update are separate. End-of-life
-  rejection restores recorded prior state; neither event clears an unsafe assessment.
-- Business mutations and audit commit together. Notifications follow committed events;
-  delivery failures are visible/retryable and do not reverse business transactions.
-- AI is advisory. Scope retrieval before provider calls; validate output and retain
-  model/run/review provenance. Standard forms/search/workflows work during outages.
-  Optional embeddings run after saving and cannot roll back a saved asset.
-- Reports calculate facts before AI drafts text. Preserve units, sources, assumptions,
-  cohort/deduplication and unavailable states. Scores are not probabilities.
+- Use domain/service classes and reusable React screens. Do not rebuild the app at
+  each handoff, switch architecture or add another application server.
+- Keep the nine existing role keys for compatibility, but build only the screens/
+  operations needed here. Technical administration does not grant business approval.
+- Preserve StockPortion quantities, department boundaries and backend authorization.
+  Interest is not reservation; supplier approval allocates atomically.
+- Preserve separate reservation/release records where the design requires them,
+  physical tracking at dispatch, and formal custody only on accepted receipt.
+- Preserve invalid/unsafe/unknown condition guards; do not build a maintenance or
+  disposal module merely because the full state vocabulary includes those states.
+- Keep audit with committed mutations. An internal event record for audit integration
+  is not an instruction to build notifications.
+- AI remains advisory and caller-scoped; ordinary workflows survive an AI outage.
+  Scores are compatibility indicators, not probabilities. Report totals come from
+  recorded/calculated data, never invented model output.
+- No institutional integration, model training, paid purchases or production platform
+  work. Use synthetic test data; never commit credentials or impersonate a teammate.
 
-## Working conventions for an AI implementing a part
+## Instructions for each AI assistant
 
-1. Read this file, the assigned task and applicable AGENTS.md/user instructions.
-   Explain the approach before editing. This task file does not override learning,
-   approval or safety instructions from the member using the assistant.
-2. Inspect the actual code and previous handoff. Do not regenerate the application
-   or silently switch architecture. Run the existing checks before extending it.
-3. Use a branch such as `codex/phase6-01-foundation`. Keep commits meaningful and
-   attributable to the member doing and reviewing the work; do not impersonate others.
-4. Follow existing names/contracts. Suggested layout, once needed: `src/`,
-   `supabase/migrations/`, `supabase/functions/`, `tests/`, and this documentation folder.
-   The first member records the actual structure and reproducible setup commands.
-5. Add sequential migrations. Do not edit applied migrations or reset shared data.
-   Commit `.env.example` placeholders and dependency lockfiles, never credentials.
-6. Implement only the assigned part, including its screens, meaningful checks and
-   documentation. Fix integration issues caused by that part before handing off.
-7. Update the report section and create `handoffs/NN-owner.md` with the template below.
-   Mark status complete only with evidence. Stop after the assigned part; the next
-   member proceeds after the work is reviewed and merged. Do not push/merge without
-   authorization from the member's active session.
+Read this plan, your owner's task, previous handoffs and applicable AGENTS/user
+instructions. Explain the approach, inspect existing code and run inherited checks.
+Implement only your assigned minimum. Use additive migrations and existing contracts;
+do not reset shared data. Keep meaningful commits attributable to the member doing
+the work, and obtain authorization before publishing or merging.
 
-### Required handoff contents
+Each handoff records owner/branch/revision/reviewer, setup/migration/seed commands,
+changed contracts, checks actually run, failures and remaining work. Do not report
+mocked/local checks as live service tests. Each human owner reviews and demonstrates
+the result.
 
-- Owner, branch, commit, date and reviewer; what is implemented/partial/pending.
-- Exact setup, migration, seed and run/check commands; required secret names only.
-- Changed schema/contracts and integration points for the next part.
-- Checks actually run, results and a short manual demonstration; include failures.
-- Known issues, external blockers, remaining decisions and the next person's first action.
+## Report and current status
 
-Each member must understand and demonstrate the result. AI assistance is disclosed;
-it does not establish independent authorship, approval, measured accuracy or passing tests.
+Slide 5 explicitly requests an environment/selected-features report. No page count,
+template or separate upload format is specified. Use the short shared
+[implementation report](implementation-report.md); 2–4 pages is a recommendation,
+not an instructor rule. Each member writes their section during their turn.
 
-## Report and completion
-
-Slide 5 explicitly requests a report deciding implementation environment and selected
-features. It does not specify page count, template or a separate submission format.
-Use [the shared report](implementation-report.md); 2–4 pages plus necessary evidence
-is a recommendation, not a course rule. Each member updates their section during
-their turn. Awais assembles the final reading copy if the lab requires one.
-
-At the end: runnable draft, source/configuration/lockfiles, reproducible synthetic
-seed, actual checks and limitations, short report, and a repeatable demonstration.
-Do not claim all SRS acceptance tests or production readiness. The team checks the
-lab upload/demonstration instructions and confirmed deadline.
+Part 1 has been narrowed and locally checked on the unpublished implementation branch.
+Follow [setup](setup.md) and [Abdulrahman's progress handoff](handoffs/01-abdulrahman.md)
+for current verification and live configuration still needed.

@@ -1,76 +1,48 @@
-# Part 1 — Abdulrahman — foundation, catalogue and classification
+# Part 1 — Abdulrahman — foundation and catalogue
 
-**Order: first.** Read [the shared plan](../README.md) before implementation.
-Status: not started. Intended owner: Abdulrahman Feras Junaid.
+**First part. Scope: C1–C3 and the C6 audit foundation only.**
+Read [the shared plan](../README.md). Instructor stack approval was reported by
+Abdulrahman on 8 November. Service setup is still needed; see [setup](../setup.md).
 
-## Start here
+## Implement
 
-Use the current remote main on a task branch, preserving unrelated local edits.
-Read the SRS role matrix and design v1.4 Sections 3–7 and 10–11. Check TBD-001
-language approval first. If confirmation is missing, record it and ask the member;
-continue stack-independent data/contracts/test-data preparation while waiting.
-Do not claim a previous report grade establishes language approval.
+Checked items mean source exists and local checks passed, not hosted acceptance.
 
-## Build
+- [x] React/TypeScript/Vite application, clear navigation and service/domain classes.
+- [x] Supabase login/logout, administrator-created accounts, roles, departments and
+  account activation/deactivation. Server-side permissions, not just hidden buttons.
+- [x] Requester, Representative/Custodian and technical administrator paths. Preserve
+  the other existing role keys without building their unrelated workflows.
+- [x] Asset/category/StockPortion data; name, description/specifications, quantity,
+  condition, department/custodian, location and state needed by subsequent parts.
+- [x] Conventional registration/editing and separate surplus publication/withdrawal.
+  Prevent invalid quantities and unsafe/allocated state changes.
+- [x] Keyword, category, condition and department search/filtering. Clear unknown
+  condition and empty-result states.
+- [x] Asset history and account/asset/publication audit with actor, UTC time and changes.
+- [x] Synthetic two-department catalogue with individual equipment, a quantity batch,
+  unknown condition and unsafe/retired cases; reproducible account/seed setup.
+- [x] Setup instructions, dependency lockfile and backend/validation checks.
 
-- [ ] Reproducible application setup and dependency lockfile; layered service/domain
-      classes and reusable screens/navigation without implementing later modules.
-- [ ] Supabase identity and nine-role/department assignments; administrator-created
-      accounts, edit/deactivate, sign in/out, protected routes and account-change audit.
-- [ ] Backend/database default-deny scope and private file access. Technical admin
-      cannot automatically approve business actions; no browser-only authorization.
-- [ ] Categories, Asset, StockPortion and Attachment schema; foundation for audit,
-      model versions and AI interactions. Do not create unused placeholder tables for
-      every later feature. Record planned keys/statuses/contracts before Ahmed starts.
-- [ ] Asset registration/editing with SRS fields, individual/batch tracking, preserved
-      validation input, eligible surplus publication/withdrawal and asset detail/history.
-- [ ] Keyword/category/condition/department filtering. Show only eligible cross-department
-      marketplace information; protect unrelated operational and financial fields.
-- [ ] Permitted sample photo/document uploads and authorized downloads.
-- [ ] Task-scoped server-side AI gateway with secret-only provider credentials. Trial
-      representative text, image/document input and an embedding call early; document
-      actual supported models/dimensions and errors rather than assuming availability.
-- [ ] AI classification suggestions from supplied evidence; accept/edit/reject before
-      applying them. Validate taxonomy/structured output and retain human/model/run data.
-- [ ] Save assets before optional embedding work; implement ready/pending/failed status,
-      content/model version tracking and explicit retry hooks for part 3 retrieval.
-- [ ] Seed two departments, all role assignments needed for later demonstrations,
-      quantity-one equipment, a divisible batch, unsafe/unknown-condition assets,
-      missing inputs and permitted sample files. Keep secrets out of seeds/Git.
-- [ ] Record shared IDs, enums and proposed operation signatures in the handoff,
-      aligned with design Section 11. Prepare audit/committed-event conventions for Ahmed.
+Do not implement classification, embeddings, uploads, assistant, advice, notifications,
+maintenance, end-of-life, dashboards or reports. Abi Ali owns matching/embeddings later;
+Awais owns report generation later. Do not expose unfinished future screens.
 
-Do not add transfers, maintenance, assistant, ranking or report screens in this part.
-Avoid empty "working" buttons that suggest unimplemented capabilities are complete.
+## Finish evidence
 
-## Acceptance evidence
+- [x] Build, 20 unit tests, 16 core PostgreSQL checks and 6 Chrome flows pass.
+- [ ] Actual configured login/logout and inactive-account behavior verified.
+- [ ] Direct unauthorized RPC/table access, wrong department and attempted technical-
+  admin business mutation are rejected.
+- [ ] Register/edit/publish/withdraw/search and history work with seeded quantities.
+- [ ] A second member can reproduce setup; record remaining live checks honestly.
 
-- [ ] Clean setup from documented instructions and reproducible seeds.
-- [ ] Login/logout, account deactivation and role-change behavior agree with the SRS.
-- [ ] Authorized catalogue operations pass; wrong-role/department and direct unauthorized
-      database/file requests fail, including attempted role escalation.
-- [ ] Individual and batch quantities persist correctly; invalid publication is blocked.
-- [ ] Filters work with seeded records and unknown/unsafe states are clearly identified.
-- [ ] Classification correction, malformed output and provider outage are demonstrated.
-      Manual save/search still work; failed embeddings do not remove saved assets.
-- [ ] Available build/type checks and meaningful permission/validation tests pass.
-      State what required real services and what was simulated.
+Update report Section 1 and [your handoff](../handoffs/01-abdulrahman.md).
+Branch: `codex/phase6-01-foundation`. Ahmed starts from your reviewed merged revision.
 
-## Documentation and handoff
+## AI starting prompt
 
-Complete report Section 1 and initialize the feature-status table. Add actual setup,
-environment-variable names, migrations/seeding instructions and a developer start
-command to the repository README. Create `docs/phase-6/handoffs/01-abdulrahman.md` using
-the shared template. Ahmed must be able to run the catalogue before adding workflows.
-
-Suggested branch: `codex/phase6-01-foundation`.
-Requirement focus: FR-USER-001–005, FR-ASSET-001–008, FR-SEARCH-001–004,
-FR-AI-CLASS-001–004, supporting security/privacy/audit requirements. Mark partial
-coverage where later workflow guards are not implemented yet.
-
-## Prompt for the member's AI assistant
-
-> Implement my assigned Part 1 in docs/phase-6/tasks/01-abdulrahman.md. Read the shared
-> plan and current repository sources first. Explain the approach, honor applicable
-> user/AGENTS instructions, work in small verified steps, and update my report and
-> handoff. Do not implement the other members' parts or claim unrun checks passed.
+> Implement only Part 1 in docs/phase-6/tasks/01-abdulrahman.md. Read the shared plan
+> and current repo first. Scope is C1–C3 plus audit groundwork, not the full project.
+> Explain your approach, reuse existing work, test meaningful boundaries and update
+> my report/handoff. Honor applicable user/AGENTS instructions and record failures.

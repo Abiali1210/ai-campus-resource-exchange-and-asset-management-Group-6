@@ -2,59 +2,50 @@
 
 Group 6 — COSC 336 — Fall 2026
 
-**Status: report scaffold; no implementation results recorded yet.**
-The Phase 6 lab slides (slide 5) request an environment/selected-features report.
-Page count and submission format are not specified. Keep this concise; do not
-turn planning statements below into claims of completed implementation.
+## Selected scope
 
-## 1 Environment and structure — Abdulrahman
+Per Abdulrahman's 8 November clarification, this draft implements only the lab
+minimum: **C1–C6, AI #2 matching/ranking and AI #5 generated reports**.
+The broader SRS remains the semester baseline; other capabilities are deferred,
+not claimed complete. Slide 5 requires this environment/selected-features report;
+it does not specify a page count or separate submission format.
 
-Pending: actual stack/version choices, language-approval status, setup instructions,
-service/model access trial, module/class structure, synthetic data, secret handling
-and implemented catalogue/classification evidence. Link commands rather than
-duplicating long setup instructions. Retain external decisions still unresolved.
+## 1 Environment and catalogue — Abdulrahman
 
-## 2 Workflows and authority — Ahmed
+Approved working stack: React/TypeScript/Vite and Supabase/PostgreSQL. Abdulrahman
+reported instructor approval on 8 November. Gemini/pgvector are introduced by the
+matching/report owners, not Part 1. Part 1 contains login/accounts/roles/departments,
+conventional catalogue registration/publication/search and audit groundwork.
+See [setup](setup.md) and [progress handoff](handoffs/01-abdulrahman.md).
 
-Pending: actual request/reservation/release/dispatch/receipt/return behavior, portion
-accounting, maintenance/condition separation, final-action approvals, and check results.
+Part 1 was rechecked after removing the broader AI and file-storage features.
+The production build, 20 unit tests, 16 PostgreSQL checks and 6 Chrome flows passed.
+No hosted Supabase account provisioning has been executed. Local checks are not
+live service acceptance. Report exact narrowed-scope results in the handoff.
 
-## 3 AI and human control — Abi Ali
+## 2 Requests and transfers — Ahmed
 
-Pending: actual retrieval/scoring/advice/assistant behavior, model/run provenance,
-human decisions, notifications, invalid-output/outage behavior and a small comparison
-with conventional search using declared synthetic cases.
+Pending C4–C6 implementation and actual verification evidence.
 
-## 4 Reporting and verification — Muhammad Awais
+## 3 Matching and ranking — Abi Ali
 
-Pending: implemented report/dashboard formulas, sources and limits, narrative validation,
-actual integration/calculation/backup evidence, demonstration and Phase 7 follow-up.
+Pending AI #2 implementation, human selection and fallback evidence.
 
-## Feature status
+## 4 Generated report and integration — Muhammad Awais
 
-Replace Planned with Implemented, Partial or Pending only when evidence is available.
-Map the relevant individual SRS IDs during implementation; these groups are an index,
-not a claim that every requirement in the group is verified.
+Pending AI #5, authoritative calculated snapshot, edited publication and integrated
+demonstration. Keep the report short and distinguish recorded outcomes from estimates.
 
-| Feature | Owner | Status | Evidence / limitations |
-| --- | --- | --- | --- |
-| C1 accounts, roles and departments | Abdulrahman | Planned | FR-USER |
-| C2 assets and portions; C3 publication/search | Abdulrahman | Planned | FR-ASSET, FR-SEARCH |
-| AI 1 classification | Abdulrahman | Planned | FR-AI-CLASS |
-| C4 requests; C5 approval/transfer; C6 states/history | Ahmed | Planned | FR-REQUEST, FR-TRANSFER |
-| Maintenance, condition and final actions | Ahmed | Planned | FR-MAINT, BR |
-| AI 2 matching/ranking | Abi Ali | Planned | FR-AI-MATCH |
-| AI 3 sustainable-action advice | Abi Ali | Planned | FR-AI-SUST |
-| AI 4 assistant | Abi Ali | Planned | FR-ASSIST |
-| C8 in-app notifications | Abi Ali | Planned | FR-REPORT-006–008 |
-| C7 indicators; C9 operational reports/CSV | Muhammad Awais | Planned | FR-REPORT, SUS |
-| AI 5 generated report | Muhammad Awais | Planned | FR-REPORT-004–005 |
-| Cross-cutting security, audit and fallback | Each owner | Planned | Evidence per operation |
-| Clean setup, isolated recovery and integration | Muhammad Awais; all supply evidence | Planned | No checks run yet |
+## Status
 
-## Limitations and assistance
+| Required feature | Owner | Status |
+| --- | --- | --- |
+| C1 accounts/roles/departments | Abdulrahman | Source exists; narrowed checks/live setup pending |
+| C2 assets/status; C3 publication/search | Abdulrahman | Source exists; narrowed checks/live setup pending |
+| C4 requests; C5 approval/transfer; C6 workflow/history | Ahmed | Planned; Part 1 audit groundwork exists |
+| AI #2 matching/ranking | Abi Ali | Planned |
+| AI #5 generated report | Muhammad Awais | Planned |
 
-Synthetic data cannot establish actual campus savings, adoption or general AI accuracy.
-Technology approval, institutional delegation/retention and measured AI performance
-remain unresolved unless actual confirmation/evidence is recorded. Record each member's
-AI assistance and human review honestly. Planning does not establish implementation.
+Deferred now: C7–C9 as standalone modules, AI #1/#3/#4, maintenance and end-of-life.
+No synthetic data establishes actual campus savings/adoption or general AI accuracy.
+Each member records their actual AI assistance, human review and executed checks.

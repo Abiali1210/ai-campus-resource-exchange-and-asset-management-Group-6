@@ -40,14 +40,16 @@ PDFs are the reading copies; DOCX files are their editable counterparts.
 
 Start with [the shared plan](docs/phase-6/README.md), then your assigned task:
 
-1. [Abdulrahman — foundation, catalogue and classification](docs/phase-6/tasks/01-abdulrahman.md)
-2. [Ahmed — exchange and asset life cycle](docs/phase-6/tasks/02-ahmed.md)
-3. [Abi Ali — matching, advice, assistant and notifications](docs/phase-6/tasks/03-abi-ali.md)
-4. [Muhammad Awais — reporting and final integration](docs/phase-6/tasks/04-muhammad-awais.md)
+1. [Abdulrahman — foundation and catalogue](docs/phase-6/tasks/01-abdulrahman.md)
+2. [Ahmed — requests, approval and transfer](docs/phase-6/tasks/02-ahmed.md)
+3. [Abi Ali — AI #2 matching and ranking](docs/phase-6/tasks/03-abi-ali.md)
+4. [Muhammad Awais — AI #5 generated report and integration](docs/phase-6/tasks/04-muhammad-awais.md)
 
 Each task includes prerequisites, acceptance checks, an AI-assistant starting prompt
 and a report/handoff responsibility. [The shared report](docs/phase-6/implementation-report.md)
-is a scaffold; implementation has not started. Technology approval remains unresolved.
+records the selected scope: C1–C6 and AI #2/#5 only. Other features are deferred.
+Part 1 implementation is local on Abdulrahman’s branch; task/setup notes distinguish
+that from published code. Abdulrahman reported instructor stack approval on 8 November.
 
 ## Repository organization
 
