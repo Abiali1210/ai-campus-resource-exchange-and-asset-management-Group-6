@@ -2,7 +2,8 @@
 
 Branch: `codex/phase6-01-foundation`. Status: source narrowed to C1–C3 and audit
 groundwork; local checks passed; live configuration/human review pending.
-The implementation is local and uncommitted, not a published team handoff.
+The implementation is shared on this branch for draft review; it is not merged
+into main or an accepted live-service handoff.
 Instructor stack approval was reported by Abdulrahman on 8 November 2026.
 
 ## Scope

@@ -13,3 +13,11 @@ Desktop.ini
 .~lock.*#
 *.swp
 *.swo
+
+# Build and local tooling.
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.supabase/

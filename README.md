@@ -48,8 +48,16 @@ Start with [the shared plan](docs/phase-6/README.md), then your assigned task:
 Each task includes prerequisites, acceptance checks, an AI-assistant starting prompt
 and a report/handoff responsibility. [The shared report](docs/phase-6/implementation-report.md)
 records the selected scope: C1–C6 and AI #2/#5 only. Other features are deferred.
-Part 1 implementation is local on Abdulrahman’s branch; task/setup notes distinguish
-that from published code. Abdulrahman reported instructor stack approval on 8 November.
+Part 1 is available for draft review on `codex/phase6-01-foundation`; it is not
+merged into main and live Supabase acceptance remains pending. Abdulrahman reported instructor stack approval on 8 November.
+
+## Run the local Part 1 implementation
+
+The `codex/phase6-01-foundation` branch contains the core-only source. With Node.js 22.12+,
+run `npm ci` then `npm run dev`, and open http://127.0.0.1:5173. Without Supabase
+configuration this is an explicitly read-only synthetic preview. See
+[setup and verification](docs/phase-6/setup.md) for real account/database setup.
+No Gemini access is needed until the matching/report stages.
 
 ## Repository organization
 
