@@ -36,6 +36,19 @@ matching, recommendations, natural-language assistance, and reporting.
 
 PDFs are the reading copies; DOCX files are their editable counterparts.
 
+**Phase 6 — Sequential implementation plan**
+
+Start with [the shared plan](docs/phase-6/README.md), then your assigned task:
+
+1. [Abi Ali — foundation, catalogue and classification](docs/phase-6/tasks/01-abi-ali.md)
+2. [Ahmed — exchange and asset life cycle](docs/phase-6/tasks/02-ahmed.md)
+3. [Abdulrahman — matching, advice, assistant and notifications](docs/phase-6/tasks/03-abdulrahman.md)
+4. [Muhammad Awais — reporting and final integration](docs/phase-6/tasks/04-muhammad-awais.md)
+
+Each task includes prerequisites, acceptance checks, an AI-assistant starting prompt
+and a report/handoff responsibility. [The shared report](docs/phase-6/implementation-report.md)
+is a scaffold; implementation has not started. Technology approval remains unresolved.
+
 ## Repository organization
 
 ```text
