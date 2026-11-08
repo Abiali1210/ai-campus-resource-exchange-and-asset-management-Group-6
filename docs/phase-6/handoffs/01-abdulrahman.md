@@ -1,9 +1,8 @@
 # Part 1 progress — Abdulrahman
 
-Branch: `codex/phase6-01-foundation`. Status: source narrowed to C1–C3 and audit
+Original implementation branch: `codex/phase6-01-foundation` (now merged to main).
+Status: source narrowed to C1–C3 and audit
 groundwork; local checks passed; live configuration/human review pending.
-The implementation is shared on this branch for draft review; it is not merged
-into main or an accepted live-service handoff.
 Instructor stack approval was reported by Abdulrahman on 8 November 2026.
 
 ## Scope
@@ -31,7 +30,7 @@ npm test
 npm run test:db
 npm run test:browser
 npm run build
-python scripts/validate-foundation-fixture.py
+python3 scripts/validate-foundation-fixture.py
 ```
 
 Observed narrowed-scope results: production build passed; 20 unit tests passed

@@ -90,6 +90,6 @@ template or separate upload format is specified. Use the short shared
 [implementation report](implementation-report.md); 2–4 pages is a recommendation,
 not an instructor rule. Each member writes their section during their turn.
 
-Part 1 has been narrowed and locally checked on the draft-review implementation branch; it remains unmerged.
+Part 1 has been narrowed and locally checked; its implementation is merged into main.
 Follow [setup](setup.md) and [Abdulrahman's progress handoff](handoffs/01-abdulrahman.md)
 for current verification and live configuration still needed.
