@@ -86,23 +86,25 @@ be exposed or committed.
 
 ## Edge Function and Cloudflare
 
-The account-administration Edge Function is modernized locally but is **not deployed**.
+The account-administration Edge Function is deployed to the shared project.
 The authenticated browser sends its publishable key in `apikey` and its user JWT in
 `Authorization`; the function keeps them separate. Hosted Edge runtime reads
-`SUPABASE_SECRET_KEYS` and selects the named key using
-`SUPABASE_SECRET_KEY_NAME=phase6-provisioner`, with a `default` fallback. Locally, serve
+`SUPABASE_SECRET_KEYS`. The shared project has a Secret API key named `default`, which
+the function selects by default; no selector environment variable is required for this
+project. `SUPABASE_SECRET_KEY_NAME` is an optional override for projects deliberately
+using a different named secret, and the code falls back to `default`. Locally, serve
 the function only with a separate ignored environment file (for example,
 `.env.functions.local`) whose `SUPABASE_URL` and `SUPABASE_SECRET_KEY` both belong to
 the local Supabase stack; set the local `ALLOWED_ORIGINS` there too. Never pass the
 hosted `.env.local` to local function serving. The server secret is used only by the
-function's Supabase JS Admin Auth client. Hosted secret/origin configuration and
-function deployment require separate review and explicit approval; do not deploy as
-part of routine setup.
+function's Supabase JS Admin Auth client. The current hosted origins are configured.
+Any future secret/origin changes or function redeployment require separate review and
+explicit approval.
 
-Cloudflare Pages remains the frontend deployment target, but its Supabase environment
-variables are not configured. When separately approved, only the project URL and
-publishable key belong in frontend build settings—never the secret key. GitHub Actions
-performs validation only; it does not deploy.
+Cloudflare Pages remains the frontend deployment target. Supabase URL and publishable
+key variables are configured for Production; Preview remains synthetic and unconfigured.
+Only the project URL and publishable key belong in frontend build settings—never the
+secret key. GitHub Actions performs validation only; it does not deploy.
 
 ## Checks
 

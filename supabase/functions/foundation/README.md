@@ -12,19 +12,22 @@ its signed-in user's JWT in `Authorization`. The function uses the publishable k
 for caller-authenticated `/auth/v1/user` and profile RPC requests; the JWT is never
 replaced by a secret key.
 
-For hosted Edge Functions, Supabase provides `SUPABASE_SECRET_KEYS` as a JSON map. Set
-`SUPABASE_SECRET_KEY_NAME=phase6-provisioner` to select that named server secret; when
-the selected entry is unavailable, the function falls back to the map's `default`
-entry. A locally served function must use a separate ignored environment file, such
-as `.env.functions.local`, containing the local stack's `SUPABASE_URL`,
+For hosted Edge Functions, Supabase provides `SUPABASE_SECRET_KEYS` as a JSON map. The
+shared project has a Secret API key named `default`, which the function selects by
+default; no selector environment variable is needed for this project.
+`SUPABASE_SECRET_KEY_NAME` is an optional override for projects deliberately using a
+different named secret; the code falls back to the map's `default` entry. A locally
+served function must use a separate ignored environment file, such as
+`.env.functions.local`, containing the local stack's `SUPABASE_URL`,
 `SUPABASE_SECRET_KEY`, and `ALLOWED_ORIGINS`. Do not pass the hosted provisioning
 `.env.local` to local function serving. The secret initializes a server-only Supabase
 JS Admin Auth client used only for Auth user creation and compensating deletion. Never
 expose a secret key in browser code, responses, logs, or committed files.
 
-Set `ALLOWED_ORIGINS` to a comma-separated exact frontend-origin list. Local defaults:
-`http://localhost:5173,http://127.0.0.1:5173`. Set the actual hosted origin before
-serving a deployed frontend. CORS does not replace JWT or record authorization.
+`ALLOWED_ORIGINS` is a comma-separated exact frontend-origin list. The shared project's
+approved hosted origins are configured; review and approve any future changes. Local
+defaults are `http://localhost:5173,http://127.0.0.1:5173`. CORS does not replace JWT
+or record authorization.
 
 After applying the migrations and separately configuring the local secret, use the
 Supabase CLI to run the function locally:
@@ -37,9 +40,9 @@ Keep platform JWT verification enabled. The handler validates the incoming
 publishable-key header and separately verifies the caller JWT with
 `/auth/v1/user`, obtains the active database profile and assigned roles, and requires
 System Administrator. Every profile RPC uses the caller JWT and incoming publishable
-key. The server secret is used only by the isolated Auth Admin client. Hosted deployment
-and secret configuration remain separate user-approved steps; this function is not
-deployed by local tests.
+key. The server secret is used only by the isolated Auth Admin client. The shared hosted
+deployment is separate from local tests; future hosted secret/origin changes or
+redeployment require separate review and approval.
 
 ## Request contract
 
