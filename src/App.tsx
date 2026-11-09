@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { api } from "./api";
-import universityLogo from "./assets/branding/khalifa-university-white.png";
+import universityLogo from "./assets/branding/khalifa-university-colour-white-background.jpg";
 import {
   CONDITIONS,
   ROLES,
@@ -1241,7 +1241,7 @@ export default function App() {
           src={universityLogo}
           alt="Khalifa University"
           width="5286"
-          height="1195"
+          height="1913"
         />
         <div className="brand">
           <span className="brand-mark">

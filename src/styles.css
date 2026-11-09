@@ -94,6 +94,7 @@ small {
 }
 .university-logo {
   display: block;
+  background: #fff;
   width: 100%;
   max-width: 188px;
   height: auto;
