@@ -3,10 +3,17 @@
 Owner: Ahmed / Muhammad Awais. Implementation assistance: Codex. Date: 9 November
 2026 (Asia/Dubai). Branch: `codex/phase6-02-workflows`. Starting revision:
 `00cec3d819e4be272cebc1414907745f031e34e7`; the working tree was clean. Main was
-kept unchanged. Tested implementation revision:
+kept unchanged. Original tested implementation revision:
 `a4eb8af10ad2f9767eb95ca0c4906c96ddfd48b8` (`feat: implement phase 6 request and transfer workflows`).
 Independent reviewer: `/root/reviewer`, read-only review of design, source, diff and
 tests, including independent database reproductions. Human owner review/demo pending.
+
+Follow-up reviewed implementation revision:
+`9bd20674890a69cfe41830f2f679733be72c8c0e` (`chore: standardize formatting and clarify reviewed workflow boundaries`).
+The 9 November follow-up rechecked Part 1 with Part 2 installed, added the catalogue
+action regression, documented the folder map and reran all suites on Node 22.23.4.
+The independent reviewer reported no substantive unresolved findings. The subsequent
+handoff-only commit records that evidence without changing application behavior.
 
 ## Delivered and design alignment
 
@@ -25,6 +32,23 @@ role keys are preserved. `WorkflowService` extends the existing service class;
 authoritative permission, stock and audit changes run inside PostgreSQL transactions.
 The workflow screen loads as a separate frontend chunk.
 
+### What changed and why
+
+| Change                                        | Purpose for users                                                                 | How it is enforced                                                                                                                      |
+| --------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Request form and quantity tracking            | Staff can state their need and see what is still outstanding                      | Validated request fields; accepted/allocated/remaining totals calculated from database records                                          |
+| Interest before reservation                   | Selecting a listing does not promise stock prematurely                            | Interest records are separate from allocations                                                                                          |
+| Distinct supplier reservation and release     | The supplier checks suitability first, then readiness to move                     | Separate approval records, department/role checks and requester/Interest-creator self-approval denial                                   |
+| Atomic partial allocation                     | Departments cannot promise the same unit twice or overfill a need                 | Request/stock locks and conserved child portions; a transaction commits the related records together or none                            |
+| Facilities dispatch and receiver acceptance   | Movement can be tracked without pretending ownership changed early                | Assigned Facilities records movement; receiving Representative accepts full suitable quantity before formal custody/fulfillment changes |
+| Cancellation, dispute and confirmed return    | Missing or unsafe stock must not become available accidentally                    | State guards retain active allocation until safe reconciliation or full supplier-confirmed return                                       |
+| Versions, retry keys and audit                | Stale screens, interrupted responses and repeated clicks must not corrupt records | Expected versions reject old updates; repeated keys return one result; audit failure rolls back the business change                     |
+| Preserved architecture and additive migration | Teammates can extend existing work without rebuilding it or losing data           | Existing service classes, roles, audit and stock constraints are reused; Part 1's migration remains unchanged                           |
+
+The follow-up review also aligned catalogue controls with the server's edit scope.
+Split, allocated or mixed-owner stock no longer offers catalogue actions that the
+database would reject; the screen points users to the transfer workflow instead.
+
 The new additive migration is `202611090001_workflows.sql`. No applied Part 1
 migration, shared data, credentials or deferred module was rewritten. See
 [contracts](../contracts/part-2-workflows.md) for every command/input, status and
@@ -40,7 +64,9 @@ leaf details remain correct after splitting and revoked requester roles lose acc
 
 Use the existing [setup](../setup.md). Intended project runtime remains Node 22;
 this Windows environment supplied Node **24.15.0**, npm **11.12.1** and Python
-**3.14.3**. No hosted Supabase connection or `.env.local` was present.
+**3.14.3**. The follow-up review also verified all suites, native concurrency and
+the production build using an isolated **Node 22.23.4** runtime. No hosted Supabase
+connection or `.env.local` was present.
 
 ```powershell
 npm.cmd ci
@@ -77,17 +103,18 @@ npm.cmd run build
 python scripts/validate-foundation-fixture.py
 ```
 
-| Check                               | Actual result / evidence boundary                                                                                                                                       |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inherited baseline before extending | 20 unit tests, 16 PGlite database checks, six Chrome flows, build and fixture integrity passed                                                                          |
-| Unit suite after implementation     | 25 passed: 20 inherited and five workflow client-contract tests                                                                                                         |
-| `test:db`                           | 16 inherited foundation + 23 workflow checks passed in PGlite with a synthetic Auth schema                                                                              |
-| Native PostgreSQL workflow suite    | Same 23 workflow checks passed on isolated PostgreSQL 18.6 binaries, synthetic Auth adapter                                                                             |
-| Native overlapping-session checks   | Four passed: last unit, remaining demand across different assets, simultaneous identical retry, competing partial batches                                               |
-| Chrome browser suite                | Nine passed: five inherited HTTP-mocked foundation flows, one credential-free preview, three workflow flows using actual SQL/PGlite behind synthetic Auth/HTTP adapters |
-| Production build                    | Passed TypeScript and Vite; workflow code split, no oversized-chunk warning                                                                                             |
-| Foundation fixture integrity        | Passed: two departments, 12 profiles, six assets, nine roles and conserved stock                                                                                        |
-| Hosted Supabase                     | Not run: Auth/JWT/PostgREST/RLS integration, account provisioning, hosted migrations/seed, Edge and real browser-to-hosted service acceptance remain pending            |
+| Check                               | Actual result / evidence boundary                                                                                                                                                 |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inherited baseline before extending | 20 unit tests, 16 PGlite database checks, six Chrome flows, build and fixture integrity passed                                                                                    |
+| Unit suite after implementation     | 25 passed: 20 inherited and five workflow client-contract tests                                                                                                                   |
+| `test:db`                           | 16 inherited foundation + 23 workflow checks passed in PGlite with a synthetic Auth schema                                                                                        |
+| Native PostgreSQL workflow suite    | Same 23 workflow checks passed on isolated PostgreSQL 18.6 binaries, synthetic Auth adapter                                                                                       |
+| Native overlapping-session checks   | Four passed: last unit, remaining demand across different assets, simultaneous identical retry, competing partial batches                                                         |
+| Chrome browser suite                | Ten passed: five inherited HTTP-mocked foundation flows, one credential-free preview, four workflow/integration flows using actual SQL/PGlite behind synthetic Auth/HTTP adapters |
+| Production build                    | Passed TypeScript and Vite; workflow code split, no oversized-chunk warning                                                                                                       |
+| Foundation fixture integrity        | Passed: two departments, 12 profiles, six assets, nine roles and conserved stock                                                                                                  |
+| Formatting and preservation         | `npm run format:check` passed; syntax-tree comparison confirmed 11 inherited code files unchanged by formatting, and three JSON data/lock files retained their values             |
+| Hosted Supabase                     | Not run: Auth/JWT/PostgREST/RLS integration, account provisioning, hosted migrations/seed, Edge and real browser-to-hosted service acceptance remain pending                      |
 
 The database checks include the complete journey, direct table/helper denials,
 wrong role/department, requester and Interest-creator self-approval with multiple
@@ -103,6 +130,9 @@ responses. One test commits a request then drops its HTTP response, retries the
 retained key and verifies one request. Another changes the request version in a
 second session and verifies that the form keeps its selection note. Desktop/mobile
 screenshots were inspected; mobile has no horizontal overflow.
+The added integration flow verifies that catalogue actions are hidden first while
+a sibling batch portion is allocated, then after accepted receipt creates mixed
+department ownership. The SQL remains the authority in both situations.
 
 For genuine concurrency on a **disposable** PostgreSQL cluster:
 
