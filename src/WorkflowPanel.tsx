@@ -369,10 +369,11 @@ function TransferCard({
           </dd>
         </div>
       </dl>
-      {t.arrangements && (
+      {t.arrangements && <p>{t.arrangements}</p>}
+      {"handlingCost" in t && "transportCost" in t && (
         <p>
-          {t.arrangements} · Handling: {t.handlingCost ?? "unrecorded"} AED ·
-          Transport: {t.transportCost ?? "unrecorded"} AED
+          Handling: {t.handlingCost ?? "unrecorded"} AED · Transport:{" "}
+          {t.transportCost ?? "unrecorded"} AED
         </p>
       )}
       {actions.length > 0 && (

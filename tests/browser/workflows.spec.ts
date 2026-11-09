@@ -253,6 +253,56 @@ test("request through separate approval/release, assigned dispatch and accepted 
     await p.h.db.close();
   }
 });
+test("financial costs stay hidden from requester and Facilities tracking while representatives can read them", async ({
+  page,
+}) => {
+  const p = await project(page);
+  try {
+    const req = await p.h.request();
+    let t = await p.h.approve(await p.h.interest(req, p.stock));
+    t = await p.h.transfer(p.h.rep, t, "approveRelease", {
+      facilitiesId: p.h.facilities.userId,
+    });
+    t = await p.h.transfer(p.h.facilities, t, "schedule", {
+      scheduledAt: new Date(Date.now() + 3600000).toISOString(),
+      arrangements: "Privacy regression pickup at east entrance",
+      handlingCost: 12.5,
+      transportCost: 45.5,
+    });
+    const card = page.getByRole("article", {
+      name: "Transfer " + p.stock.name,
+      exact: true,
+    });
+    for (const actor of ["requester", "facilities"]) {
+      await p.login(actor);
+      await expect(card).toContainText(
+        "Privacy regression pickup at east entrance",
+      );
+      await expect(card).toContainText("Scheduled");
+      await expect(card).not.toContainText("Handling:");
+      await expect(card).not.toContainText("Transport:");
+      await expect(card).not.toContainText("unrecorded");
+    }
+    for (const actor of ["supplier", "receiver"]) {
+      await p.login(actor);
+      await expect(card).toContainText("Handling: 12.5 AED");
+      await expect(card).toContainText("Transport: 45.5 AED");
+    }
+    await p.h.transfer(p.h.facilities, t, "schedule", {
+      scheduledAt: new Date(Date.now() + 7200000).toISOString(),
+      arrangements: "Privacy regression pickup at east entrance",
+      handlingCost: 0,
+      transportCost: null,
+    });
+    await p.login("supplier");
+    await expect(card).toContainText("Handling: 0 AED");
+    await expect(card).toContainText("Transport: unrecorded AED");
+  } finally {
+    await page.unrouteAll({ behavior: "wait" });
+    await p.h.db.close();
+  }
+});
+
 test("split and mixed-owner stock hides catalogue actions that the database forbids", async ({
   page,
 }) => {

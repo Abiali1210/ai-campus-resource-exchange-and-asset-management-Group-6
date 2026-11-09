@@ -43,15 +43,25 @@ full reconciled acceptance or supplier-confirmed return. Unsafe/unknown stock re
 unavailable. Current roles/department scope, expected versions, stable retry keys and
 transactional actor/time/reason audit are enforced in PostgreSQL.
 
-Local verification after main integration: **31 unit tests, 16 inherited plus 23 workflow PGlite checks,
-the same 23 workflow checks on native PostgreSQL, four genuinely overlapping native
-transaction races, ten Chrome flows, production build, fixture integrity and formatting passed**.
+Local verification after the PR #13 privacy correction: **31 unit tests, 16 inherited plus 28 workflow PGlite checks,
+the same 28 workflow checks on native PostgreSQL, four genuinely overlapping native
+transaction races, eleven Chrome flows, production build, fixture integrity and formatting passed**.
 Browser evidence comprises five inherited HTTP-mocked foundation flows, a read-only
-preview, and four workflow/integration flows running actual SQL with synthetic Auth/HTTP
+preview, and five workflow/integration flows running actual SQL with synthetic Auth/HTTP
 adapters. These are local checks, not hosted Supabase acceptance. The initial run used
 Node 24.15.0. A follow-up review reran all suites, native concurrency and the build
 on the documented Node 22 runtime (22.23.4), including the split/mixed-owner catalogue
-action regression. The inherited foundation checks pass with both migrations installed.
+action regression. The inherited foundation checks pass with all three migrations installed.
+
+PR review reproduced a financial privacy defect: Requesters and assigned Facilities
+could read handling/transport costs directly and inside raw audit snapshots. An
+additive migration now enforces design Section 6.1 on every read, using current
+explicit financial roles and immutable transfer departments. Workspace, asset audit
+and both detail paths omit restricted costs while retaining operational history.
+The UI distinguishes omitted fields from authorized null/zero values. Five database
+regression groups and a browser flow cover this correction. A populated-schema
+upgrade check preserved existing costs/audits while immediately redacting restricted
+reads. Sign-in and backend configuration behavior are unchanged.
 
 A read-only independent reviewer examined requirements, implementation and checks,
 independently reproduced defects, and verified fixes for unsafe cancellation,
@@ -65,8 +75,9 @@ Hosted Part 2 migration/seed execution and actual browser-to-Supabase workflow
 acceptance remain pending. Incoming main provides modern publishable/secret-key
 configuration and short demo aliases; the workflow seed shares its identity mapping
 with the foundation provisioner. Shared-project data and credentials were not touched.
-Human owner review/demo and remote CI remain pending; no hosted deployment, remote
-push or feature-branch merge into main was performed. The latest main commit
+Human owner review/demo and hosted acceptance remain pending. PR #13 carries the
+feature branch for review; evaluate GitHub checks on its current head. No hosted
+deployment or feature-branch merge into main was performed. The latest main commit
 `2fcc41b` was integrated into the feature branch and retested locally.
 
 ## 3 Matching and ranking — Abi Ali

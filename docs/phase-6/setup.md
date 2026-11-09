@@ -13,7 +13,8 @@ The user-created Free project is `campus-exchange-group6-dev` (ref
 `202611080001` is already applied. Synthetic provisioning has already created 12 Auth
 users/profiles, 2 departments, 3 categories, 6 assets/stock portions, and 23 audit
 rows, according to the incoming Part 1 provisioning record. The workflow migration
-`202611090001` has not been applied or verified by this merge. Do not rerun the
+`202611090001` and its financial redaction correction `202611090002` have not been
+applied or verified on the hosted project by this work. Do not rerun the
 foundation migration or account provisioning for a new checkout. The project owner
 selected the Free plan; collaborators should review current usage and plan terms with
 the owner rather than assume limits or upgrade the project.
@@ -56,10 +57,14 @@ are not full live acceptance.
 
 ## Part 2 upgrade and workflow fixtures
 
-The feature branch adds `202611090001_workflows.sql`; it preserves the already
-applied foundation migration and existing data. Before using **Requests and transfers**
-against the shared project, the project owner must review the pending migration and
-its exact target. A schema-cache/missing-RPC error means the workflow upgrade is
+The feature branch adds `202611090001_workflows.sql` and the additive security fix
+`202611090002_workflow_financial_redaction.sql`; both preserve the already
+applied foundation migration and existing data. The correction removes restricted
+cost fields from transfer/history responses without rewriting stored audit records.
+Apply it after the workflow migration, including on databases that already have
+workflow data. Before using **Requests and transfers** against the shared project,
+the project owner must review the pending migrations and
+their exact target. A schema-cache/missing-RPC error means the workflow upgrade is
 not yet available; it is not an instruction to reset or reseed the shared project.
 
 ```sh
@@ -116,7 +121,7 @@ project. This creates Auth accounts and fixture data using real hosted writes. T
 script preserves existing accounts/records; it is not a routine checkout or test
 command. The publishable key is public; the secret key is server-only and must never
 be exposed or committed.
-After both migrations and account provisioning on that fresh project, explicitly
+After all three migrations and account provisioning on that fresh project, explicitly
 authorized workflow sample creation uses `npm run seed:workflows` as described above.
 
 ## Edge Function and Cloudflare

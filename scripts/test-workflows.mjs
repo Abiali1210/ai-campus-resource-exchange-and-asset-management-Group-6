@@ -29,6 +29,20 @@ async function check(name, fn) {
 const denied = (fn, pattern = /Forbidden|Unauthorized|permission denied/) =>
   assert.rejects(fn, pattern);
 const one = async (sql, args = []) => (await db.query(sql, args)).rows[0];
+const costKeys = new Set([
+  "handlingCost",
+  "transportCost",
+  "handling_cost",
+  "transport_cost",
+]);
+function assertNoCosts(value) {
+  if (!value || typeof value !== "object") return;
+  for (const [key, child] of Object.entries(value)) {
+    assert.equal(costKeys.has(key), false, `Financial field leaked: ${key}`);
+    assertNoCosts(child);
+  }
+}
+let financial;
 try {
   await check(
     "direct table and helper access denied to all ordinary roles",
@@ -1137,6 +1151,370 @@ try {
       await db.query("insert into public.user_roles values($1,'requester')", [
         requester.userId,
       ]);
+    },
+  );
+  await check(
+    "requester and assigned Facilities cannot read costs in direct RPC responses or nested history",
+    async () => {
+      const stock = await asset(),
+        req = await request();
+      let t = await approve(await interest(req, stock));
+      t = await transfer(rep, t, "approveRelease", {
+        facilitiesId: facilities.userId,
+      });
+      t = await transfer(facilities, t, "schedule", {
+        scheduledAt: new Date(Date.now() + 3600000).toISOString(),
+        arrangements: "Financial privacy regression trolley",
+        handlingCost: 111.11,
+        transportCost: 222.22,
+      });
+      t = await transfer(facilities, t, "schedule", {
+        scheduledAt: new Date(Date.now() + 7200000).toISOString(),
+        arrangements: "Financial privacy regression trolley",
+        handlingCost: 333.33,
+        transportCost: 444.44,
+      });
+      financial = { stock, req, t };
+      const stored = await db.query(
+        "select * from public.audit_logs where target_id=$1 order by audit_id",
+        [stock.assetId],
+      );
+      assert(
+        stored.rows.some(
+          (l) =>
+            Number(l.before_data?.transfer?.handling_cost) === 111.11 &&
+            Number(l.after_data?.transfer?.transport_cost) === 444.44,
+        ),
+      );
+      for (const actor of [requester, facilities]) {
+        const result = await workspace(actor);
+        const row = result.transfers.find((x) => x.transferId === t.transferId);
+        assert.equal(row.arrangements, "Financial privacy regression trolley");
+        assert.equal(row.state, "Scheduled");
+        assertNoCosts(result);
+        const history = result.history.filter(
+          (l) => l.after?.transfer?.transfer_id === t.transferId,
+        );
+        assert.equal(
+          history.filter((l) => l.event === "transfer.schedule").length,
+          2,
+        );
+        assert(
+          history.every((l) => l.actorId && l.occurredAt && l.after.reason),
+        );
+      }
+      assert.deepEqual(
+        (
+          await db.query(
+            "select * from public.audit_logs where target_id=$1 order by audit_id",
+            [stock.assetId],
+          )
+        ).rows,
+        stored.rows,
+      );
+      const raw = await one(
+        "select handling_cost,transport_cost from public.transfers where transfer_id=$1",
+        [t.transferId],
+      );
+      assert.equal(Number(raw.handling_cost), 333.33);
+      assert.equal(Number(raw.transport_cost), 444.44);
+    },
+  );
+  await check(
+    "participant representatives retain exact costs and distinguish zero or unrecorded from restricted",
+    async () => {
+      const { t } = financial;
+      for (const actor of [rep, receiver]) {
+        const result = await workspace(actor);
+        const row = result.transfers.find((x) => x.transferId === t.transferId);
+        assert.equal(row.handlingCost, 333.33);
+        assert.equal(row.transportCost, 444.44);
+        assert(
+          result.history.some(
+            (l) =>
+              Number(l.before?.transfer?.handling_cost) === 111.11 &&
+              Number(l.after?.transfer?.transport_cost) === 444.44,
+          ),
+        );
+      }
+      financial.t = await transfer(facilities, t, "schedule", {
+        scheduledAt: new Date(Date.now() + 7200000).toISOString(),
+        arrangements: "Financial privacy regression trolley",
+        handlingCost: 0,
+        transportCost: null,
+      });
+      const row = (await workspace(rep)).transfers.find(
+        (x) => x.transferId === t.transferId,
+      );
+      assert.equal(row.handlingCost, 0);
+      assert.equal(row.transportCost, null);
+      assertNoCosts(await workspace(requester));
+    },
+  );
+  await check(
+    "financial read permission follows current explicit roles and participant departments, including multirole users",
+    async () => {
+      const { t } = financial;
+      const thirdDepartment = randomUUID();
+      await db.query("insert into public.departments values($1,$2,true)", [
+        thirdDepartment,
+        "Synthetic financial scope " + thirdDepartment,
+      ]);
+      try {
+        for (const role of [
+          "finance",
+          "representative",
+          "business_administrator",
+        ]) {
+          await db.query("insert into public.user_roles values($1,$2)", [
+            requester.userId,
+            role,
+          ]);
+          const row = (await workspace(requester)).transfers.find(
+            (x) => x.transferId === t.transferId,
+          );
+          assert.equal(row.handlingCost, 0);
+          assert.equal(row.transportCost, null);
+          await db.query(
+            "delete from public.user_roles where user_id=$1 and role=$2",
+            [requester.userId, role],
+          );
+          assertNoCosts(await workspace(requester));
+        }
+        await db.query("insert into public.user_roles values($1,'finance')", [
+          requester.userId,
+        ]);
+        await db.query(
+          "update public.profiles set department_id=$1 where user_id=$2",
+          [thirdDepartment, requester.userId],
+        );
+        assert(
+          (await workspace(requester)).transfers.some(
+            (x) => x.transferId === t.transferId,
+          ),
+        );
+        assertNoCosts(await workspace(requester));
+        await db.query(
+          "update public.profiles set active=false where user_id=$1",
+          [requester.userId],
+        );
+        await denied(() => workspace(requester));
+      } finally {
+        await db.query(
+          "update public.profiles set department_id=$1,active=true where user_id=$2",
+          [requester.departmentId, requester.userId],
+        );
+        await db.query(
+          "delete from public.user_roles where user_id=$1 and role in ('finance','representative','business_administrator')",
+          [requester.userId],
+        );
+      }
+      for (const role of [
+        "finance",
+        "procurement",
+        "maintenance",
+        "sustainability",
+        "system_administrator",
+        "business_administrator",
+      ]) {
+        const result = await workspace(person(role));
+        assert.equal(
+          result.transfers.some((x) => x.transferId === t.transferId),
+          false,
+        );
+      }
+    },
+  );
+  await check(
+    "asset audit and both detail RPCs redact old transfer costs for later unrelated owners without altering audit evidence",
+    async () => {
+      const { stock } = financial;
+      for (const sql of [
+        "select public.list_asset_audit($1) result",
+        "select public.asset_detail($1) result",
+        "select public.asset_detail($1,$2) result",
+      ]) {
+        const args = sql.includes("$2")
+          ? [stock.assetId, stock.portionId]
+          : [stock.assetId];
+        const result = (await as(rep, sql, args)).rows[0].result;
+        const history = Array.isArray(result) ? result : result.history;
+        assert(
+          history.some(
+            (l) => Number(l.after?.transfer?.transport_cost) === 444.44,
+          ),
+        );
+        await denied(() => as(requester, sql, args));
+      }
+      let t = await transfer(facilities, financial.t, "dispatch", {
+        qty: 1,
+        location: "Synthetic trolley",
+      });
+      await transfer(receiver, t, "receive", {
+        qty: 1,
+        condition: "Good",
+        accept: true,
+        location: "Science synthetic lab",
+      });
+      const dep = randomUUID();
+      await db.query("insert into public.departments values($1,$2,true)", [
+        dep,
+        "Synthetic later owner " + dep,
+      ]);
+      const actors = {};
+      for (const role of ["requester", "representative", "finance"]) {
+        const actor = { userId: randomUUID(), departmentId: dep };
+        await db.query("insert into auth.users values($1)", [actor.userId]);
+        await db.query("insert into public.profiles values($1,$2,$3,true)", [
+          actor.userId,
+          dep,
+          "Synthetic later " + role,
+        ]);
+        await db.query("insert into public.user_roles values($1,$2)", [
+          actor.userId,
+          role,
+        ]);
+        actors[role] = actor;
+      }
+      const current = await one(
+        "select version from public.assets where asset_id=$1",
+        [stock.assetId],
+      );
+      await as(receiver, "select public.set_publication($1,$2,true,$3)", [
+        stock.assetId,
+        current.version,
+        randomUUID(),
+      ]);
+      // Marketplace detail is still readable, with no private history or costs.
+      for (const sql of [
+        "select public.asset_detail($1) result",
+        "select public.asset_detail($1,$2) result",
+      ]) {
+        const args = sql.includes("$2")
+          ? [stock.assetId, stock.portionId]
+          : [stock.assetId];
+        const detail = (await as(actors.requester, sql, args)).rows[0].result;
+        assert.equal(detail.asset.portionId, stock.portionId);
+        assert.deepEqual(detail.history, []);
+        assertNoCosts(detail);
+      }
+      const req = await request(1, {}, actors.requester);
+      const i = await interest(req, stock, 1, actors.requester);
+      t = await approve(i, 1, receiver);
+      t = await transfer(receiver, t, "approveRelease", {
+        facilitiesId: facilities.userId,
+      });
+      t = await transfer(facilities, t, "schedule", {
+        scheduledAt: new Date(Date.now() + 3600000).toISOString(),
+        arrangements: "Later reuse trolley",
+        handlingCost: 777.77,
+        transportCost: 888.88,
+      });
+      t = await transfer(facilities, t, "dispatch", {
+        qty: 1,
+        location: "Synthetic trolley",
+      });
+      await transfer(actors.representative, t, "receive", {
+        qty: 1,
+        condition: "Good",
+        accept: true,
+        location: "Later owner lab",
+      });
+      const stored = (
+        await db.query(
+          "select * from public.audit_logs where target_id=$1 order by audit_id",
+          [stock.assetId],
+        )
+      ).rows;
+      for (const actor of [actors.representative, actors.finance]) {
+        for (const sql of [
+          "select public.list_asset_audit($1) result",
+          "select public.asset_detail($1) result",
+          "select public.asset_detail($1,$2) result",
+        ]) {
+          const args = sql.includes("$2")
+            ? [stock.assetId, stock.portionId]
+            : [stock.assetId];
+          const result = (await as(actor, sql, args)).rows[0].result;
+          const history = Array.isArray(result) ? result : result.history;
+          const old = history.filter(
+            (l) => l.after?.transfer?.transfer_id === financial.t.transferId,
+          );
+          assert(old.length >= 5);
+          assertNoCosts(old);
+          assert(
+            history.some(
+              (l) => Number(l.after?.transfer?.transport_cost) === 888.88,
+            ),
+          );
+        }
+      }
+      const adminHistory = (
+        await as(
+          person("business_administrator"),
+          "select public.list_asset_audit($1) result",
+          [stock.assetId],
+        )
+      ).rows[0].result;
+      assert(
+        adminHistory.some(
+          (l) => Number(l.after?.transfer?.transport_cost) === 444.44,
+        ),
+      );
+      assert(
+        adminHistory.some(
+          (l) => Number(l.after?.transfer?.transport_cost) === 888.88,
+        ),
+      );
+      const original = (await workspace(rep)).transfers.find(
+        (x) => x.transferId === financial.t.transferId,
+      );
+      assert.equal(original.handlingCost, 0);
+      assertNoCosts(await workspace(requester));
+      assert.deepEqual(
+        (
+          await db.query(
+            "select * from public.audit_logs where target_id=$1 order by audit_id",
+            [stock.assetId],
+          )
+        ).rows,
+        stored,
+      );
+    },
+  );
+  await check(
+    "financial projection helpers cannot be called directly by authenticated or anonymous API roles",
+    async () => {
+      // Privileged fixture probe: unknown scope must fail closed recursively,
+      // while array order, nulls and unrelated evidence survive unchanged.
+      const payload = {
+        preserved: [
+          null,
+          { handlingCost: 99, transport_cost: 88, keep: "order" },
+          [4, { handling_cost: 7, keep: true }],
+        ],
+        transportCost: 12,
+      };
+      const filtered = (
+        await db.query(
+          "select public.workflow_audit_payload($1::jsonb,$2::jsonb) result",
+          [JSON.stringify(payload), "null"],
+        )
+      ).rows[0].result;
+      assert.deepEqual(filtered, {
+        before: { preserved: [null, { keep: "order" }, [4, { keep: true }]] },
+        after: null,
+      });
+      for (const sql of [
+        "select public.workflow_can_read_transfer_costs($1::uuid)",
+        "select public.workflow_redact_transfer_costs($1::jsonb)",
+        "select public.workflow_audit_payload($1::jsonb,$1::jsonb)",
+      ]) {
+        const args = [sql.includes("uuid") ? financial.t.transferId : "{}"];
+        await denied(() => as(rep, sql, args));
+        await denied(() => as(requester, sql, args));
+        await denied(() => as(null, sql, args, "anon"));
+      }
     },
   );
   console.log(

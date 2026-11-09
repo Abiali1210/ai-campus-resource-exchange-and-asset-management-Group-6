@@ -70,8 +70,9 @@ export interface Transfer {
   facilitiesId: string | null;
   scheduledAt: string | null;
   arrangements: string | null;
-  handlingCost: number | null;
-  transportCost: number | null;
+  // Omitted by the server when financial read permission is absent.
+  handlingCost?: number | null;
+  transportCost?: number | null;
   assetName: string;
   assetId: string;
   ownerDepartmentId: string;
