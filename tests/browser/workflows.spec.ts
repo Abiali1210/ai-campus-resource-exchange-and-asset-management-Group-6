@@ -69,6 +69,13 @@ async function project(page: Page) {
             JSON.stringify(body.p_filters),
           ])
         ).rows[0].result;
+      else if (name === "asset_detail")
+        result = (
+          await h.as(user, "select public.asset_detail($1,$2) result", [
+            body.p_asset_id,
+            body.p_portion_id,
+          ])
+        ).rows[0].result;
       else if (name === "workflow_workspace") result = await h.workspace(user);
       else if (name === "workflow_command") {
         calls.push(body.p_input);
@@ -246,6 +253,62 @@ test("request through separate approval/release, assigned dispatch and accepted 
     await p.h.db.close();
   }
 });
+test("split and mixed-owner stock hides catalogue actions that the database forbids", async ({
+  page,
+}) => {
+  const p = await project(page);
+  try {
+    const req = await p.h.request(3),
+      i = await p.h.interest(req, p.stock, 2);
+    let t = await p.h.approve(i, 2);
+    await p.login("supplier");
+    const inspect = async () => {
+      await page
+        .getByRole("button", { name: "Resource catalogue", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: `View ${p.stock.name}`, exact: true })
+        .click();
+      await expect(
+        page
+          .getByRole("dialog")
+          .getByText("Catalogue actions are unavailable", { exact: false }),
+      ).toBeVisible();
+      for (const name of ["Edit record", "Publish surplus", "Withdraw listing"])
+        await expect(
+          page.getByRole("dialog").getByRole("button", { name, exact: true }),
+        ).toHaveCount(0);
+    };
+    await inspect(); // Same owner, but the sibling portion is allocated.
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Close dialog" })
+      .click();
+    t = await p.h.transfer(p.h.rep, t, "approveRelease", {
+      facilitiesId: p.h.facilities.userId,
+    });
+    t = await p.h.transfer(p.h.facilities, t, "schedule", {
+      scheduledAt: new Date(Date.now() + 3600000).toISOString(),
+      arrangements: "Trolley",
+    });
+    t = await p.h.transfer(p.h.facilities, t, "dispatch", {
+      qty: 2,
+      location: "Facilities / Trolley",
+    });
+    await p.h.transfer(p.h.receiver, t, "receive", {
+      qty: 2,
+      condition: "Good",
+      accept: true,
+      location: "Science / Lab",
+    });
+    await p.login("supplier");
+    await inspect(); // The accepted portion now has another owner.
+  } finally {
+    await page.unrouteAll({ behavior: "wait" });
+    await p.h.db.close();
+  }
+});
+
 test("uncertain committed response retains request entries and reuses operation key", async ({
   page,
 }) => {

@@ -353,7 +353,12 @@ try {
         );
       }
       await denied(
-        () => rpc(rep, "save_asset", { ...assetInput, categoryId: randomUUID(), operationKey: randomUUID() }),
+        () =>
+          rpc(rep, "save_asset", {
+            ...assetInput,
+            categoryId: randomUUID(),
+            operationKey: randomUUID(),
+          }),
         /Validation: known categoryId required/,
       );
       assert.equal(
@@ -525,9 +530,7 @@ try {
       }
     },
   );
-  console.log(
-    `\n${checks} PostgreSQL core integration checks passed.`,
-  );
+  console.log(`\n${checks} PostgreSQL core integration checks passed.`);
   console.log(
     "Not tested here: live Supabase Auth/JWT verification, Auth Admin provisioning or hosted Edge account administration.",
   );

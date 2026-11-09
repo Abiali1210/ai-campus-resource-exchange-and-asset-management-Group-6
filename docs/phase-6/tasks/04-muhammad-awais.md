@@ -6,20 +6,20 @@ Read [the shared plan](../README.md) and all previous handoffs.
 ## Implement
 
 - [ ] A small authorized report view with a period/filter and a database-calculated
-  snapshot: requests/open requests, approved allocations, completed transfers and
-  accepted units, using the records already implemented.
+      snapshot: requests/open requests, approved allocations, completed transfers and
+      accepted units, using the records already implemented.
 - [ ] Separate completed/pending/canceled/disputed/returned outcomes. Do not claim
-  maintenance activity or environmental/financial savings not supported by this draft.
+      maintenance activity or environmental/financial savings not supported by this draft.
 - [ ] Server-side Gemini generation using only that permitted snapshot. The model
-  writes a short summary; it does not calculate or alter authoritative totals.
+      writes a short summary; it does not calculate or alter authoritative totals.
 - [ ] Validate every narrative figure/fact against the snapshot. Withhold unsupported
-  output; identify period, data basis and model/run provenance.
+      output; identify period, data basis and model/run provenance.
 - [ ] Authorized human admin review/editing before explicit publication. Preserve
-  appropriate report scope; technical admin is not an automatic business approver.
+      appropriate report scope; technical admin is not an automatic business approver.
 - [ ] Calculated figures remain visible during AI outage. Reuse the existing server
-  pattern and model configuration; no separate application server.
+      pattern and model configuration; no separate application server.
 - [ ] Final clean-setup and required-feature walkthrough; resolve integration defects
-  caused by this work and document any remaining prerequisite failures.
+      caused by this work and document any remaining prerequisite failures.
 
 Do not implement C7 sustainability dashboard, C8 notifications, C9 full operational
 report/CSV suite, classification, assistant, action advice, maintenance or end-of-life.
@@ -29,12 +29,12 @@ The small calculated snapshot is a dependency of AI #5, not a full reporting pro
 
 - [ ] Clean setup/migrations/seed/build and inherited checks.
 - [ ] Login -> register/publish -> request/match/accept -> supplier approval/release ->
-  dispatch -> receiver confirmation -> history -> calculated/AI report.
+      dispatch -> receiver confirmation -> history -> calculated/AI report.
 - [ ] Direct unauthorized access, no self-approval, last-unit race, partial allocation,
-  cancellation/dispute and AI-outage cases do not corrupt records.
+      cancellation/dispute and AI-outage cases do not corrupt records.
 - [ ] Generated and human-edited publication does not introduce unsupported figures.
 - [ ] Actual provider trial and local mocked tests distinguished; no invented accuracy,
-  hosted performance, deployment or institutional impact claims.
+      hosted performance, deployment or institutional impact claims.
 
 Complete report Section 4 and assemble the short shared report. Confirm the lab's
 upload format before unnecessary Word/PDF conversion. Finish

@@ -23,6 +23,7 @@ The user has no configured Supabase project yet. Actual Auth provisioning and ho
 deployment are pending. No Gemini setup is needed for this part.
 
 Run:
+
 ```text
 npm ci
 npm run dev
@@ -48,3 +49,13 @@ direct requests, catalogue operations and audit. Record tested revision/reviewer
 Ahmed adds C4–C6 via additive migrations and ordinary workflows, preserving
 quantity conservation, no self-approval, distinct release and accepted-receipt custody.
 Abi Ali implements AI #2 only. Awais implements AI #5 only and final integration.
+
+## Integration review on 9 November 2026
+
+The Part 2 review inspected the actual C1–C3 source and reran the inherited checks
+with both migrations installed. The 20 inherited unit tests, 16 foundation database
+checks and six inherited Chrome flows remain the baseline; local results are recorded
+in [Part 2's handoff](02-ahmed.md). The independent reviewer also reran the 16
+foundation database checks successfully. This supports implementation/local-test
+completion, not hosted Supabase sign-off. The original hosted acceptance items above
+remain pending; Part 2 continued with isolated database and browser verification.

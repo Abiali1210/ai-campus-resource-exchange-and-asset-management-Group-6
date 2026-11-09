@@ -43,11 +43,13 @@ transactional actor/time/reason audit are enforced in PostgreSQL.
 
 Local verification: **25 unit tests, 16 inherited plus 23 workflow PGlite checks,
 the same 23 workflow checks on native PostgreSQL, four genuinely overlapping native
-transaction races, nine Chrome flows, production build and fixture integrity passed**.
+transaction races, ten Chrome flows, production build, fixture integrity and formatting passed**.
 Browser evidence comprises five inherited HTTP-mocked foundation flows, a read-only
-preview, and three workflow flows running actual SQL with synthetic Auth/HTTP
-adapters. These are local checks, not hosted Supabase acceptance. This machine used
-Node 24.15.0; the repository/CI target remains Node 22.
+preview, and four workflow/integration flows running actual SQL with synthetic Auth/HTTP
+adapters. These are local checks, not hosted Supabase acceptance. The initial run used
+Node 24.15.0. A follow-up review reran all suites, native concurrency and the build
+on the documented Node 22 runtime (22.23.4), including the split/mixed-owner catalogue
+action regression. The inherited foundation checks pass with both migrations installed.
 
 A read-only independent reviewer examined requirements, implementation and checks,
 independently reproduced defects, and verified fixes for unsafe cancellation,
@@ -75,8 +77,8 @@ demonstration. Keep the report short and distinguish recorded outcomes from esti
 
 | Required feature                                       | Owner          | Status                                                                   |
 | ------------------------------------------------------ | -------------- | ------------------------------------------------------------------------ |
-| C1 accounts/roles/departments                          | Abdulrahman    | Source exists; narrowed checks/live setup pending                        |
-| C2 assets/status; C3 publication/search                | Abdulrahman    | Source exists; narrowed checks/live setup pending                        |
+| C1 accounts/roles/departments                          | Abdulrahman    | Implemented and locally verified; hosted acceptance/human review pending |
+| C2 assets/status; C3 publication/search                | Abdulrahman    | Implemented and locally verified; hosted acceptance/human review pending |
 | C4 requests; C5 approval/transfer; C6 workflow/history | Ahmed          | Implemented and locally verified; hosted acceptance/human review pending |
 | AI #2 matching/ranking                                 | Abi Ali        | Planned                                                                  |
 | AI #5 generated report                                 | Muhammad Awais | Planned                                                                  |

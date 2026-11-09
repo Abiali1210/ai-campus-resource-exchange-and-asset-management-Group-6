@@ -51,6 +51,7 @@ export interface Category {
   name: string;
 }
 export interface AssetView {
+  canEdit?: boolean;
   assetId: string;
   portionId: string;
   name: string;

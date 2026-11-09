@@ -36,7 +36,7 @@ README for application configuration and synthetic account provisioning.
   withdraws eligible stock without central preapproval. Ordinary catalogue editing
   cannot rewrite tracked quantity, formal custody or assessed condition.
 - Deferred constraints preserve total active stock and homogeneous leaf portions.
-  Part 2 must split stock and update allocations in one transaction, preserving the
+  Part 2 splits stock and updates allocations in one transaction, preserving the
   same conservation rules rather than granting direct mutations to browser clients.
 - Operation keys are unique per caller; retrying the same operation returns its
   result while reusing a key for different input is a conflict. Expected versions

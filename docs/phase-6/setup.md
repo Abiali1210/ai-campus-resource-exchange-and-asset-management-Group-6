@@ -12,8 +12,11 @@ git clone https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-ma
 cd ai-campus-resource-exchange-and-asset-management-Group-6
 ```
 
-For an existing checkout on main, pull the merged implementation. Preserve local
-edits before switching branches.
+Main contains Part 1. Part 2 is currently the local review branch
+`codex/phase6-02-workflows`; in this checkout use
+`git switch codex/phase6-02-workflows`. A fresh clone of main includes only the
+merged work until Part 2 is explicitly published/merged. Preserve local edits
+before switching branches. Review the matching handoff before applying migrations.
 
 ## Preview
 

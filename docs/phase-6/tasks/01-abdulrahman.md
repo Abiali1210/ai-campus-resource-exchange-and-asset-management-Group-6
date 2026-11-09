@@ -10,18 +10,18 @@ Checked items mean source exists and local checks passed, not hosted acceptance.
 
 - [x] React/TypeScript/Vite application, clear navigation and service/domain classes.
 - [x] Supabase login/logout, administrator-created accounts, roles, departments and
-  account activation/deactivation. Server-side permissions, not just hidden buttons.
+      account activation/deactivation. Server-side permissions, not just hidden buttons.
 - [x] Requester, Representative/Custodian and technical administrator paths. Preserve
-  the other existing role keys without building their unrelated workflows.
+      the other existing role keys without building their unrelated workflows.
 - [x] Asset/category/StockPortion data; name, description/specifications, quantity,
-  condition, department/custodian, location and state needed by subsequent parts.
+      condition, department/custodian, location and state needed by subsequent parts.
 - [x] Conventional registration/editing and separate surplus publication/withdrawal.
-  Prevent invalid quantities and unsafe/allocated state changes.
+      Prevent invalid quantities and unsafe/allocated state changes.
 - [x] Keyword, category, condition and department search/filtering. Clear unknown
-  condition and empty-result states.
+      condition and empty-result states.
 - [x] Asset history and account/asset/publication audit with actor, UTC time and changes.
 - [x] Synthetic two-department catalogue with individual equipment, a quantity batch,
-  unknown condition and unsafe/retired cases; reproducible account/seed setup.
+      unknown condition and unsafe/retired cases; reproducible account/seed setup.
 - [x] Setup instructions, dependency lockfile and backend/validation checks.
 
 Do not implement classification, embeddings, uploads, assistant, advice, notifications,
@@ -33,7 +33,7 @@ Awais owns report generation later. Do not expose unfinished future screens.
 - [x] Build, 20 unit tests, 16 core PostgreSQL checks and 6 Chrome flows pass.
 - [ ] Actual configured login/logout and inactive-account behavior verified.
 - [ ] Direct unauthorized RPC/table access, wrong department and attempted technical-
-  admin business mutation are rejected.
+      admin business mutation are rejected.
 - [ ] Register/edit/publish/withdraw/search and history work with seeded quantities.
 - [ ] A second member can reproduce setup; record remaining live checks honestly.
 

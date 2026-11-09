@@ -14,6 +14,7 @@ const initial = {
   ...portion,
   categoryName: "Monitors",
   departmentName: "Engineering",
+  canEdit: true,
 };
 const profile = {
   ...representative,
@@ -140,7 +141,9 @@ test("server form failure preserves entered data and editable specifications", a
     .getByLabel("Asset name *", { exact: true })
     .fill("New synthetic display");
   await page
-    .getByRole("dialog").getByRole("combobox").first()
+    .getByRole("dialog")
+    .getByRole("combobox")
+    .first()
     .selectOption(initial.categoryId);
   await page
     .getByLabel("Assigned location *", { exact: true })

@@ -6,21 +6,21 @@ Read [the shared plan](../README.md) and the first two handoffs.
 ## Implement
 
 - [ ] Server-side Gemini embedding integration with secret-only provider credentials.
-  Verify available model ID/dimension; add the required model/run/embedding schema
-  and pgvector migration without changing previously applied migrations.
+      Verify available model ID/dimension; add the required model/run/embedding schema
+      and pgvector migration without changing previously applied migrations.
 - [ ] Compute/store asset embeddings after saved metadata. Retain source version/hash,
-  model/dimension and pending/ready/failed status. Failure never removes a saved asset.
+      model/dimension and pending/ready/failed status. Failure never removes a saved asset.
 - [ ] Semantic candidates alongside conventional retrieval. Apply permission, safety,
-  specification, condition, quantity and current availability gates before ranking.
+      specification, condition, quantity and current availability gates before ranking.
 - [ ] Up to five eligible surplus matches with compatibility score and one-line
-  reason. Use design Section 12.1's deterministic scoring and missing-data rules;
-  do not train a ranker or fabricate scores with generation calls.
+      reason. Use design Section 12.1's deterministic scoring and missing-data rules;
+      do not train a ranker or fabricate scores with generation calls.
 - [ ] Show missing mandatory evidence as Needs review and prevent allocation;
-  show weak scores/uncertainty clearly. Scores are not probabilities.
+      show weak scores/uncertainty clearly. Scores are not probabilities.
 - [ ] Requester accept/reject review, retained run/review evidence and normal Interest
-  creation on selection. AI cannot reserve or bypass supplier approval.
+      creation on selection. AI cannot reserve or bypass supplier approval.
 - [ ] Conventional search/manual selection remains available on outage, malformed
-  provider output, incompatible/stale embeddings or no matches.
+      provider output, incompatible/stale embeddings or no matches.
 
 Do not implement classification (AI #1), sustainable-action advice (AI #3), assistant
 (AI #4), notifications, maintenance, dashboards or reporting.
@@ -28,7 +28,7 @@ Do not implement classification (AI #1), sustainable-action advice (AI #3), assi
 ## Finish evidence
 
 - [ ] Synonym and exact matches, incompatible/unsafe/unknown cases, partial quantity
-  and remaining-demand cases with declared synthetic expected results.
+      and remaining-demand cases with declared synthetic expected results.
 - [ ] Human accept/reject; no selection-driven allocation or authority bypass.
 - [ ] Invalid output, stale vectors and outage leave ordinary workflows usable.
 - [ ] Local tests and actual configured embedding call recorded separately.

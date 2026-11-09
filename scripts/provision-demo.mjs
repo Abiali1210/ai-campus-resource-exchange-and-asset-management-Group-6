@@ -52,16 +52,14 @@ for (const d of fixture.departments)
   );
 for (const c of fixture.categories)
   await checked(
-    service
-      .from("categories")
-      .upsert(
-        {
-          category_id: c.categoryId,
-          parent_category_id: c.parentCategoryId,
-          name: c.name,
-        },
-        { onConflict: "category_id", ignoreDuplicates: true },
-      ),
+    service.from("categories").upsert(
+      {
+        category_id: c.categoryId,
+        parent_category_id: c.parentCategoryId,
+        name: c.name,
+      },
+      { onConflict: "category_id", ignoreDuplicates: true },
+    ),
   );
 
 const existing = [];
@@ -211,19 +209,17 @@ for (const a of fixture.assets) {
         .eq("asset_id", asset.assetId),
     );
     await checked(
-      service
-        .from("audit_logs")
-        .insert({
-          actor_id: null,
-          event: "system.synthetic-history-seeded",
-          target_type: "asset",
-          target_id: asset.assetId,
-          before_data: { state: "Registered" },
-          after_data: {
-            state: p.state,
-            source: "explicit synthetic fixture provisioning",
-          },
-        }),
+      service.from("audit_logs").insert({
+        actor_id: null,
+        event: "system.synthetic-history-seeded",
+        target_type: "asset",
+        target_id: asset.assetId,
+        before_data: { state: "Registered" },
+        after_data: {
+          state: p.state,
+          source: "explicit synthetic fixture provisioning",
+        },
+      }),
     );
   }
   await rep.auth.signOut();

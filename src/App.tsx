@@ -703,7 +703,10 @@ function AssetDetails({
     canEdit =
       !preview &&
       isRepresentative(profile) &&
-      profile?.departmentId === current.ownerDepartmentId;
+      profile?.departmentId === current.ownerDepartmentId &&
+      current.canEdit === true &&
+      current.qty === current.totalQty &&
+      ["Registered", "In Use", "Available"].includes(current.state);
   const reload = async () =>
     setDetail(await api.getAsset(asset.assetId, asset.portionId));
   useEffect(() => {
@@ -849,6 +852,15 @@ function AssetDetails({
               </dl>
             </div>
           )}
+          {!canEdit &&
+            !preview &&
+            isRepresentative(profile) &&
+            profile?.departmentId === current.ownerDepartmentId && (
+              <p className="notice">
+                Catalogue actions are unavailable for this split or restricted
+                asset. Review its transfer status in Requests and transfers.
+              </p>
+            )}
           {canEdit && (
             <div className="detail-actions">
               <button
