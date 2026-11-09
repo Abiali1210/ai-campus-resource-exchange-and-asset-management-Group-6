@@ -74,6 +74,7 @@ PostgreSQL test cluster. No shared database reset is needed.
 
 ```text
 src/                         React application and shared TypeScript services/types
+  assets/branding/           Supplied official logo and source provenance
 supabase/
   migrations/                Ordered, additive database schema and business operations
   functions/foundation/      Authenticated account administration gateway

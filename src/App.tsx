@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { api } from "./api";
+import universityLogo from "./assets/branding/khalifa-university-white.png";
 import {
   CONDITIONS,
   ROLES,
@@ -1235,6 +1236,13 @@ export default function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
+        <img
+          className="university-logo"
+          src={universityLogo}
+          alt="Khalifa University"
+          width="5286"
+          height="1195"
+        />
         <div className="brand">
           <span className="brand-mark">
             <Icon name="leaf" size={21} />

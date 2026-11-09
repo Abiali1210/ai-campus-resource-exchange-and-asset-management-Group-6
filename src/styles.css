@@ -92,6 +92,13 @@ small {
   flex-direction: column;
   padding: 34px 22px 22px;
 }
+.university-logo {
+  display: block;
+  width: 100%;
+  max-width: 188px;
+  height: auto;
+  margin-bottom: 24px;
+}
 .brand {
   display: flex;
   align-items: center;
@@ -989,6 +996,10 @@ small {
   }
 }
 @media (max-width: 760px) {
+  .university-logo {
+    max-width: 176px;
+    margin-bottom: 16px;
+  }
   .app-shell {
     display: block;
   }

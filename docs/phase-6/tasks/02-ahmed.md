@@ -30,10 +30,18 @@ dashboard, AI advice, assistant, classification or the general report/CSV suite.
 - [x] Partial quantities, pre-dispatch cancellation and disputed receipt/return reconcile
       stock/demand correctly; no premature custody change.
 - [x] Asset history shows who did what and when. Existing Part 1 checks still pass.
+- [x] Report Section 2, shared contracts and owner handoff updated with actual results.
+- [x] Independent implementation review completed and substantive findings addressed.
 
 Checked items refer to implemented source and executed local verification, including
 native PostgreSQL concurrency. Hosted Supabase acceptance and human review remain
 pending; see the [handoff](../handoffs/02-ahmed.md) for exact evidence and limitations.
+
+## Remaining acceptance
+
+- [ ] Hosted Supabase migrations, account provisioning and real Auth/JWT/Edge behavior verified.
+- [ ] Actual browser-to-Supabase catalogue and transfer journey verified.
+- [ ] Human owner review and demonstration completed.
 
 Complete report Section 2 and `docs/phase-6/handoffs/02-ahmed.md` with commands,
 contracts, tested revision/results and limitations. Branch: `codex/phase6-02-workflows`.
