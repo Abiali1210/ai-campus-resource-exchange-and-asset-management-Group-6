@@ -39,6 +39,49 @@ configuration is PostgreSQL 17 and the shared-project record reports 17.11.
 No hosted seed, migration, Auth change or deployment was run. The feature branch
 remains for PR review; this integration does not merge it into main or push it.
 
+## PR #13 financial privacy correction
+
+Tested implementation revision:
+`11ae4ed20ca308be2796c8ce8d09feb8e53b181d`
+(`fix: redact transfer costs from unauthorized workflow reads`). This handoff
+update changes documentation only. The branch remains open for team review.
+
+PR review reproduced handling/transport costs in Requester transfer responses and
+raw nested history. Independent review also reproduced the leak for assigned
+Facilities. The earlier green suites lacked financial projection assertions.
+The new regression failed against `1b6a90a` with
+`Financial field leaked: handling_cost`, before the correction was added.
+
+Design v1.4 Section 6.1 separates financial read permission from operational
+participation. Additive migration `202611090002_workflow_financial_redaction.sql`
+omits both public camel-case and raw SQL cost keys from unauthorized transfer and
+audit responses. Current Representatives/Finance in the original supplier/receiver
+department, or Business Administrators, retain permitted financial reads; existing
+record visibility remains unchanged. A later unrelated owner cannot read old
+transfer costs. Stored audit records remain complete and immutable. Facilities
+can still record optional schedule costs without receiving stored financial data.
+
+`workflow_workspace` and `list_asset_audit` share the guarded audit projection;
+both `asset_detail` overloads inherit it. Private helpers remain inaccessible to
+API roles. The UI renders costs only when the server includes the fields, so
+restricted values are distinguished from authorized unrecorded/null or zero.
+Sign-in, Supabase configuration and both prior migrations are unchanged.
+
+Verification on Node 22.23.4: 31 unit tests, 16 foundation plus 28 workflow PGlite
+checks, the same 28 native PostgreSQL checks, four genuine concurrency checks,
+11 Chrome flows, build, fixture integrity, formatting and whitespace all passed.
+The five new SQL groups cover nested snapshots, zero/null, multirole and revoked
+scope, later ownership through all audit/detail RPCs, marketplace detail visibility,
+unknown-scope nested arrays and helper grants. The added browser flow verifies
+restricted tracking and authorized financial display. A separate isolated upgrade
+probe populated the original two-migration schema, applied only the correction,
+and verified immediate redaction with identical stored audit evidence.
+
+`/root/reviewer` independently passed the 28-check PGlite suite and found no
+substantive unresolved issue in the correction. Local PostgreSQL was stopped after
+verification. Hosted migration/Auth/PostgREST and real hosted workflow acceptance
+remain pending; evaluate GitHub checks on the current PR head.
+
 ## Delivered and design alignment
 
 Implemented only C4–C6: requests and own/department-authorized tracking, linked
@@ -73,7 +116,8 @@ The follow-up review also aligned catalogue controls with the server's edit scop
 Split, allocated or mixed-owner stock no longer offers catalogue actions that the
 database would reject; the screen points users to the transfer workflow instead.
 
-The new additive migration is `202611090001_workflows.sql`. No applied Part 1
+The workflow migration is `202611090001_workflows.sql`; the PR #13 cost-read
+correction is additive `202611090002_workflow_financial_redaction.sql`. No prior
 migration, shared data, credentials or deferred module was rewritten. See
 [contracts](../contracts/part-2-workflows.md) for every command/input, status and
 quantity rule, including downstream matching/report integration.
@@ -129,18 +173,18 @@ npm.cmd run build
 python scripts/validate-foundation-fixture.py
 ```
 
-| Check                               | Actual result / evidence boundary                                                                                                                                                 |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inherited baseline before extending | 20 unit tests, 16 PGlite database checks, six Chrome flows, build and fixture integrity passed                                                                                    |
-| Unit suite after main integration   | 31 passed: 21 foundation/domain/gateway, five workflow client-contract and five shared seed identity checks                                                                       |
-| `test:db`                           | 16 inherited foundation + 23 workflow checks passed in PGlite with a synthetic Auth schema                                                                                        |
-| Native PostgreSQL workflow suite    | Same 23 workflow checks passed on isolated PostgreSQL 18.6 binaries, synthetic Auth adapter                                                                                       |
-| Native overlapping-session checks   | Four passed: last unit, remaining demand across different assets, simultaneous identical retry, competing partial batches                                                         |
-| Chrome browser suite                | Ten passed: five inherited HTTP-mocked foundation flows, one credential-free preview, four workflow/integration flows using actual SQL/PGlite behind synthetic Auth/HTTP adapters |
-| Production build                    | Passed TypeScript and Vite; workflow code split, no oversized-chunk warning                                                                                                       |
-| Foundation fixture integrity        | Passed: two departments, 12 profiles, six assets, nine roles and conserved stock                                                                                                  |
-| Formatting and preservation         | `npm run format:check` passed; syntax-tree comparison confirmed 11 inherited code files unchanged by formatting, and three JSON data/lock files retained their values             |
-| Hosted Supabase                     | Not run: Auth/JWT/PostgREST/RLS integration, account provisioning, hosted migrations/seed, Edge and real browser-to-hosted service acceptance remain pending                      |
+| Check                               | Actual result / evidence boundary                                                                                                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Inherited baseline before extending | 20 unit tests, 16 PGlite database checks, six Chrome flows, build and fixture integrity passed                                                                                       |
+| Unit suite after main integration   | 31 passed: 21 foundation/domain/gateway, five workflow client-contract and five shared seed identity checks                                                                          |
+| `test:db`                           | 16 inherited foundation + 28 workflow checks passed in PGlite with a synthetic Auth schema                                                                                           |
+| Native PostgreSQL workflow suite    | Same 28 workflow checks passed on isolated PostgreSQL 18.6 binaries, synthetic Auth adapter                                                                                          |
+| Native overlapping-session checks   | Four passed: last unit, remaining demand across different assets, simultaneous identical retry, competing partial batches                                                            |
+| Chrome browser suite                | Eleven passed: five inherited HTTP-mocked foundation flows, one credential-free preview, five workflow/integration flows using actual SQL/PGlite behind synthetic Auth/HTTP adapters |
+| Production build                    | Passed TypeScript and Vite; workflow code split, no oversized-chunk warning                                                                                                          |
+| Foundation fixture integrity        | Passed: two departments, 12 profiles, six assets, nine roles and conserved stock                                                                                                     |
+| Formatting and preservation         | `npm run format:check` passed; syntax-tree comparison confirmed 11 inherited code files unchanged by formatting, and three JSON data/lock files retained their values                |
+| Hosted Supabase                     | Not run: Auth/JWT/PostgREST/RLS integration, account provisioning, hosted migrations/seed, Edge and real browser-to-hosted service acceptance remain pending                         |
 
 The database checks include the complete journey, direct table/helper denials,
 wrong role/department, requester and Interest-creator self-approval with multiple
@@ -149,7 +193,10 @@ pre-dispatch cancellation, unsafe-state preservation, short/damaged/unknown rece
 full reconciliation/return, physical versus formal custody, stale versions, changed
 operation-key payloads, one-outcome retries and forced-audit-failure rollback.
 Terminal privacy, original Interest supplier authority, correct selected leaves and
-current-role revocation also have regressions. The seven recipe totals are checked.
+current-role revocation also have regressions. Five additional groups cover financial
+read denial, null/zero values, explicit multirole scope/revocation, subsequent owners
+through both asset detail overloads, and private projection helper grants. The seven
+recipe totals are checked.
 
 The browser walkthrough uses actual SQL rather than mocked successful workflow
 responses. One test commits a request then drops its HTTP response, retries the
@@ -168,14 +215,14 @@ npm.cmd run test:db:native
 ```
 
 This creates two uniquely named empty databases and preserves them for inspection;
-never point it at a shared cluster. It runs the 23-check workflow suite and the
+never point it at a shared cluster. It runs the 28-check workflow suite and the
 four-check race suite. The latter holds a blocking row lock, starts two independent
 connections, verifies both are waiting in `pg_stat_activity`, then releases the lock.
 This establishes actual transaction overlap. The low-level runners accept
 `WORKFLOW_TEST_DATABASE_URL` only for a fresh empty database and refuse nonempty
 public/Auth schemas. A missing URL fails explicitly instead of pretending a race
-passed. CI has a PostgreSQL 18 service job for the same native command; remote CI
-has not been run from this local branch.
+passed. CI has a PostgreSQL 18 service job for the same native command; evaluate
+remote CI on the current head of PR #13.
 
 Local native verification used the exact temporary npm binary package
 `@embedded-postgres/windows-x64@18.6.0-beta.19`, initialized a dedicated cluster under
