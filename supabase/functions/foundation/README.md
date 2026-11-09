@@ -7,25 +7,39 @@ only the selected AI 2 matching and AI 5 reporting capabilities in their own par
 
 ## Server configuration
 
-Supabase provides `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and
-`SUPABASE_SERVICE_ROLE_KEY`. Keep the private service key server-side. Never put it
-in a browser `VITE_*` variable or committed file.
+The authenticated browser client sends its publishable key in the `apikey` header and
+its signed-in user's JWT in `Authorization`. The function uses the publishable key only
+for caller-authenticated `/auth/v1/user` and profile RPC requests; the JWT is never
+replaced by a secret key.
+
+For hosted Edge Functions, Supabase provides `SUPABASE_SECRET_KEYS` as a JSON map. Set
+`SUPABASE_SECRET_KEY_NAME=phase6-provisioner` to select that named server secret; when
+the selected entry is unavailable, the function falls back to the map's `default`
+entry. A locally served function must use a separate ignored environment file, such
+as `.env.functions.local`, containing the local stack's `SUPABASE_URL`,
+`SUPABASE_SECRET_KEY`, and `ALLOWED_ORIGINS`. Do not pass the hosted provisioning
+`.env.local` to local function serving. The secret initializes a server-only Supabase
+JS Admin Auth client used only for Auth user creation and compensating deletion. Never
+expose a secret key in browser code, responses, logs, or committed files.
 
 Set `ALLOWED_ORIGINS` to a comma-separated exact frontend-origin list. Local defaults:
 `http://localhost:5173,http://127.0.0.1:5173`. Set the actual hosted origin before
 serving a deployed frontend. CORS does not replace JWT or record authorization.
 
-After applying the migrations, use the Supabase CLI:
+After applying the migrations and separately configuring the local secret, use the
+Supabase CLI to run the function locally:
 
 ```text
-supabase functions serve foundation --env-file .env.local
-supabase functions deploy foundation
+npx supabase functions serve foundation --env-file .env.functions.local
 ```
 
-Keep platform JWT verification enabled. The handler additionally verifies
+Keep platform JWT verification enabled. The handler validates the incoming
+publishable-key header and separately verifies the caller JWT with
 `/auth/v1/user`, obtains the active database profile and assigned roles, and requires
-System Administrator. Every profile RPC uses the caller JWT/public project key; the
-service key is used only for Auth Admin creation and compensating deletion.
+System Administrator. Every profile RPC uses the caller JWT and incoming publishable
+key. The server secret is used only by the isolated Auth Admin client. Hosted deployment
+and secret configuration remain separate user-approved steps; this function is not
+deployed by local tests.
 
 ## Request contract
 
@@ -37,7 +51,7 @@ POST `{ "action": "...", "payload": { ... } }` with the signed-in bearer token.
 | adminUpdateAccount | userId, name, departmentId, roles, active, operationKey                      | profile          |
 
 The request body is limited to 100 KB. Failures have `{error:{code,message}}` and a
-non-2xx status. Raw database/Auth diagnostics, service keys and passwords are never
+non-2xx status. Raw database/Auth diagnostics, secret keys and passwords are never
 returned or logged. If transactional profile setup fails after Auth creation, the
 handler deletes only that just-created user. If cleanup also fails, an operator must
 check both Auth and profile records before retrying. A network failure can make the

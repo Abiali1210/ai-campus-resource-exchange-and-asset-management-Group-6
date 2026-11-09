@@ -1771,7 +1771,7 @@ export default function App() {
               </li>
             </ol>
             <div className="notice">
-              Never put the service-role key in frontend environment variables.
+              Never put a Supabase secret key in frontend environment variables.
               See the repository README for exact setup and verification
               commands.
             </div>

@@ -11,8 +11,10 @@ import {
 
 export interface GatewayConfig {
   supabaseUrl: string;
-  anonKey: string;
-  serviceKey?: string;
+  adminAuth?: {
+    createUser(email: string, password: string): Promise<string | null>;
+    deleteUser(userId: string): Promise<boolean>;
+  };
   allowedOrigins: string[];
 }
 type Fetch = typeof fetch;
@@ -62,8 +64,15 @@ export function createFoundationHandler(
       const authorization = request.headers.get("authorization") ?? "";
       if (!/^Bearer \S+$/i.test(authorization))
         throw new GatewayError("Unauthorized", "Sign in to continue.", 401);
+      const publishableKey = request.headers.get("apikey") ?? "";
+      if (!publishableKey.startsWith("sb_publishable_"))
+        throw new GatewayError(
+          "Unauthorized",
+          "A valid publishable API key is required.",
+          401,
+        );
       const callerHeaders = {
-        apikey: config.anonKey,
+        apikey: publishableKey,
         Authorization: authorization,
         "Content-Type": "application/json",
       };
@@ -178,7 +187,8 @@ export function createFoundationHandler(
           });
           return json({ profile: result });
         }
-        if (!config.serviceKey)
+        const adminAuth = config.adminAuth;
+        if (!adminAuth)
           throw new GatewayError(
             "Configuration",
             "Account provisioning has not been configured.",
@@ -196,23 +206,14 @@ export function createFoundationHandler(
             "Validation",
             "Use a valid email and an initial password of 12–128 characters.",
           );
-        const adminHeaders = {
-          apikey: config.serviceKey,
-          Authorization: `Bearer ${config.serviceKey}`,
-          "Content-Type": "application/json",
-        };
-        const created = await requestFetch(`${url}/auth/v1/admin/users`, {
-          method: "POST",
-          headers: adminHeaders,
-          body: JSON.stringify({ email, password, email_confirm: true }),
-        });
-        if (!created.ok)
+        const createdUserId = await adminAuth.createUser(email, password);
+        if (!createdUserId)
           throw new GatewayError(
             "Conflict",
             "The account could not be created. Check whether it already exists.",
             409,
           );
-        const createdId = uuid(object(await created.json()).id, "Created user");
+        const createdId = uuid(createdUserId, "Created user");
         try {
           const result = await rpc("save_profile", {
             p_input: {
@@ -227,11 +228,8 @@ export function createFoundationHandler(
           return json({ profile: result }, 201);
         } catch (error) {
           try {
-            const rollback = await requestFetch(
-              `${url}/auth/v1/admin/users/${createdId}`,
-              { method: "DELETE", headers: adminHeaders },
-            );
-            if (!rollback.ok) throw new Error("Compensation failed");
+            if (!(await adminAuth.deleteUser(createdId)))
+              throw new Error("Compensation failed");
           } catch {
             throw new GatewayError(
               "Conflict",

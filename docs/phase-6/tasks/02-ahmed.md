@@ -39,7 +39,7 @@ pending; see the [handoff](../handoffs/02-ahmed.md) for exact evidence and limit
 
 ## Remaining acceptance
 
-- [ ] Hosted Supabase migrations, account provisioning and real Auth/JWT/Edge behavior verified.
+- [ ] Hosted Part 2 migration and integrated Auth/JWT/Edge acceptance verified; existing foundation account provisioning is recorded in setup.
 - [ ] Actual browser-to-Supabase catalogue and transfer journey verified.
 - [ ] Human owner review and demonstration completed.
 

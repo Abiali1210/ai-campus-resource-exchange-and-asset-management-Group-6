@@ -15,6 +15,30 @@ action regression, documented the folder map and reran all suites on Node 22.23.
 The independent reviewer reported no substantive unresolved findings. The subsequent
 handoff-only commit records that evidence without changing application behavior.
 
+## Integration with newer main
+
+The user began merging `origin/main` at `2fcc41bc5d54d1875187849d06f75c0f92d1997d`
+into feature revision `c239a67`. Conflicts in this setup guide's shared dependency
+(`docs/phase-6/setup.md`) and the foundation handler/entry point were resolved by
+retaining the incoming publishable/secret-key architecture and verified-user/Admin
+Auth boundaries, with the Part 2 setup and workflow rules retained.
+
+The workflow seed was adapted to the new environment key and short demo aliases.
+Both seed scripts now share the pure `scripts/demo-accounts.mjs` identity mapping;
+the incoming provisioner's profile/identity preflight and rename-only credential
+preservation remain intact. Five focused tests cover all 12 aliases, display-name
+independence, invalid mappings and legacy identity lookup.
+
+The pre-merge branch passed 25 unit tests; the incoming gateway adds one and the
+shared mapping adds five, for 31 total. On Node 22.23.4, the integrated source passed
+31 unit tests, 16 foundation + 23
+workflow PGlite checks, the 23 workflow checks on native PostgreSQL, all four genuine
+concurrency checks, all ten browser flows, production build, fixture integrity and
+formatting. Native PostgreSQL 18.6 is an isolated test engine; the incoming target
+configuration is PostgreSQL 17 and the shared-project record reports 17.11.
+No hosted seed, migration, Auth change or deployment was run. The feature branch
+remains for PR review; this integration does not merge it into main or push it.
+
 ## Delivered and design alignment
 
 Implemented only C4–C6: requests and own/department-authorized tracking, linked
@@ -65,22 +89,21 @@ leaf details remain correct after splitting and revoked requester roles lose acc
 Use the existing [setup](../setup.md). Intended project runtime remains Node 22;
 this Windows environment supplied Node **24.15.0**, npm **11.12.1** and Python
 **3.14.3**. The follow-up review also verified all suites, native concurrency and
-the production build using an isolated **Node 22.23.4** runtime. No hosted Supabase
-connection or `.env.local` was present.
+the production build using an isolated **Node 22.23.4** runtime. At that original
+test run this checkout had no hosted connection or `.env.local`. Incoming main now
+records an already-provisioned shared Part 1 project; see current setup before any
+schema/account/fixture writes. Part 2's hosted migration and acceptance remain pending.
 
 ```powershell
 npm.cmd ci
-# Select/check the intended authorized Supabase project first.
-npx.cmd supabase db push
-# In untracked .env.local configure public URL/key and provisioning settings.
-# CONFIRM_SYNTHETIC_SEED=yes; strong local-only DEMO_ACCOUNT_PASSWORD.
-npm.cmd run seed:accounts
-npm.cmd run seed:workflows
+# Configure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY privately.
+# Do not reprovision the already-seeded shared foundation for a new checkout.
 npm.cmd run dev
 ```
 
-`supabase db push` applies pending additive migrations; never reset a shared
-project. A local Supabase stack needs Docker Desktop/WSL. The existing foundation
+The [setup guide](../setup.md) separates owner-reviewed Part 2 migration, explicitly
+authorized workflow seeding and fresh-project-only account provisioning. A shared
+project is never reset for setup. A local Supabase stack needs Docker Desktop/WSL. The existing foundation
 Edge function still serves account administration only; workflow RPCs need no new
 Edge deployment, provider key or external service. Keep service secrets out of Vite.
 
@@ -92,6 +115,9 @@ preserved, not duplicated or reset. An interrupted recipe with an existing reque
 is reported/preserved for manual reconciliation; the seed does not silently repair
 it. Its hosted Auth/provisioning execution remains unrun. Recipe quantities were
 independently executed and checked with both local database engines.
+The seed now uses `SUPABASE_PUBLISHABLE_KEY` and the same short `@demo.test` alias
+mapping as the incoming foundation provisioner through `scripts/demo-accounts.mjs`.
+It does not use the provisioning secret or rename/create Auth accounts.
 
 ## Verification commands and actual results
 
@@ -106,7 +132,7 @@ python scripts/validate-foundation-fixture.py
 | Check                               | Actual result / evidence boundary                                                                                                                                                 |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Inherited baseline before extending | 20 unit tests, 16 PGlite database checks, six Chrome flows, build and fixture integrity passed                                                                                    |
-| Unit suite after implementation     | 25 passed: 20 inherited and five workflow client-contract tests                                                                                                                   |
+| Unit suite after main integration   | 31 passed: 21 foundation/domain/gateway, five workflow client-contract and five shared seed identity checks                                                                       |
 | `test:db`                           | 16 inherited foundation + 23 workflow checks passed in PGlite with a synthetic Auth schema                                                                                        |
 | Native PostgreSQL workflow suite    | Same 23 workflow checks passed on isolated PostgreSQL 18.6 binaries, synthetic Auth adapter                                                                                       |
 | Native overlapping-session checks   | Four passed: last unit, remaining demand across different assets, simultaneous identical retry, competing partial batches                                                         |
@@ -169,23 +195,23 @@ unresolved test failure is being treated as a pass.
 
 ## Practical demonstration
 
-1. Apply migrations, provision synthetic accounts and run both seeds. Sign in as
-   `requester-science@demo.example.test` using the locally configured password.
+1. Use the existing provisioned foundation accounts. Apply the Part 2 migration and seed workflows only after explicit selected-project review/authorization. Sign in as
+   `req-sci@demo.test` using the privately supplied shared synthetic password.
    Open **Requests and transfers**. Show the partial fixture: 10 requested,
    three accepted, two allocated, five remaining. Open Interest-only stock to show
    that selection has not allocated anything.
 2. Submit a request for three Good HDMI monitors: category Monitors, specifications
    `{"connector":"HDMI"}`, future required date and a Science destination. Select
    an Engineering listing and record Interest. Explain why stock remains available.
-3. Sign in as `representative-engineering@demo.example.test`. Approve a positive
+3. Sign in as `rep-eng@demo.test`. Approve a positive
    quantity no greater than selected stock and remaining demand, with a reason.
    Show the separate reservation decision and Pending Approval transfer. Approve
    release and select `Synthetic facilities-Engineering`.
-4. Sign in as `facilities-engineering@demo.example.test`. Schedule pickup before
+4. Sign in as `fac@demo.test`. Schedule pickup before
    the required date, enter arrangements/optional costs, then dispatch the full
    approved quantity and record physical location. Show Engineering still owns and
    formally holds custody while Facilities physically holds the stock.
-5. Sign in as `representative-science@demo.example.test`. Record full suitable
+5. Sign in as `rep-sci@demo.test`. Record full suitable
    accepted receipt, actual holder and location. Show Completed, formal receiving
    department/custodian, increased accepted quantity and actor/time/reason history.
 6. Use the disputed fixture to demonstrate full reconciled acceptance or supplier
@@ -199,9 +225,11 @@ actual-SQL browser walkthrough with explicitly synthetic Auth/HTTP adapters.
 
 ## Remaining limits and next owner
 
-No hosted credentials were available, so hosted acceptance is the outstanding
-environmental blocker. No deployment, push, merge, AI feature, notification,
-dashboard, general report, maintenance or end-of-life workflow was performed.
+The incoming main setup records shared hosted foundation provisioning, while this
+branch's Part 2 hosted migration, seed and acceptance remain outstanding. No hosted
+deployment/data mutation, remote push or feature-branch merge into main is performed
+while resolving Git conflicts. AI features, notifications, dashboards, general
+reports, maintenance and end-of-life remain outside this part.
 Human owner review, institutional delegation and real physical reconciliation
 remain external to the prototype.
 

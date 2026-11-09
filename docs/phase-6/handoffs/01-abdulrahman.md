@@ -19,8 +19,10 @@ local, unpublished snapshot under `.design-build/`; do not use it as the active 
 ## Setup and evidence
 
 See [setup](../setup.md), [contracts](../contracts/part-1-foundation.md) and the task.
-The user has no configured Supabase project yet. Actual Auth provisioning and hosted
-deployment are pending. No Gemini setup is needed for this part.
+At the original handoff no Supabase project was configured. The newer main setup
+now records a provisioned shared foundation and short demo sign-in aliases; see
+[current setup](../setup.md). Edge deployment/full hosted acceptance remain pending.
+No Gemini setup is needed for this part.
 
 Run:
 

@@ -1,9 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { demoEmailFor } from "./demo-accounts.mjs";
 for (const key of [
   "SUPABASE_URL",
-  "SUPABASE_ANON_KEY",
+  "SUPABASE_PUBLISHABLE_KEY",
   "DEMO_ACCOUNT_PASSWORD",
 ])
   if (!process.env[key]) throw new Error(`Missing ${key}. See Part 2 handoff.`);
@@ -17,11 +18,7 @@ const foundation = JSON.parse(
 const recipes = JSON.parse(
   await readFile("tests/fixtures/workflows.json", "utf8"),
 );
-const emailFor = (p) =>
-  `${p.name
-    .replace(/^Synthetic /, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")}@demo.example.test`;
+const emailFor = (p) => demoEmailFor(p, foundation.departments);
 const clients = [];
 async function login(
   role,
@@ -32,7 +29,7 @@ async function login(
   );
   const client = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY,
+    process.env.SUPABASE_PUBLISHABLE_KEY,
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
   clients.push(client);
@@ -42,7 +39,7 @@ async function login(
   });
   if (error)
     throw new Error(
-      `Synthetic ${role} login failed. Run seed:accounts first. ${error.message}`,
+      `Synthetic ${role} login failed. Verify existing account access and the selected project's provisioning. ${error.message}`,
     );
   return { client, id: data.user.id, department };
 }

@@ -58,8 +58,11 @@ For local database development/testing, start Docker Desktop with WSL integratio
 then run `npm run supabase:start`; use `npm run supabase:status`,
 `npm run supabase:stop`, or `npm run supabase:reset` as needed. This project-local
 Supabase stack is for local development, not deployment. CI validates with GitHub
-Actions and does not deploy. No hosted Supabase project is linked or configured, and
-no hosted service is deployed. See [setup and verification](docs/phase-6/setup.md).
+Actions and does not deploy. The latest main setup records an already-provisioned
+shared hosted Part 1 project. Its account Edge Function and frontend deployment,
+and the Part 2 workflow migration/hosted acceptance, remain separate pending steps.
+See [setup and verification](docs/phase-6/setup.md) before any provisioning or writes;
+routine checkout must not reseed the shared project.
 No Gemini access is needed until the matching/report stages.
 
 Part 2 adds requests, separate reservation/release decisions, scheduling/dispatch,

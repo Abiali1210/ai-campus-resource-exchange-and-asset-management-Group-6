@@ -20,8 +20,10 @@ See [setup](setup.md) and [progress handoff](handoffs/01-abdulrahman.md).
 
 Part 1 was rechecked after removing the broader AI and file-storage features.
 The production build, 20 unit tests, 16 PostgreSQL checks and 6 Chrome flows passed.
-No hosted Supabase account provisioning has been executed. Local checks are not
-live service acceptance. Report exact narrowed-scope results in the handoff.
+These original checks were local. The newer main setup records a shared hosted
+PostgreSQL 17.11 foundation with 12 synthetic accounts and six assets provisioned.
+Account Edge Function deployment and full hosted acceptance remain pending; this
+merge does not reproduce or extend that hosted provisioning.
 
 ## 2 Requests and transfers — Ahmed
 
@@ -41,7 +43,7 @@ full reconciled acceptance or supplier-confirmed return. Unsafe/unknown stock re
 unavailable. Current roles/department scope, expected versions, stable retry keys and
 transactional actor/time/reason audit are enforced in PostgreSQL.
 
-Local verification: **25 unit tests, 16 inherited plus 23 workflow PGlite checks,
+Local verification after main integration: **31 unit tests, 16 inherited plus 23 workflow PGlite checks,
 the same 23 workflow checks on native PostgreSQL, four genuinely overlapping native
 transaction races, ten Chrome flows, production build, fixture integrity and formatting passed**.
 Browser evidence comprises five inherited HTTP-mocked foundation flows, a read-only
@@ -59,10 +61,13 @@ provide ordinary inputs for the later matching/report owners; no AI or report mo
 was added. See [Part 2 handoff](handoffs/02-ahmed.md) for tested revision, commands,
 contracts, demonstration and resolved failures.
 
-Hosted Auth/JWT/PostgREST, account provisioning, migration/seed execution and actual
-browser-to-Supabase acceptance remain blocked by absent project configuration.
-Human owner review/demo and remote CI remain pending; no deployment, push or merge
-was performed.
+Hosted Part 2 migration/seed execution and actual browser-to-Supabase workflow
+acceptance remain pending. Incoming main provides modern publishable/secret-key
+configuration and short demo aliases; the workflow seed shares its identity mapping
+with the foundation provisioner. Shared-project data and credentials were not touched.
+Human owner review/demo and remote CI remain pending; no hosted deployment, remote
+push or feature-branch merge into main was performed. The latest main commit
+`2fcc41b` was integrated into the feature branch and retested locally.
 
 ## 3 Matching and ranking — Abi Ali
 

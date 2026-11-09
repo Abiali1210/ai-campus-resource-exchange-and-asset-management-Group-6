@@ -22,3 +22,5 @@ playwright-report/
 test-results/
 .workflow-validation/
 .supabase/
+supabase/.temp/
+supabase/.branches/
