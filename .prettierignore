@@ -1,0 +1,16 @@
+# Dependencies, build outputs, test evidence and local tool runtimes.
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.workflow-validation/
+.supabase/
+supabase/.temp/
+
+# Submitted Office/PDF references and credentials are not formatting inputs.
+*.docx
+*.pptx
+*.pdf
+.env
+.env.*

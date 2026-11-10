@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "description": "Synthetic C4-C6 fixture recipes. No real inventory, measured impact, AI output or credentials. Each recipe creates separate stock and a separate need.",
+  "cases": [
+    {
+      "key": "open",
+      "purpose": "Display for a teaching lab",
+      "stockQty": 4,
+      "requestQty": 4,
+      "approveQty": 0,
+      "outcome": "Open",
+      "acceptedQty": 0,
+      "allocatedQty": 0,
+      "remainingQty": 4
+    },
+    {
+      "key": "interest",
+      "purpose": "HDMI display for research",
+      "stockQty": 2,
+      "requestQty": 2,
+      "approveQty": 0,
+      "outcome": "Interest",
+      "acceptedQty": 0,
+      "allocatedQty": 0,
+      "remainingQty": 2
+    },
+    {
+      "key": "pending",
+      "purpose": "Display awaiting supplier release",
+      "stockQty": 2,
+      "requestQty": 2,
+      "approveQty": 2,
+      "outcome": "Pending Approval",
+      "acceptedQty": 0,
+      "allocatedQty": 2,
+      "remainingQty": 0
+    },
+    {
+      "key": "scheduled",
+      "purpose": "Display awaiting Facilities movement",
+      "stockQty": 2,
+      "requestQty": 2,
+      "approveQty": 2,
+      "outcome": "Scheduled",
+      "acceptedQty": 0,
+      "allocatedQty": 2,
+      "remainingQty": 0
+    },
+    {
+      "key": "partial",
+      "purpose": "Ten displays with partial fulfillment",
+      "stockQty": 10,
+      "requestQty": 10,
+      "approveQty": 3,
+      "extraAllocation": 2,
+      "outcome": "Completed",
+      "acceptedQty": 3,
+      "allocatedQty": 2,
+      "remainingQty": 5
+    },
+    {
+      "key": "disputed",
+      "purpose": "Display with a receipt discrepancy",
+      "stockQty": 2,
+      "requestQty": 2,
+      "approveQty": 2,
+      "outcome": "Disputed",
+      "acceptedQty": 0,
+      "allocatedQty": 2,
+      "remainingQty": 0
+    },
+    {
+      "key": "returned",
+      "purpose": "Display returned in unsafe condition",
+      "stockQty": 1,
+      "requestQty": 1,
+      "approveQty": 1,
+      "outcome": "Returned",
+      "acceptedQty": 0,
+      "allocatedQty": 0,
+      "remainingQty": 1
+    }
+  ]
+}

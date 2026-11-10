@@ -25,17 +25,17 @@ React/TypeScript + Supabase approval was reported by Abdulrahman on 8 November 2
 
 ## Current operations
 
-| RPC or service | Purpose |
-| --- | --- |
-| foundation_bootstrap | Active caller, permitted departments/categories and scoped profiles |
-| search_assets(p_filters) | Permitted catalogue projection; keyword/category/condition/department filters |
-| asset_detail(p_asset_id) | Asset plus permitted actor/time/change history |
-| save_asset(p_input) | Representative's validated conventional registration/metadata update |
-| set_publication(asset,version,publish,operationKey) | Authorized publish/withdraw with state/quantity guards |
-| save_department(p_input) | Technical administrator department management |
-| save_profile(p_input) | Audited technical account/profile/role activation changes |
-| bootstrap_administrator(p_input) | Service-only first-admin setup; no browser access |
-| foundation Edge adminCreateAccount/adminUpdateAccount | Verified technical admin Auth provisioning/updates with cleanup |
+| RPC or service                                        | Purpose                                                                       |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------- |
+| foundation_bootstrap                                  | Active caller, permitted departments/categories and scoped profiles           |
+| search_assets(p_filters)                              | Permitted catalogue projection; keyword/category/condition/department filters |
+| asset_detail(p_asset_id)                              | Asset plus permitted actor/time/change history                                |
+| save_asset(p_input)                                   | Representative's validated conventional registration/metadata update          |
+| set_publication(asset,version,publish,operationKey)   | Authorized publish/withdraw with state/quantity guards                        |
+| save_department(p_input)                              | Technical administrator department management                                 |
+| save_profile(p_input)                                 | Audited technical account/profile/role activation changes                     |
+| bootstrap_administrator(p_input)                      | Service-only first-admin setup; no browser access                             |
+| foundation Edge adminCreateAccount/adminUpdateAccount | Verified technical admin Auth provisioning/updates with cleanup               |
 
 Typed failures distinguish Unauthorized, Forbidden, Validation and Conflict.
 Client forms preserve entered data on failure. Business authorization runs in the

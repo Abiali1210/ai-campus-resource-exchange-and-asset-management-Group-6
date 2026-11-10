@@ -30,108 +30,84 @@
       "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
       "name": "Synthetic requester-Engineering",
       "active": true,
-      "roles": [
-        "requester"
-      ]
+      "roles": ["requester"]
     },
     {
       "userId": "e1b543cf-5f21-56fb-bf1d-5f580341fac8",
       "departmentId": "d7e4c63b-396f-5d67-820a-88cfcca0d650",
       "name": "Synthetic requester-Science",
       "active": true,
-      "roles": [
-        "requester"
-      ]
+      "roles": ["requester"]
     },
     {
       "userId": "3f7b19ba-aa96-5306-9fd6-4179ce7533af",
       "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
       "name": "Synthetic representative-Engineering",
       "active": true,
-      "roles": [
-        "representative"
-      ]
+      "roles": ["representative"]
     },
     {
       "userId": "af38cdf9-6f08-518e-942b-1cef8d917525",
       "departmentId": "d7e4c63b-396f-5d67-820a-88cfcca0d650",
       "name": "Synthetic representative-Science",
       "active": true,
-      "roles": [
-        "representative"
-      ]
+      "roles": ["representative"]
     },
     {
       "userId": "c9b03a7d-a220-510d-9e66-70ac8e3b54f3",
       "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
       "name": "Synthetic business administrator-Engineering",
       "active": true,
-      "roles": [
-        "business_administrator"
-      ]
+      "roles": ["business_administrator"]
     },
     {
       "userId": "3e161ee7-bdd4-5b5f-bb99-df27639753d0",
       "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
       "name": "Synthetic maintenance-Engineering",
       "active": true,
-      "roles": [
-        "maintenance"
-      ]
+      "roles": ["maintenance"]
     },
     {
       "userId": "8b82b441-ec03-5ee8-b6aa-340a2d850922",
       "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
       "name": "Synthetic facilities-Engineering",
       "active": true,
-      "roles": [
-        "facilities"
-      ]
+      "roles": ["facilities"]
     },
     {
       "userId": "bd673cbe-abdb-5157-aaff-5b61dc9d1b13",
       "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
       "name": "Synthetic procurement-Engineering",
       "active": true,
-      "roles": [
-        "procurement"
-      ]
+      "roles": ["procurement"]
     },
     {
       "userId": "a29adbbc-e65f-5dc8-8ff0-5121a21ff26c",
       "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
       "name": "Synthetic finance-Engineering",
       "active": true,
-      "roles": [
-        "finance"
-      ]
+      "roles": ["finance"]
     },
     {
       "userId": "c63f7c40-1b2e-58af-8984-1225bed378be",
       "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
       "name": "Synthetic sustainability-Engineering",
       "active": true,
-      "roles": [
-        "sustainability"
-      ]
+      "roles": ["sustainability"]
     },
     {
       "userId": "5d67735d-494a-5eb3-a81e-eee6f548d0f8",
       "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
       "name": "Synthetic system administrator-Engineering",
       "active": true,
-      "roles": [
-        "system_administrator"
-      ]
+      "roles": ["system_administrator"]
     },
     {
       "userId": "b6883b6d-e25a-586d-9e94-43e38677297f",
       "departmentId": "0e601277-1784-5bfa-884f-942326d527c6",
       "name": "Synthetic inactive requester",
       "active": false,
-      "roles": [
-        "requester"
-      ]
+      "roles": ["requester"]
     }
   ],
   "categories": [

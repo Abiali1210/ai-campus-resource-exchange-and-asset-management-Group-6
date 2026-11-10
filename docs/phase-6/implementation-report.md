@@ -20,12 +20,65 @@ See [setup](setup.md) and [progress handoff](handoffs/01-abdulrahman.md).
 
 Part 1 was rechecked after removing the broader AI and file-storage features.
 The production build, 20 unit tests, 16 PostgreSQL checks and 6 Chrome flows passed.
-No hosted Supabase account provisioning has been executed. Local checks are not
-live service acceptance. Report exact narrowed-scope results in the handoff.
+These original checks were local. The newer main setup records a shared hosted
+PostgreSQL 17.11 foundation with 12 synthetic accounts and six assets provisioned.
+Account Edge Function deployment and full hosted acceptance remain pending; this
+merge does not reproduce or extend that hosted provisioning.
 
 ## 2 Requests and transfers — Ahmed
 
-Pending C4–C6 implementation and actual verification evidence.
+Implemented C4–C6 on `codex/phase6-02-workflows`, extending the existing
+React/TypeScript/Vite and Supabase/PostgreSQL application with an additive migration.
+Staff submit and track permitted requests with requested, accepted, actively
+allocated and remaining quantities. Published-item selection creates linked Interest;
+supplier reservation approval performs allocation. Release is a separate recorded
+decision. Both reject requester/Interest-creator self-approval across multiple roles.
+
+The implementation follows SRS UC-04/07/08 and design v1.4 Sections 5 and 9–11.
+Request/stock row locks serialize competing approvals, and partial allocation splits
+conserved leaf StockPortions. Assigned Facilities schedule and dispatch; physical
+holder/location change during movement, while formal department/custodian/location
+change only on full suitable accepted receipt. Disputes retain allocation until
+full reconciled acceptance or supplier-confirmed return. Unsafe/unknown stock remains
+unavailable. Current roles/department scope, expected versions, stable retry keys and
+transactional actor/time/reason audit are enforced in PostgreSQL.
+
+Local verification after the PR #13 privacy correction: **31 unit tests, 16 inherited plus 28 workflow PGlite checks,
+the same 28 workflow checks on native PostgreSQL, four genuinely overlapping native
+transaction races, eleven Chrome flows, production build, fixture integrity and formatting passed**.
+Browser evidence comprises five inherited HTTP-mocked foundation flows, a read-only
+preview, and five workflow/integration flows running actual SQL with synthetic Auth/HTTP
+adapters. These are local checks, not hosted Supabase acceptance. The initial run used
+Node 24.15.0. A follow-up review reran all suites, native concurrency and the build
+on the documented Node 22 runtime (22.23.4), including the split/mixed-owner catalogue
+action regression. The inherited foundation checks pass with all three migrations installed.
+
+PR review reproduced a financial privacy defect: Requesters and assigned Facilities
+could read handling/transport costs directly and inside raw audit snapshots. An
+additive migration now enforces design Section 6.1 on every read, using current
+explicit financial roles and immutable transfer departments. Workspace, asset audit
+and both detail paths omit restricted costs while retaining operational history.
+The UI distinguishes omitted fields from authorized null/zero values. Five database
+regression groups and a browser flow cover this correction. A populated-schema
+upgrade check preserved existing costs/audits while immediately redacting restricted
+reads. Sign-in and backend configuration behavior are unchanged.
+
+A read-only independent reviewer examined requirements, implementation and checks,
+independently reproduced defects, and verified fixes for unsafe cancellation,
+observer/holder separation, terminal tracking privacy and immutable Interest supplier
+authority. Regression checks cover those findings. Seven synthetic workflow recipes
+provide ordinary inputs for the later matching/report owners; no AI or report module
+was added. See [Part 2 handoff](handoffs/02-ahmed.md) for tested revision, commands,
+contracts, demonstration and resolved failures.
+
+Hosted Part 2 migration/seed execution and actual browser-to-Supabase workflow
+acceptance remain pending. Incoming main provides modern publishable/secret-key
+configuration and short demo aliases; the workflow seed shares its identity mapping
+with the foundation provisioner. Shared-project data and credentials were not touched.
+Human owner review/demo and hosted acceptance remain pending. PR #13 carries the
+feature branch for review; evaluate GitHub checks on its current head. No hosted
+deployment or feature-branch merge into main was performed. The latest main commit
+`2fcc41b` was integrated into the feature branch and retested locally.
 
 ## 3 Matching and ranking — Abi Ali
 
@@ -38,13 +91,13 @@ demonstration. Keep the report short and distinguish recorded outcomes from esti
 
 ## Status
 
-| Required feature | Owner | Status |
-| --- | --- | --- |
-| C1 accounts/roles/departments | Abdulrahman | Source exists; narrowed checks/live setup pending |
-| C2 assets/status; C3 publication/search | Abdulrahman | Source exists; narrowed checks/live setup pending |
-| C4 requests; C5 approval/transfer; C6 workflow/history | Ahmed | Planned; Part 1 audit groundwork exists |
-| AI #2 matching/ranking | Abi Ali | Planned |
-| AI #5 generated report | Muhammad Awais | Planned |
+| Required feature                                       | Owner          | Status                                                                   |
+| ------------------------------------------------------ | -------------- | ------------------------------------------------------------------------ |
+| C1 accounts/roles/departments                          | Abdulrahman    | Implemented and locally verified; hosted acceptance/human review pending |
+| C2 assets/status; C3 publication/search                | Abdulrahman    | Implemented and locally verified; hosted acceptance/human review pending |
+| C4 requests; C5 approval/transfer; C6 workflow/history | Ahmed          | Implemented and locally verified; hosted acceptance/human review pending |
+| AI #2 matching/ranking                                 | Abi Ali        | Planned                                                                  |
+| AI #5 generated report                                 | Muhammad Awais | Planned                                                                  |
 
 Deferred now: C7–C9 as standalone modules, AI #1/#3/#4, maintenance and end-of-life.
 No synthetic data establishes actual campus savings/adoption or general AI accuracy.

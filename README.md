@@ -51,39 +51,75 @@ records the selected scope: C1–C6 and AI #2/#5 only. Other features are deferr
 Part 1 is merged into main; live Supabase acceptance remains pending. Abdulrahman
 reported instructor stack approval on 8 November.
 
-## Run the local Part 1 implementation
+## Run the local Parts 1 and 2 implementation
 
 Use Node.js 22 (`npm ci`, then `npm run dev`) and open http://127.0.0.1:5173.
 For local database development/testing, start Docker Desktop with WSL integration,
 then run `npm run supabase:start`; use `npm run supabase:status`,
 `npm run supabase:stop`, or `npm run supabase:reset` as needed. This project-local
 Supabase stack is for local development, not deployment. CI validates with GitHub
-Actions and does not deploy. No hosted Supabase project is linked or configured, and
-no hosted service is deployed. See [setup and verification](docs/phase-6/setup.md).
+Actions and does not deploy. The latest main setup records an already-provisioned
+shared hosted Part 1 project. Its account Edge Function and frontend deployment,
+and the Part 2 workflow migration/hosted acceptance, remain separate pending steps.
+See [setup and verification](docs/phase-6/setup.md) before any provisioning or writes;
+routine checkout must not reseed the shared project.
 No Gemini access is needed until the matching/report stages.
+
+Part 2 adds requests, separate reservation/release decisions, scheduling/dispatch,
+accepted receipt, disputes/returns and conserved partial quantities. Open **Requests
+and transfers** after sign-in. Read [Ahmed's handoff](docs/phase-6/handoffs/02-ahmed.md)
+for migrations, synthetic workflow fixtures, native concurrency checks and the
+demonstration. Hosted Supabase acceptance remains pending. `npm run test:db` runs
+both foundation and workflow checks; `npm run test:db:native` requires a disposable
+PostgreSQL test cluster. No shared database reset is needed.
 
 ## Repository organization
 
 ```text
+src/                         React application and shared TypeScript services/types
+  assets/branding/           Supplied official logo and source provenance
+supabase/
+  migrations/                Ordered, additive database schema and business operations
+  functions/foundation/      Authenticated account administration gateway
+  seed.sql                   Synthetic departments/categories (not login accounts)
+scripts/                     Account/workflow seeds, database checks and fixture validation
+tests/
+  browser/                   Chrome journeys; test adapters are identified in each file
+  fixtures/                  Synthetic data and expected workflow quantities
+  *.test.ts                  Domain, gateway and workflow client tests
 docs/
-├── Project-September2026.pdf
-├── phase-1/
-│   ├── COSC336_Group6_Phase1_v1.0.pdf
-│   └── COSC336_Group6_Phase1_v1.0.docx
-├── phase-2/
-│   ├── COSC336_Group6_Phase2_v1.1.pdf
-│   └── COSC336_Group6_Phase2_v1.1.docx
-├── phase-3/
-│   ├── COSC336_Group6_Phase3_SRS_v1.2.pdf
-│   └── COSC336_Group6_Phase3_SRS_v1.2.docx
-└── phase-4-5/
-    ├── COSC336_Group6_Phase4_5_Design_v1.4.pdf
-    └── COSC336_Group6_Phase4_5_Design_v1.4.docx
+  phase-1/ ... phase-4-5/     Submitted Word/PDF references, organized by phase
+  phase-6/
+    README.md                Scope, owner sequence and current progress
+    setup.md                 Shared setup and verification commands
+    implementation-report.md Shared report with a section for each owner
+    tasks/                   Numbered owner assignments
+    contracts/               Interfaces and rules later owners must preserve
+    handoffs/                What was delivered, tested and left pending
+    sources/                 Supplied Phase 6 lab slides
+.github/workflows/            Automated formatting, unit/database and build checks
 ```
 
-Reviewed deliverables are organized by phase, with the latest version in each folder.
-Earlier versions remain available in Git history. Implementation structure will be
-added when its deliverables and tools are defined.
+Start with `src/App.tsx` and `src/api.ts` for Abdulrahman's foundation, then
+`src/WorkflowPanel.tsx` and `src/workflows.ts` for Part 2. Database authority lives
+in the two chronological SQL migrations, not in the screen controls. The submitted
+documents remain unchanged; earlier revisions remain available in Git history.
+
+`node_modules/`, `dist/`, `test-results/` and `.workflow-validation/` are ignored
+local dependencies/outputs, not submission source. Do not put credentials or test
+database files in the tracked application folders.
+
+## Formatting and checks
+
+Run `npm run format` to format supported source/configuration/Markdown files and
+`npm run format:check` to check them. The check is included in CI. Submitted
+Word/PDF/PowerPoint files, credentials, SQL without a configured formatter and
+generated/local directories are excluded from automatic formatting.
+
+Run `npm test`, `npm run test:db`, `npm run test:browser` and `npm run build` for
+the application checks. Fixture definitions are explained in
+[tests/fixtures/README.md](tests/fixtures/README.md); actual execution evidence is
+recorded in the owner handoffs, separately from planned test cases.
 
 ## Team
 

@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { demoEmailFor, legacyDemoEmailFor } from "./demo-accounts.mjs";
 const required = [
   "SUPABASE_URL",
   "SUPABASE_PUBLISHABLE_KEY",
@@ -49,41 +50,8 @@ for (let page = 1; ; page++) {
   existing.push(...data.users);
   if (data.users.length < 200) break;
 }
-const aliasByFixture = new Map([
-  ["active|requester|Engineering", "req-eng"],
-  ["active|requester|Science", "req-sci"],
-  ["active|representative|Engineering", "rep-eng"],
-  ["active|representative|Science", "rep-sci"],
-  ["active|business_administrator|Engineering", "biz-eng"],
-  ["active|maintenance|Engineering", "maint"],
-  ["active|facilities|Engineering", "fac"],
-  ["active|procurement|Engineering", "proc"],
-  ["active|finance|Engineering", "fin"],
-  ["active|sustainability|Engineering", "sust"],
-  ["active|system_administrator|Engineering", "admin"],
-  ["inactive|requester|Engineering", "inactive"],
-]);
-const emailFor = (p) => {
-  if (typeof p.active !== "boolean" || !Array.isArray(p.roles) || p.roles.length !== 1)
-    throw new Error(`Unsupported synthetic account mapping for ${p.userId}.`);
-  const department = fixture.departments.find(
-    (d) => d.departmentId === p.departmentId,
-  );
-  if (!department)
-    throw new Error(`Unknown synthetic account department for ${p.userId}.`);
-  const state = p.active ? "active" : "inactive";
-  const local = aliasByFixture.get(
-    `${state}|${p.roles[0]}|${department.name}`,
-  );
-  if (!local)
-    throw new Error(`Unsupported synthetic account mapping for ${p.userId}.`);
-  return `${local}@demo.test`;
-};
-const legacyEmailFor = (p) =>
-  `${p.name
-    .replace(/^Synthetic /, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")}@demo.example.test`;
+const emailFor = (p) => demoEmailFor(p, fixture.departments);
+const legacyEmailFor = legacyDemoEmailFor;
 
 const emailPlans = new Map();
 const plannedAliases = fixture.users.map(emailFor);
@@ -96,8 +64,12 @@ if (new Set(legacyEmails).size !== legacyEmails.length)
 const profiles = await checked(
   service.from("profiles").select("user_id,name,department_id,active"),
 );
-const roleRows = await checked(service.from("user_roles").select("user_id,role"));
-const profileById = new Map(profiles.map((profile) => [profile.user_id, profile]));
+const roleRows = await checked(
+  service.from("user_roles").select("user_id,role"),
+);
+const profileById = new Map(
+  profiles.map((profile) => [profile.user_id, profile]),
+);
 const rolesById = new Map();
 for (const row of roleRows) {
   if (!rolesById.has(row.user_id)) rolesById.set(row.user_id, []);
@@ -118,11 +90,15 @@ for (const [index, profile] of fixture.users.entries()) {
   );
   const legacyUsers = existing.filter((user) => user.email === legacy);
   if (aliasUsers.length > 1 || legacyUsers.length > 1)
-    throw new Error(`Ambiguous existing synthetic account match for ${profile.userId}.`);
+    throw new Error(
+      `Ambiguous existing synthetic account match for ${profile.userId}.`,
+    );
   const aliasUser = aliasUsers[0];
   const legacyUser = legacyUsers[0];
   if (aliasUser && legacyUser && aliasUser.id !== legacyUser.id)
-    throw new Error(`Conflicting alias and legacy accounts for ${profile.userId}.`);
+    throw new Error(
+      `Conflicting alias and legacy accounts for ${profile.userId}.`,
+    );
 
   const matchingProfiles = profiles.filter((row) =>
     sameProfile(row, profile, profile.roles),
@@ -134,19 +110,34 @@ for (const [index, profile] of fixture.users.entries()) {
       !sameProfile(profileById.get(aliasUser.id), profile, profile.roles) ||
       matchingProfiles[0]?.user_id !== aliasUser.id
     )
-      throw new Error(`Unexpected account already owns alias for ${profile.userId}.`);
-    emailPlans.set(profile.userId, { user: aliasUser, rename: false, email: alias });
+      throw new Error(
+        `Unexpected account already owns alias for ${profile.userId}.`,
+      );
+    emailPlans.set(profile.userId, {
+      user: aliasUser,
+      rename: false,
+      email: alias,
+    });
   } else if (legacyUser) {
     const existingProfile = profileById.get(legacyUser.id);
     if (
-      (existingProfile && !sameProfile(existingProfile, profile, profile.roles)) ||
+      (existingProfile &&
+        !sameProfile(existingProfile, profile, profile.roles)) ||
       (matchingProfiles[0] && matchingProfiles[0].user_id !== legacyUser.id)
     )
-      throw new Error(`Legacy account identity mismatch for ${profile.userId}.`);
-    emailPlans.set(profile.userId, { user: legacyUser, rename: true, email: alias });
+      throw new Error(
+        `Legacy account identity mismatch for ${profile.userId}.`,
+      );
+    emailPlans.set(profile.userId, {
+      user: legacyUser,
+      rename: true,
+      email: alias,
+    });
   } else {
     if (matchingProfiles.length)
-      throw new Error(`Profile exists without a uniquely matching account for ${profile.userId}.`);
+      throw new Error(
+        `Profile exists without a uniquely matching account for ${profile.userId}.`,
+      );
     emailPlans.set(profile.userId, { user: null, rename: false, email: alias });
   }
 }
@@ -162,16 +153,14 @@ for (const d of fixture.departments)
   );
 for (const c of fixture.categories)
   await checked(
-    service
-      .from("categories")
-      .upsert(
-        {
-          category_id: c.categoryId,
-          parent_category_id: c.parentCategoryId,
-          name: c.name,
-        },
-        { onConflict: "category_id", ignoreDuplicates: true },
-      ),
+    service.from("categories").upsert(
+      {
+        category_id: c.categoryId,
+        parent_category_id: c.parentCategoryId,
+        name: c.name,
+      },
+      { onConflict: "category_id", ignoreDuplicates: true },
+    ),
   );
 
 async function ensureAuth(profile) {
@@ -186,7 +175,9 @@ async function ensureAuth(profile) {
       );
       const updated = result.user ?? result;
       if (updated.id !== plan.user.id)
-        throw new Error(`Auth identity changed while renaming ${profile.userId}.`);
+        throw new Error(
+          `Auth identity changed while renaming ${profile.userId}.`,
+        );
       Object.assign(plan.user, updated, { email: plan.email });
       plan.rename = false;
     }
@@ -327,19 +318,17 @@ for (const a of fixture.assets) {
         .eq("asset_id", asset.assetId),
     );
     await checked(
-      service
-        .from("audit_logs")
-        .insert({
-          actor_id: null,
-          event: "system.synthetic-history-seeded",
-          target_type: "asset",
-          target_id: asset.assetId,
-          before_data: { state: "Registered" },
-          after_data: {
-            state: p.state,
-            source: "explicit synthetic fixture provisioning",
-          },
-        }),
+      service.from("audit_logs").insert({
+        actor_id: null,
+        event: "system.synthetic-history-seeded",
+        target_type: "asset",
+        target_id: asset.assetId,
+        before_data: { state: "Registered" },
+        after_data: {
+          state: p.state,
+          source: "explicit synthetic fixture provisioning",
+        },
+      }),
     );
   }
   await rep.auth.signOut();

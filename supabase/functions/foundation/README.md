@@ -48,10 +48,10 @@ redeployment require separate review and approval.
 
 POST `{ "action": "...", "payload": { ... } }` with the signed-in bearer token.
 
-| Action | Payload | Success response |
-| --- | --- | --- |
-| adminCreateAccount | email, password (12–128 characters), name, departmentId, roles, operationKey | profile (201) |
-| adminUpdateAccount | userId, name, departmentId, roles, active, operationKey | profile |
+| Action             | Payload                                                                      | Success response |
+| ------------------ | ---------------------------------------------------------------------------- | ---------------- |
+| adminCreateAccount | email, password (12–128 characters), name, departmentId, roles, operationKey | profile (201)    |
+| adminUpdateAccount | userId, name, departmentId, roles, active, operationKey                      | profile          |
 
 The request body is limited to 100 KB. Failures have `{error:{code,message}}` and a
 non-2xx status. Raw database/Auth diagnostics, secret keys and passwords are never

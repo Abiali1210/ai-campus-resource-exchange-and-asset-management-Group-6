@@ -60,7 +60,7 @@ export class FoundationService {
       );
     return client;
   }
-  private async rpc<T>(
+  protected async rpc<T>(
     name: string,
     args: Record<string, unknown> = {},
   ): Promise<T> {
@@ -142,7 +142,7 @@ export class FoundationService {
       }),
     );
   }
-  async getAsset(assetId: string): Promise<AssetDetail> {
+  async getAsset(assetId: string, portionId?: string): Promise<AssetDetail> {
     if (!client) {
       const asset = preview.find((a) => a.assetId === assetId);
       if (!asset) throw new ServiceError("Asset unavailable.", "NotFound");
@@ -150,6 +150,7 @@ export class FoundationService {
     }
     const detail = await this.rpc<AssetDetail>("asset_detail", {
       p_asset_id: assetId,
+      ...(portionId ? { p_portion_id: portionId } : {}),
     });
     this.remember([detail.asset]);
     return detail;

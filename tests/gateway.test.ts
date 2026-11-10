@@ -187,10 +187,14 @@ describe("authenticated account gateway", () => {
     )!;
     expect(authCall.headers.get("apikey")).toBe("sb_publishable_caller-test");
     expect(authCall.headers.get("Authorization")).toBe("Bearer token");
-    const saved = mock.calls.find((call) => call.url.endsWith("/save_profile"))!;
+    const saved = mock.calls.find((call) =>
+      call.url.endsWith("/save_profile"),
+    )!;
     expect(saved.headers.get("apikey")).toBe("sb_publishable_caller-test");
     expect(saved.headers.get("Authorization")).toBe("Bearer token");
-    expect([...authCall.headers.values(), ...saved.headers.values()].join(" ")).not.toContain("server-only-secret");
+    expect(
+      [...authCall.headers.values(), ...saved.headers.values()].join(" "),
+    ).not.toContain("server-only-secret");
     expect(saved.body.p_input).toMatchObject({
       userId: targetId,
       departmentId,
@@ -224,24 +228,18 @@ describe("authenticated account gateway", () => {
       ["adminUpdateAccount", { ...account, userId: targetId, active: "false" }],
     ] as const) {
       const mock = backend();
-      expect(
-        (
-          await createHandler(mock)(request(action, payload))
-        ).status,
-      ).toBe(400);
-      expect(mock.adminAuth.createUser).not.toHaveBeenCalled();
-      expect(mock.calls.some((call) => call.url.endsWith("/save_profile"))).toBe(
-        false,
+      expect((await createHandler(mock)(request(action, payload))).status).toBe(
+        400,
       );
+      expect(mock.adminAuth.createUser).not.toHaveBeenCalled();
+      expect(
+        mock.calls.some((call) => call.url.endsWith("/save_profile")),
+      ).toBe(false);
     }
   });
   it("does not provision accounts without the private Admin Auth adapter", async () => {
     const mock = backend();
-    expect(
-      (
-        await createHandler(mock, false)(request())
-      ).status,
-    ).toBe(503);
+    expect((await createHandler(mock, false)(request())).status).toBe(503);
     expect(mock.adminAuth.createUser).not.toHaveBeenCalled();
   });
   it("deletes just-created Auth accounts after failed transactional profile setup", async () => {
@@ -267,7 +265,9 @@ describe("authenticated account gateway", () => {
     const mock = backend({ createFailure: true });
     const response = await createHandler(mock)(request());
     expect(response.status).toBe(409);
-    expect(await response.text()).not.toContain("server-only-secret-diagnostic");
+    expect(await response.text()).not.toContain(
+      "server-only-secret-diagnostic",
+    );
     expect(mock.calls.some((call) => call.url.endsWith("/save_profile"))).toBe(
       false,
     );
@@ -292,9 +292,9 @@ describe("authenticated account gateway", () => {
       "generateReport",
     ])
       expect((await handler(request(action, {}))).status).toBe(400);
-    expect(mock.calls.every((call) => call.url.startsWith(config.supabaseUrl))).toBe(
-      true,
-    );
+    expect(
+      mock.calls.every((call) => call.url.startsWith(config.supabaseUrl)),
+    ).toBe(true);
     expect(mock.adminAuth.createUser).not.toHaveBeenCalled();
   });
   it("bounds streamed request bodies without trusting Content-Length", async () => {

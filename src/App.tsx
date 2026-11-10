@@ -2,10 +2,13 @@ import {
   useEffect,
   useRef,
   useState,
+  lazy,
+  Suspense,
   type FormEvent,
   type ReactNode,
 } from "react";
 import { api } from "./api";
+import universityLogo from "./assets/branding/khalifa-university-colour-white-background.jpg";
 import {
   CONDITIONS,
   ROLES,
@@ -19,6 +22,12 @@ import {
   type Role,
 } from "./types";
 import "./styles.css";
+
+const WorkflowPanel = lazy(() =>
+  import("./WorkflowPanel").then((module) => ({
+    default: module.WorkflowPanel,
+  })),
+);
 
 const ROLE_NAMES: Record<Role, string> = {
   requester: "Requester",
@@ -695,13 +704,17 @@ function AssetDetails({
     canEdit =
       !preview &&
       isRepresentative(profile) &&
-      profile?.departmentId === current.ownerDepartmentId;
-  const reload = async () => setDetail(await api.getAsset(asset.assetId));
+      profile?.departmentId === current.ownerDepartmentId &&
+      current.canEdit === true &&
+      current.qty === current.totalQty &&
+      ["Registered", "In Use", "Available"].includes(current.state);
+  const reload = async () =>
+    setDetail(await api.getAsset(asset.assetId, asset.portionId));
   useEffect(() => {
     if (preview) return;
     let active = true;
     api
-      .getAsset(asset.assetId)
+      .getAsset(asset.assetId, asset.portionId)
       .then((d) => {
         if (active) setDetail(d);
       })
@@ -714,7 +727,7 @@ function AssetDetails({
     return () => {
       active = false;
     };
-  }, [asset.assetId, preview]);
+  }, [asset.assetId, asset.portionId, preview]);
   async function act(work: () => Promise<unknown>, message: string) {
     setBusy(true);
     setError("");
@@ -840,6 +853,15 @@ function AssetDetails({
               </dl>
             </div>
           )}
+          {!canEdit &&
+            !preview &&
+            isRepresentative(profile) &&
+            profile?.departmentId === current.ownerDepartmentId && (
+              <p className="notice">
+                Catalogue actions are unavailable for this split or restricted
+                asset. Review its transfer status in Requests and transfers.
+              </p>
+            )}
           {canEdit && (
             <div className="detail-actions">
               <button
@@ -1074,7 +1096,9 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null),
     [metadata, setMetadata] = useState<Bootstrap>(emptyMetadata),
     [assets, setAssets] = useState<AssetView[]>([]),
-    [view, setView] = useState<"catalogue" | "own" | "admin">("catalogue"),
+    [view, setView] = useState<"catalogue" | "own" | "admin" | "workflows">(
+      "catalogue",
+    ),
     [filters, setFilters] = useState<Filters>({}),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
@@ -1119,7 +1143,8 @@ export default function App() {
     };
   }, []);
   useEffect(() => {
-    if (view === "admin" || (!preview && !profile)) return;
+    if (view === "admin" || view === "workflows" || (!preview && !profile))
+      return;
     let active = true;
     setLoading(true);
     const f = { ...filters, own: view === "own" };
@@ -1201,14 +1226,23 @@ export default function App() {
     setModal("edit");
   }
   const title =
-    view === "own"
-      ? "Keep your department’s resources in circulation."
-      : view === "admin"
-        ? "The right access, for the right people."
-        : "A better home for campus resources.";
+    view === "workflows"
+      ? "Follow each request through to receipt."
+      : view === "own"
+        ? "Keep your department’s resources in circulation."
+        : view === "admin"
+          ? "The right access, for the right people."
+          : "A better home for campus resources.";
   return (
     <div className="app-shell">
       <aside className="sidebar">
+        <img
+          className="university-logo"
+          src={universityLogo}
+          alt="Khalifa University"
+          width="5286"
+          height="1913"
+        />
         <div className="brand">
           <span className="brand-mark">
             <Icon name="leaf" size={21} />
@@ -1219,6 +1253,22 @@ export default function App() {
         </div>
         <p className="nav-caption">Workspace</p>
         <nav aria-label="Main navigation">
+          {profile?.roles.some((r) =>
+            ["requester", "representative", "facilities"].includes(r),
+          ) && (
+            <button
+              className={`nav-item ${view === "workflows" ? "active" : ""}`}
+              onClick={() => {
+                setView("workflows");
+                setError("");
+              }}
+            >
+              <span className="nav-symbol">
+                <Icon name="arrow" />
+              </span>
+              Requests and transfers
+            </button>
+          )}
           {hasReadRole && (
             <button
               className={`nav-item ${view === "catalogue" ? "active" : ""}`}
@@ -1310,9 +1360,11 @@ export default function App() {
             <strong>
               {view === "admin"
                 ? "Administration"
-                : view === "own"
-                  ? "Department inventory"
-                  : "Resource catalogue"}
+                : view === "workflows"
+                  ? "Requests and transfers"
+                  : view === "own"
+                    ? "Department inventory"
+                    : "Resource catalogue"}
             </strong>
           </div>
           <div className="topbar-right">
@@ -1346,26 +1398,30 @@ export default function App() {
               <p className="hero-subtitle">
                 {view === "admin"
                   ? "Manage departmental membership and explicit role assignments. Every change remains traceable."
-                  : view === "own"
-                    ? "Maintain accurate records, review condition and make surplus resources discoverable across campus."
-                    : "Discover useful equipment and furniture already on campus. Explore what’s available before buying something new."}
+                  : view === "workflows"
+                    ? "Track remaining need, supplier decisions and physical movement through accepted receipt."
+                    : view === "own"
+                      ? "Maintain accurate records, review condition and make surplus resources discoverable across campus."
+                      : "Discover useful equipment and furniture already on campus. Explore what’s available before buying something new."}
               </p>
             </div>
             <div className="hero-actions">
-              {isRepresentative(profile) && view !== "admin" && (
-                <button
-                  className="button"
-                  onClick={() => {
-                    setSelected(null);
-                    setModal("edit");
-                  }}
-                >
-                  <span className="plus" aria-hidden="true">
-                    +
-                  </span>
-                  Register a resource
-                </button>
-              )}
+              {isRepresentative(profile) &&
+                view !== "admin" &&
+                view !== "workflows" && (
+                  <button
+                    className="button"
+                    onClick={() => {
+                      setSelected(null);
+                      setModal("edit");
+                    }}
+                  >
+                    <span className="plus" aria-hidden="true">
+                      +
+                    </span>
+                    Register a resource
+                  </button>
+                )}
               {view === "admin" && technical && (
                 <button
                   className="button"
@@ -1435,6 +1491,10 @@ export default function App() {
                 Sign in to continue
               </button>
             </div>
+          ) : view === "workflows" && profile ? (
+            <Suspense fallback={<p role="status">Opening workflows…</p>}>
+              <WorkflowPanel profile={profile} metadata={metadata} />
+            </Suspense>
           ) : view === "admin" ? (
             <>
               <div
