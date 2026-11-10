@@ -1,6 +1,6 @@
 # Phase 6 minimum implementation plan
 
-Updated 9 November 2026. **Current scope: C1–C6 and AI features #2 and #5 only.**
+Updated 10 November 2026. **Current scope: C1–C6 and AI features #2 and #5 only.**
 Abdulrahman clarified that the team should implement only the highlighted lab
 minimum for now. This supersedes the broader Phase 6 task allocation previously
 published. The full SRS/design remain references for later phases; deferred
@@ -31,12 +31,18 @@ features opportunistically or add them to another member's checklist.
 
 ## Sequential owners
 
-| Order | Owner          | Task                                                                         | Target dates |
-| ----- | -------------- | ---------------------------------------------------------------------------- | ------------ |
-| 1     | Abdulrahman    | [Foundation and catalogue: C1–C3, audit foundation](tasks/01-abdulrahman.md) | 8–11 Nov     |
-| 2     | Ahmed          | [Requests, approval and transfer: C4–C6](tasks/02-ahmed.md)                  | 12–14 Nov    |
-| 3     | Abi Ali        | [AI #2 matching/ranking](tasks/03-abi-ali.md)                                | 15–17 Nov    |
-| 4     | Muhammad Awais | [AI #5 generated report and integration](tasks/04-muhammad-awais.md)         | 18–20 Nov    |
+**Abi Ali's immediate priority:** resolve the live missing workflow/asset-detail
+functions and the squished profile avatar before starting AI #2. Abdulrahman assigned
+both existing-feature repairs on 10 November; see the first sections of
+[Abi's task file](tasks/03-abi-ali.md). The repairs have not been applied by this
+documentation update and do not expand the lab scope.
+
+| Order | Owner          | Task                                                                         | Target dates              |
+| ----- | -------------- | ---------------------------------------------------------------------------- | ------------------------- |
+| 1     | Abdulrahman    | [Foundation and catalogue: C1–C3, audit foundation](tasks/01-abdulrahman.md) | 8–11 Nov                  |
+| 2     | Ahmed          | [Requests, approval and transfer: C4–C6](tasks/02-ahmed.md)                  | 12–14 Nov                 |
+| 3     | Abi Ali        | [Live-site repairs first, then AI #2](tasks/03-abi-ali.md)                   | Repairs now; AI 15–17 Nov |
+| 4     | Muhammad Awais | [AI #5 generated report and integration](tasks/04-muhammad-awais.md)         | 18–20 Nov                 |
 
 Dates are targets, not completion promises. Reserve 21 November for corrections and
 practice. The brief's tentative Phase 6 deadline is the lab week starting 22 November;
