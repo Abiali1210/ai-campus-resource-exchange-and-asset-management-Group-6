@@ -1,5 +1,24 @@
 import type { Profile } from "./types";
 import type { Transfer, WorkflowWorkspace } from "./workflows";
+import type { ResourceRequest } from "./workflows";
+
+export function groupRequests(requests: ResourceRequest[]): {
+  open: ResourceRequest[];
+  completed: ResourceRequest[];
+} {
+  return requests.reduce(
+    (groups, request) => {
+      if (["Closed", "Canceled", "Fulfilled"].includes(request.status))
+        groups.completed.push(request);
+      else groups.open.push(request);
+      return groups;
+    },
+    { open: [], completed: [] } as {
+      open: ResourceRequest[];
+      completed: ResourceRequest[];
+    },
+  );
+}
 
 export type TransferAction =
   | "approveRelease"

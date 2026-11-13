@@ -1387,19 +1387,23 @@ export default function App() {
           </div>
         </header>
         <main className="page-content">
-          <section className="hero">
+          <section
+            className={`hero${view === "workflows" ? " workflow-hero" : ""}`}
+          >
             <div>
-              <p className="eyebrow">
-                {view === "admin"
-                  ? "Access & departments"
-                  : "Less waste. More possibility."}
-              </p>
+              {view !== "workflows" && (
+                <p className="eyebrow">
+                  {view === "admin"
+                    ? "Access & departments"
+                    : "Less waste. More possibility."}
+                </p>
+              )}
               <h1 className="hero-title">{title}</h1>
               <p className="hero-subtitle">
                 {view === "admin"
                   ? "Manage departmental membership and explicit role assignments. Every change remains traceable."
                   : view === "workflows"
-                    ? "Track remaining need, supplier decisions and physical movement through accepted receipt."
+                    ? "Create requests, review interests and track transfers to receipt."
                     : view === "own"
                       ? "Maintain accurate records, review condition and make surplus resources discoverable across campus."
                       : "Discover useful equipment and furniture already on campus. Explore what’s available before buying something new."}

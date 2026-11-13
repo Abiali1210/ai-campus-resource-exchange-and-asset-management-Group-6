@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { Profile } from "../src/types";
-import type { Transfer, WorkflowWorkspace } from "../src/workflows";
-import { groupTransfers, transferActions } from "../src/workflowPresentation";
+import type {
+  ResourceRequest,
+  Transfer,
+  WorkflowWorkspace,
+} from "../src/workflows";
+import {
+  groupRequests,
+  groupTransfers,
+  transferActions,
+} from "../src/workflowPresentation";
 
 const profile = (
   userId: string,
@@ -174,5 +182,61 @@ describe("transfer presentation grouping", () => {
     ].map((t) => t.transferId);
     expect(ids).toHaveLength(items.length);
     expect(new Set(ids).size).toBe(items.length);
+  });
+});
+
+const request = (status: string, id: string): ResourceRequest => ({
+  requestId: id,
+  requesterId: "requester",
+  departmentId: "dept-a",
+  categoryId: "category",
+  purpose: id,
+  requestedQty: 1,
+  acceptedQty: 0,
+  allocatedQty: 0,
+  remainingQty: 1,
+  specifications: {},
+  condition: "Good",
+  urgency: "Normal",
+  requiredDate: "2026-01-01",
+  destination: "Room",
+  status,
+  version: 1,
+  submittedAt: "",
+});
+
+describe("request presentation grouping", () => {
+  it("stably partitions mixed requests", () => {
+    const groups = groupRequests([
+      request("Open", "open-1"),
+      request("Closed", "closed"),
+      request("In Progress", "open-2"),
+      request("Fulfilled", "fulfilled"),
+      request("Canceled", "canceled"),
+    ]);
+    expect(groups.open.map((item) => item.requestId)).toEqual([
+      "open-1",
+      "open-2",
+    ]);
+    expect(groups.completed.map((item) => item.requestId)).toEqual([
+      "closed",
+      "fulfilled",
+      "canceled",
+    ]);
+  });
+
+  it("handles empty and all-terminal requests", () => {
+    expect(groupRequests([])).toEqual({ open: [], completed: [] });
+    const groups = groupRequests([
+      request("Closed", "closed"),
+      request("Canceled", "canceled"),
+      request("Fulfilled", "fulfilled"),
+    ]);
+    expect(groups.open).toEqual([]);
+    expect(groups.completed.map((item) => item.requestId)).toEqual([
+      "closed",
+      "canceled",
+      "fulfilled",
+    ]);
   });
 });
