@@ -55,14 +55,20 @@ async function run(
   actor = requester,
   operationKey = uuid(),
 ) {
-  return as(actor, "select public.ai2_save_match_run($1::jsonb) result", [
-    JSON.stringify({
-      operationKey,
-      requestId: req.requestId,
-      configurationVersion: "native-test-v1",
-      recommendations,
-    }),
-  ]).then((r) => r.rows[0].result);
+  return as(
+    null,
+    "select public.ai2_save_match_run($1,$2::jsonb) result",
+    [
+      actor.userId,
+      JSON.stringify({
+        operationKey,
+        requestId: req.requestId,
+        configurationVersion: "native-test-v1",
+        recommendations,
+      }),
+    ],
+    "service_role",
+  ).then((r) => r.rows[0].result);
 }
 async function review(id, decision, actor = requester, operationKey = uuid()) {
   return as(
@@ -152,6 +158,37 @@ try {
         await assert.rejects(
           as(rep, sql, [stock.assetId, vector(), "a".repeat(64)]),
         );
+    },
+  );
+  await check(
+    "authenticated and anon cannot execute persistence; browser cannot fabricate runs",
+    async () => {
+      const req = await request(),
+        input = JSON.stringify({
+          operationKey: uuid(),
+          requestId: req.requestId,
+          recommendations: [],
+        });
+      await assert.rejects(
+        as(requester, "select public.ai2_save_match_run($1,$2::jsonb)", [
+          requester.userId,
+          input,
+        ]),
+      );
+      await assert.rejects(
+        as(
+          null,
+          "select public.ai2_save_match_run($1,$2::jsonb)",
+          [requester.userId, input],
+          "anon",
+        ),
+      );
+      await assert.rejects(
+        as(requester, "select public.ai2_save_match_run($1,$2::jsonb)", [
+          requester.userId,
+          input,
+        ]),
+      );
     },
   );
   await check("candidate access rejects unauthorized caller", async () => {
@@ -328,6 +365,7 @@ try {
     const first = await run(p.req, rec, requester, key),
       second = await run(p.req, rec, requester, key);
     assert.deepEqual(second, first);
+    await assert.rejects(run(p.req, [], requester, key));
     assert.equal(
       (
         await db.query(
@@ -338,6 +376,22 @@ try {
       1,
     );
   });
+  await check(
+    "explicit unauthorized and inactive actors rejected",
+    async () => {
+      const p = await prepared();
+      await assert.rejects(run(p.req, [], rep));
+      await db.query(
+        "update public.profiles set active=false where user_id=$1",
+        [requester.userId],
+      );
+      await assert.rejects(run(p.req, [], requester));
+      await db.query(
+        "update public.profiles set active=true where user_id=$1",
+        [requester.userId],
+      );
+    },
+  );
   await check("more than five recommendations rejected", async () => {
     const req = await request();
     await assert.rejects(

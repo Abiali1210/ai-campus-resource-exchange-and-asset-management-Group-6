@@ -23,6 +23,7 @@ create table public.ai_match_runs (
  request_id uuid not null references public.resource_requests(request_id),
  actor_id uuid not null references public.profiles(user_id),
  operation_key uuid not null,
+ payload_hash text not null check(payload_hash ~ '^[0-9a-f]{64}$'),
  status text not null check(status in ('running','completed','failed')),
  model text not null check(model='gte-small'),
  configuration_version text not null check(length(configuration_version) between 1 and 80),
@@ -81,10 +82,8 @@ grant all on public.asset_embeddings,public.ai_match_runs,public.ai_match_recomm
 
 -- ai_content_hash is authoritative and future-pipeline-owned; callers cannot
 -- supply or override it. Null/mismatched digests fail closed.
--- Save is authenticated because the future Edge Function forwards the caller JWT
--- and derives auth.uid(). Eligibility is authoritative here; score/reason provenance
--- remains a future gateway responsibility (the DB cannot distinguish that gateway
--- from a browser presenting the same caller JWT).
+-- Saving runs is a service-role gateway operation. Explicit actor identity is
+-- revalidated from authoritative database state below.
 create function public.ai2_candidates(p_request uuid,p_query extensions.vector(384),p_limit integer default 20)
 returns table(portion_id uuid,asset_id uuid,asset_name text,description text,category_id uuid,specifications jsonb,
  qty integer,condition text,department_id uuid,department_name text,assigned_location text,physical_location text,similarity real)
@@ -117,14 +116,32 @@ end $$;
 revoke all on function public.ai2_candidates(uuid,extensions.vector,integer) from public,anon,authenticated;
 grant execute on function public.ai2_candidates(uuid,extensions.vector,integer) to authenticated;
 
-create function public.ai2_save_match_run(p_input jsonb) returns jsonb
+create function public.ai2_actor_request_access(p_actor uuid,p_request uuid) returns boolean
+language sql stable security definer set search_path=public,pg_temp as $$
+ select exists(select 1 from public.profiles p join public.departments d using(department_id) where p.user_id=p_actor and p.active and d.active)
+ and exists(select 1 from public.resource_requests q where q.request_id=p_request and ((q.requester_id=p_actor and exists(select 1 from public.user_roles r where r.user_id=p_actor and r.role in ('requester','representative'))) or exists(select 1 from public.profiles p join public.user_roles r using(user_id) where p.user_id=p_actor and p.department_id=q.department_id and p.active and r.role='representative') or exists(select 1 from public.interests i join public.profiles p on p.user_id=p_actor join public.user_roles r using(user_id) where i.request_id=q.request_id and i.supplier_department_id=p.department_id and p.active and r.role='representative') or exists(select 1 from public.reservations z join public.transfers t using(reservation_id) where z.request_id=q.request_id and (exists(select 1 from public.profiles p join public.user_roles r using(user_id) where p.user_id=p_actor and p.department_id=t.supplier_department_id and p.active and r.role='representative') or (t.facilities_id=p_actor and exists(select 1 from public.user_roles r where r.user_id=p_actor and r.role='facilities'))))))
+$$;
+revoke all on function public.ai2_actor_request_access(uuid,uuid) from public,anon,authenticated,service_role;
+create function public.ai2_actor_portion_access(p_actor uuid,p_portion uuid) returns boolean
+language sql stable security definer set search_path=public,pg_temp as $$
+ select exists(select 1 from public.stock_portions s join public.profiles p on p.user_id=p_actor join public.departments d on d.department_id=p.department_id and d.active where s.portion_id=p_portion and p.active and ((p.department_id=s.owner_department_id and exists(select 1 from public.user_roles r where r.user_id=p_actor and r.role in ('representative','procurement','finance','sustainability'))) or exists(select 1 from public.user_roles r where r.user_id=p_actor and r.role='business_administrator') or (s.state='Available' and s.active and exists(select 1 from public.user_roles r where r.user_id=p_actor and r.role in ('requester','representative'))) or (s.holder_id=p_actor and exists(select 1 from public.user_roles r where r.user_id=p_actor and r.role in ('maintenance','facilities')))))
+$$;
+revoke all on function public.ai2_actor_portion_access(uuid,uuid) from public,anon,authenticated,service_role;
+
+create function public.ai2_save_match_run(p_actor uuid,p_input jsonb) returns jsonb
 language plpgsql security definer set search_path=public,pg_temp as $$
-  declare actor public.profiles:=public.require_active(); k uuid:=(p_input->>'operationKey')::uuid;
+  declare k uuid:=(p_input->>'operationKey')::uuid;
  q public.resource_requests; item jsonb; r_id uuid; rec jsonb; n integer:=0; seen uuid[]:='{}'; totals jsonb;
   fp text; result jsonb; started timestamptz:=clock_timestamp(); eligible_count integer;
 begin
- result:=public.begin_operation(k,'ai2_match_run',p_input); if result is not null then return result; end if;
- if not public.workflow_request_access((p_input->>'requestId')::uuid,false) then raise exception 'Forbidden: request unavailable'; end if;
+  if p_actor is null or k is null then raise exception 'Validation: actor and operationKey required'; end if;
+  if not public.ai2_actor_request_access(p_actor,(p_input->>'requestId')::uuid) then raise exception 'Forbidden: request unavailable'; end if;
+  perform pg_advisory_xact_lock(hashtextextended(p_actor::text||':'||k::text,0));
+  select jsonb_build_object('runId',run_id,'requestId',request_id,'recommendationCount',(select count(*) from public.ai_match_recommendations m where m.run_id=r.run_id)) into result from public.ai_match_runs r where actor_id=p_actor and operation_key=k;
+  if result is not null then
+   if (select payload_hash from public.ai_match_runs where actor_id=p_actor and operation_key=k)<>encode(sha256(convert_to(p_input::text,'UTF8')),'hex') then raise exception 'Conflict: operation key reused for different input'; end if;
+   return result;
+  end if;
  select * into q from public.resource_requests where request_id=(p_input->>'requestId')::uuid for update;
  totals:=public.workflow_totals(q.request_id);
  if q.status<>'Open' or (totals->>'remainingQty')::int<=0 then raise exception 'Conflict: request not open or no demand'; end if;
@@ -134,21 +151,21 @@ begin
   from public.stock_portions s join public.assets a using(asset_id) join public.asset_embeddings e using(asset_id)
   join public.departments d on d.department_id=s.owner_department_id and d.active
  where s.active and s.state='Available' and s.qty>0 and not exists(select 1 from public.stock_portions ch where ch.parent_portion_id=s.portion_id and ch.active)
-  and public.can_read_portion(s.portion_id) and coalesce(public.workflow_suitable(q.request_id,s.portion_id),false)
+   and public.ai2_actor_portion_access(p_actor,s.portion_id) and coalesce(public.workflow_suitable(q.request_id,s.portion_id),false)
  and e.model='gte-small' and a.ai_content_hash=e.content_hash;
- insert into public.ai_match_runs(request_id,actor_id,operation_key,status,model,configuration_version,candidate_fingerprint,candidate_count,provider_call_count,completed_at,duration_ms)
-  values(q.request_id,actor.user_id,k,'completed','gte-small',coalesce(p_input->>'configurationVersion','v1'),fp,least(eligible_count,20),1,clock_timestamp(),greatest(0,(extract(epoch from clock_timestamp()-started)*1000)::int)) returning run_id into r_id;
+  insert into public.ai_match_runs(request_id,actor_id,operation_key,payload_hash,status,model,configuration_version,candidate_fingerprint,candidate_count,provider_call_count,completed_at,duration_ms)
+   values(q.request_id,p_actor,k,encode(sha256(convert_to(p_input::text,'UTF8')),'hex'),'completed','gte-small',coalesce(p_input->>'configurationVersion','v1'),fp,least(eligible_count,20),1,clock_timestamp(),greatest(0,(extract(epoch from clock_timestamp()-started)*1000)::int)) returning run_id into r_id;
  for rec in select value from jsonb_array_elements(p_input->'recommendations') loop
   n:=n+1; if n>5 then raise exception 'Validation: at most five recommendations required'; end if;
   if (rec->>'rank')::int not between 1 and 5 or (rec->>'rank')::int<>n then raise exception 'Validation: contiguous ranks required'; end if;
   if (rec->>'portionId')::uuid=any(seen) then raise exception 'Validation: duplicate portion'; end if;
   seen:=array_append(seen,(rec->>'portionId')::uuid);
-   if not exists(select 1 from public.stock_portions s join public.assets a using(asset_id) join public.asset_embeddings e using(asset_id) join public.departments d on d.department_id=s.owner_department_id and d.active where s.portion_id=(rec->>'portionId')::uuid and s.asset_id=(rec->>'assetId')::uuid and s.active and s.state='Available' and s.qty>0 and not exists(select 1 from public.stock_portions ch where ch.parent_portion_id=s.portion_id and ch.active) and public.can_read_portion(s.portion_id) and public.workflow_suitable(q.request_id,s.portion_id) and e.model='gte-small' and a.ai_content_hash=e.content_hash) then raise exception 'Conflict: candidate no longer eligible'; end if;
+    if not exists(select 1 from public.stock_portions s join public.assets a using(asset_id) join public.asset_embeddings e using(asset_id) join public.departments d on d.department_id=s.owner_department_id and d.active where s.portion_id=(rec->>'portionId')::uuid and s.asset_id=(rec->>'assetId')::uuid and s.active and s.state='Available' and s.qty>0 and not exists(select 1 from public.stock_portions ch where ch.parent_portion_id=s.portion_id and ch.active) and public.ai2_actor_portion_access(p_actor,s.portion_id) and public.workflow_suitable(q.request_id,s.portion_id) and e.model='gte-small' and a.ai_content_hash=e.content_hash) then raise exception 'Conflict: candidate no longer eligible'; end if;
   insert into public.ai_match_recommendations(run_id,request_id,asset_id,portion_id,rank,semantic_cosine_score,s,c,q,l,f,t,k,w,e,compatibility_score,final_rank_score,reason,missing_evidence)
   values(r_id,q.request_id,(rec->>'assetId')::uuid,(rec->>'portionId')::uuid,n,(rec->>'semanticCosineScore')::real,(rec->>'s')::real,(rec->>'c')::real,(rec->>'q')::real,(rec->>'l')::real,(rec->>'f')::real,(rec->>'t')::real,(rec->>'k')::real,(rec->>'w')::real,(rec->>'e')::real,(rec->>'compatibilityScore')::real,(rec->>'finalRankScore')::real,rec->>'reason',coalesce(rec->'missingEvidence','[]'));
  end loop;
  result:=jsonb_build_object('runId',r_id,'requestId',q.request_id,'recommendationCount',n);
- return public.finish_operation(k,result);
+  return result;
 end $$;
 
 create function public.ai2_match_results(p_id uuid) returns jsonb
@@ -167,8 +184,10 @@ begin
  return coalesce(out,'{}');
 end $$;
 
-revoke all on function public.ai2_save_match_run(jsonb),public.ai2_match_results(uuid) from public,anon,authenticated;
-grant execute on function public.ai2_save_match_run(jsonb),public.ai2_match_results(uuid) to authenticated;
+revoke all on function public.ai2_save_match_run(uuid,jsonb) from public,anon,authenticated;
+grant execute on function public.ai2_save_match_run(uuid,jsonb) to service_role;
+revoke all on function public.ai2_match_results(uuid) from public,anon;
+grant execute on function public.ai2_match_results(uuid) to authenticated;
 
 create function public.ai2_review_recommendation(p_input jsonb) returns jsonb
 language plpgsql security definer set search_path=public,pg_temp as $$
