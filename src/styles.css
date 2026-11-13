@@ -799,6 +799,12 @@ small {
   padding-top: 22px;
   border-top: 1px solid var(--line);
 }
+.resource-request {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+  margin-bottom: 12px;
+}
 .detail-section h3 {
   font-size: 0.9rem;
 }

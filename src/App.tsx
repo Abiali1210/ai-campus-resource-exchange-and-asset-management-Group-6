@@ -815,7 +815,7 @@ function AssetDetails({
             (portionsLoading ||
               portionsError ||
               availablePortions.length > 0) && (
-              <div className="detail-section">
+              <div className="detail-section resource-request">
                 <h3>Request this resource</h3>
                 {portionsLoading ? (
                   <p role="status">Loading request options…</p>
