@@ -20,6 +20,7 @@ import {
   type Filters,
   type Profile,
   type Role,
+  type SelectedResource,
 } from "./types";
 import "./styles.css";
 
@@ -684,6 +685,7 @@ function AssetDetails({
   onClose,
   onChanged,
   onEdit,
+  onRequest,
 }: {
   asset: AssetView;
   profile: Profile | null;
@@ -691,7 +693,12 @@ function AssetDetails({
   onClose: () => void;
   onChanged: () => void;
   onEdit: (asset: AssetView) => void;
+  onRequest: (asset: AssetView) => void;
 }) {
+  const [portionChoice, setPortionChoice] = useState("");
+  const [availablePortions, setAvailablePortions] = useState<AssetView[]>([]);
+  const [portionsLoading, setPortionsLoading] = useState(false);
+  const [portionsError, setPortionsError] = useState(false);
   const [detail, setDetail] = useState<Pick<AssetDetail, "asset" | "history">>({
       asset,
       history: [],
@@ -728,6 +735,42 @@ function AssetDetails({
       active = false;
     };
   }, [asset.assetId, asset.portionId, preview]);
+  useEffect(() => {
+    setPortionChoice("");
+    setAvailablePortions([]);
+    setPortionsError(false);
+    if (
+      preview ||
+      !profile?.roles.some((role) =>
+        ["requester", "representative"].includes(role),
+      )
+    )
+      return;
+    let active = true;
+    setPortionsLoading(true);
+    api
+      .catalogue()
+      .then((rows) => {
+        if (active)
+          setAvailablePortions(
+            rows.filter(
+              (row) =>
+                row.assetId === asset.assetId &&
+                row.state === "Available" &&
+                row.qty > 0,
+            ),
+          );
+      })
+      .catch(() => {
+        if (active) setPortionsError(true);
+      })
+      .finally(() => {
+        if (active) setPortionsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [asset.assetId, preview, profile]);
   async function act(work: () => Promise<unknown>, message: string) {
     setBusy(true);
     setError("");
@@ -765,6 +808,70 @@ function AssetDetails({
         <div className="loading">Loading asset details…</div>
       ) : (
         <>
+          {!preview &&
+            profile?.roles.some((role) =>
+              ["requester", "representative"].includes(role),
+            ) &&
+            (portionsLoading ||
+              portionsError ||
+              availablePortions.length > 0) && (
+              <div className="detail-section">
+                <h3>Request this resource</h3>
+                {portionsLoading ? (
+                  <p role="status">Loading request options…</p>
+                ) : portionsError ? (
+                  <p className="notice error" role="alert">
+                    Request options are unavailable.
+                  </p>
+                ) : (
+                  availablePortions.length > 0 && (
+                    <>
+                      {availablePortions.length > 1 ? (
+                        <fieldset className="resource-portion-options">
+                          <legend>Choose an available portion</legend>
+                          {availablePortions.map((portion) => (
+                            <label
+                              key={portion.portionId}
+                              className="resource-portion-option"
+                            >
+                              <input
+                                type="radio"
+                                name="resource-portion"
+                                value={portion.portionId}
+                                checked={portionChoice === portion.portionId}
+                                onChange={() =>
+                                  setPortionChoice(portion.portionId)
+                                }
+                              />
+                              {portion.departmentName} · {portion.qty} available
+                              · {portion.condition} · {portion.assignedLocation}
+                            </label>
+                          ))}
+                        </fieldset>
+                      ) : null}
+                      <button
+                        className="button small"
+                        disabled={
+                          availablePortions.length > 1 && !portionChoice
+                        }
+                        onClick={() =>
+                          onRequest(
+                            availablePortions.find(
+                              (p) =>
+                                p.portionId ===
+                                (portionChoice ||
+                                  availablePortions[0].portionId),
+                            )!,
+                          )
+                        }
+                      >
+                        Request this resource
+                      </button>
+                    </>
+                  )
+                )}
+              </div>
+            )}
           <div className="detail-layout">
             <div className="detail-art">
               <AssetArt asset={current} />
@@ -1107,6 +1214,9 @@ export default function App() {
       "login" | "setup" | "asset" | "edit" | "account" | "department" | null
     >(null),
     [selected, setSelected] = useState<AssetView | null>(null),
+    [resourceHandoff, setResourceHandoff] = useState<SelectedResource | null>(
+      null,
+    ),
     [editAccount, setEditAccount] = useState<Profile | undefined>(),
     [editDepartment, setEditDepartment] = useState<
       { departmentId: string; name: string; active: boolean } | undefined
@@ -1114,6 +1224,21 @@ export default function App() {
     [adminTab, setAdminTab] = useState<"accounts" | "departments">("accounts"),
     [refresh, setRefresh] = useState(0);
   const preview = !api.configured;
+  const beginResourceRequest = (asset: AssetView) => {
+    setResourceHandoff({
+      portionId: asset.portionId,
+      assetId: asset.assetId,
+      name: asset.name,
+      categoryId: asset.categoryId,
+      categoryName: asset.categoryName,
+      departmentName: asset.departmentName,
+      qty: asset.qty,
+      condition: asset.condition,
+      assignedLocation: asset.assignedLocation,
+    });
+    setModal(null);
+    setView("workflows");
+  };
   useEffect(() => {
     let live = true;
     async function init() {
@@ -1497,7 +1622,26 @@ export default function App() {
             </div>
           ) : view === "workflows" && profile ? (
             <Suspense fallback={<p role="status">Opening workflows…</p>}>
-              <WorkflowPanel profile={profile} metadata={metadata} />
+              <WorkflowPanel
+                profile={profile}
+                metadata={metadata}
+                selectedResource={resourceHandoff}
+                onClearResource={() => setResourceHandoff(null)}
+                onViewResource={() => {
+                  if (resourceHandoff) {
+                    const item = assets.find(
+                      (a) =>
+                        a.assetId === resourceHandoff.assetId &&
+                        a.portionId === resourceHandoff.portionId,
+                    );
+                    if (item) {
+                      setSelected(item);
+                      setView("catalogue");
+                      setModal("asset");
+                    }
+                  }
+                }}
+              />
             </Suspense>
           ) : view === "admin" ? (
             <>
@@ -1790,6 +1934,7 @@ export default function App() {
           onClose={close}
           onChanged={reload}
           onEdit={openEdit}
+          onRequest={beginResourceRequest}
         />
       )}{" "}
       {modal === "edit" && profile && (

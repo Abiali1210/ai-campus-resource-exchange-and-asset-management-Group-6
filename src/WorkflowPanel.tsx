@@ -6,7 +6,13 @@ import {
   type ReactNode,
 } from "react";
 import { api } from "./api";
-import type { AssetView, Bootstrap, Profile } from "./types";
+import type { AssetView, Bootstrap, Profile, SelectedResource } from "./types";
+import {
+  clearHandoffPortion,
+  compatibleRequests,
+  eligiblePortions,
+  selectedPortionIsStale,
+} from "./resourceHandoff";
 import {
   groupRequests,
   groupTransfers,
@@ -427,9 +433,15 @@ function TransferCard({
 export function WorkflowPanel({
   profile,
   metadata,
+  selectedResource = null,
+  onClearResource,
+  onViewResource,
 }: {
   profile: Profile;
   metadata: Bootstrap;
+  selectedResource?: SelectedResource | null;
+  onClearResource?: () => void;
+  onViewResource?: () => void;
 }) {
   const [w, setW] = useState(empty),
     [catalogue, setCatalogue] = useState<AssetView[]>([]),
@@ -514,11 +526,23 @@ export function WorkflowPanel({
       };
       if (!pending.current?.matches(command))
         pending.current = new WorkflowOperation(command);
-      await workflows.execute(pending.current);
+      const result = await workflows.execute(pending.current);
       pending.current = null;
       setPurpose("");
       setSpecs([]);
-      done();
+      if (selectedResource) {
+        setActiveSection("interests");
+        setRequestFormOpen(false);
+        if (result.requestId) setRequestId(result.requestId);
+        else {
+          setRequestId("");
+          setSuccess(
+            "Request submitted, but its ID was not returned. Choose a request manually to continue with this resource.",
+          );
+        }
+        setRevision((n) => n + 1);
+      }
+      if (!selectedResource) done();
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Request could not be confirmed.",
@@ -534,6 +558,41 @@ export function WorkflowPanel({
   );
   const selected = own.find((q) => q.requestId === requestId);
   const selectedAsset = catalogue.find((a) => a.portionId === portionId);
+  const staleHandoff =
+    loaded && selectedPortionIsStale(selectedResource, catalogue);
+  const availableHandoffPortions = eligiblePortions(
+    catalogue,
+    selectedResource?.assetId ?? "",
+  );
+  const compatible = compatibleRequests(
+    w.requests,
+    profile.userId,
+    profile.departmentId,
+    rep,
+    selectedResource?.categoryId ?? null,
+  );
+  useEffect(() => {
+    if (!selectedResource) return;
+    setActiveSection("interests");
+    setPortionId(selectedResource.portionId);
+    if (!selectedResource.categoryId)
+      setSuccess(
+        "This resource has no category. Correct its catalogue category before creating or matching a request.",
+      );
+  }, [selectedResource?.portionId]);
+  useEffect(() => {
+    if (selectedResource)
+      setRequestId((current) =>
+        compatible.length === 1
+          ? compatible[0].requestId
+          : compatible.some((request) => request.requestId === current)
+            ? current
+            : "",
+      );
+  }, [
+    selectedResource?.portionId,
+    compatible.map((r) => r.requestId).join("|"),
+  ]);
   const transferGroups = groupTransfers(w.transfers, w, profile);
   const requestGroups = groupRequests(w.requests);
   return (
@@ -556,6 +615,41 @@ export function WorkflowPanel({
         <p className="notice" role="status">
           {success}
         </p>
+      )}
+      {selectedResource && (
+        <article className="workflow-card selected-resource-card">
+          <h3>Selected resource: {selectedResource.name}</h3>
+          <p>
+            {selectedResource.departmentName} · {selectedResource.qty} available
+            · {selectedResource.condition} · {selectedResource.assignedLocation}
+          </p>
+          {staleHandoff && (
+            <p className="notice error" role="alert">
+              This selected resource is no longer available in the current
+              catalogue. Return to the catalogue to choose another resource or
+              clear this selection.
+            </p>
+          )}
+          <div className="workflow-card-actions">
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={onViewResource}
+            >
+              View resource
+            </button>
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => {
+                setPortionId(clearHandoffPortion({ portionId }).portionId);
+                onClearResource?.();
+              }}
+            >
+              Clear selection
+            </button>
+          </div>
+        </article>
       )}
       {loaded && (
         <div className="workflow-summary" aria-label="Workflow summary">
@@ -931,13 +1025,19 @@ export function WorkflowPanel({
             hidden={activeSection !== "interests"}
           >
             <h2 id="workflow-interests-title">Interests</h2>
+            {selectedResource && (
+              <p className="notice">
+                Selected resource: {selectedResource.name}. It remains selected
+                while you record an interest; this does not reserve it.
+              </p>
+            )}
             {canRequest && (
               <details open className="interest-create">
                 <summary>Record an interest</summary>
                 <p>
-                  Recording Interest links a published item to an open request;
-                  it does not reserve stock. A supplier representative must
-                  separately approve a reservation.
+                  {selectedResource
+                    ? "Recording Interest does not reserve the resource. The supplier must approve it."
+                    : "Recording Interest links a published item to an open request; it does not reserve stock. A supplier representative must separately approve a reservation."}
                 </p>
                 <fieldset>
                   <legend>Requested resource</legend>
@@ -946,26 +1046,55 @@ export function WorkflowPanel({
                       value={requestId}
                       onChange={(e) => {
                         setRequestId(e.target.value);
-                        setPortionId("");
+                        if (!selectedResource) setPortionId("");
                       }}
                     >
                       <option value="">Choose request</option>
-                      {own
-                        .filter(
-                          (q) =>
-                            q.remainingQty > 0 &&
-                            !["Closed", "Canceled", "Fulfilled"].includes(
-                              q.status,
-                            ),
-                        )
-                        .map((q) => (
-                          <option key={q.requestId} value={q.requestId}>
-                            {q.purpose} ({q.remainingQty} remaining)
-                          </option>
-                        ))}
+                      {(selectedResource
+                        ? compatible
+                        : own.filter(
+                            (q) =>
+                              q.remainingQty > 0 &&
+                              !["Closed", "Canceled", "Fulfilled"].includes(
+                                q.status,
+                              ),
+                          )
+                      ).map((q) => (
+                        <option key={q.requestId} value={q.requestId}>
+                          {q.purpose} ({q.remainingQty} remaining)
+                        </option>
+                      ))}
                     </select>
                   </Input>
                 </fieldset>
+                {selectedResource && compatible.length === 0 && (
+                  <div className="detail-section">
+                    <p>
+                      {selectedResource.categoryId
+                        ? "No compatible request is available for this resource."
+                        : "This resource has no category. Correct its catalogue category before creating or matching a request."}
+                    </p>
+                    <button
+                      type="button"
+                      className="button"
+                      disabled={!selectedResource.categoryId}
+                      onClick={() => {
+                        setActiveSection("requests");
+                        setRequestFormOpen(true);
+                        setCategory(selectedResource.categoryId ?? "");
+                        setQty(1);
+                        if (
+                          ["Excellent", "Good", "Fair"].includes(
+                            selectedResource.condition,
+                          )
+                        )
+                          setCondition(selectedResource.condition);
+                      }}
+                    >
+                      Create a request for this resource
+                    </button>
+                  </div>
+                )}
                 <fieldset>
                   <legend>Offered resource</legend>
                   <Input label="Published item">
@@ -974,22 +1103,25 @@ export function WorkflowPanel({
                       onChange={(e) => setPortionId(e.target.value)}
                     >
                       <option value="">Choose current portion</option>
-                      {catalogue
-                        .filter(
-                          (a) =>
-                            a.state === "Available" &&
-                            (!selected || selected.categoryId === a.categoryId),
-                        )
-                        .map((a) => (
-                          <option key={a.portionId} value={a.portionId}>
-                            {a.name} · {a.departmentName} · {a.qty} available ·{" "}
-                            {a.condition} · {a.portionId.slice(0, 8)}
-                          </option>
-                        ))}
+                      {(selectedResource
+                        ? availableHandoffPortions
+                        : catalogue.filter(
+                            (a) =>
+                              a.state === "Available" &&
+                              a.qty > 0 &&
+                              (!selected ||
+                                selected.categoryId === a.categoryId),
+                          )
+                      ).map((a) => (
+                        <option key={a.portionId} value={a.portionId}>
+                          {a.name} · {a.departmentName} · {a.qty} available ·{" "}
+                          {a.condition} · {a.portionId.slice(0, 8)}
+                        </option>
+                      ))}
                     </select>
                   </Input>
                 </fieldset>
-                {selected && selectedAsset && (
+                {selected && selectedAsset && !staleHandoff && (
                   <ActionForm
                     key={
                       selected.requestId +

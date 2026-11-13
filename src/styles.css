@@ -1423,6 +1423,23 @@ small {
   padding: 0.75rem;
   min-width: 0;
 }
+.resource-portion-options {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin: 0.5rem 0 1rem;
+}
+.resource-portion-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+  overflow-wrap: anywhere;
+}
+.selected-resource-card {
+  border-color: #cbd7be;
+  background: #fbfcf8;
+}
 .workflow-quantities {
   margin: 0.9rem 0;
 }
