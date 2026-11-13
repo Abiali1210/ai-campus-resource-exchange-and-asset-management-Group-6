@@ -111,6 +111,124 @@ async function prepared() {
 }
 try {
   await check(
+    "representative embedding source is narrow and upsert is atomic",
+    async () => {
+      const stock = await asset(),
+        hash = "9".repeat(64);
+      const source = await as(
+        null,
+        "select public.ai2_embedding_source($1,$2) result",
+        [rep.userId, stock.assetId],
+        "service_role",
+      );
+      const src = source.rows[0].result;
+      assert.deepEqual(
+        Object.keys(src).sort(),
+        [
+          "assetId",
+          "category",
+          "contentHash",
+          "description",
+          "name",
+          "specifications",
+          "storedContentHash",
+          "storedModel",
+          "sourceFingerprint",
+          "tags",
+          "version",
+        ].sort(),
+      );
+      assert.equal(src.version, stock.version);
+      await assert.rejects(
+        as(
+          null,
+          "select public.ai2_embedding_source($1,$2)",
+          [rep.userId, stock.assetId],
+          "authenticated",
+        ),
+      );
+      await assert.rejects(
+        as(
+          null,
+          "select public.ai2_upsert_asset_embedding($1,$2,$3,$4,$5,$6::extensions.vector)",
+          [
+            rep.userId,
+            stock.assetId,
+            stock.version,
+            src.sourceFingerprint,
+            hash,
+            vector(),
+          ],
+          "anon",
+        ),
+      );
+      const inserted = await as(
+        null,
+        "select public.ai2_upsert_asset_embedding($1,$2,$3,$4,$5,$6::extensions.vector) result",
+        [
+          rep.userId,
+          stock.assetId,
+          stock.version,
+          src.sourceFingerprint,
+          hash,
+          vector(),
+        ],
+        "service_role",
+      );
+      assert.equal(inserted.rows[0].result.status, "created");
+      await assert.rejects(
+        as(
+          null,
+          "select public.ai2_upsert_asset_embedding($1,$2,$3,$4,$5,$6::extensions.vector)",
+          [
+            rep.userId,
+            stock.assetId,
+            stock.version - 1,
+            src.sourceFingerprint,
+            "8".repeat(64),
+            vector(2),
+          ],
+          "service_role",
+        ),
+      );
+      const state = await db.query(
+        "select a.ai_content_hash,e.content_hash,e.embedding::text from public.assets a join public.asset_embeddings e using(asset_id) where a.asset_id=$1",
+        [stock.assetId],
+      );
+      assert.equal(state.rows[0].ai_content_hash, hash);
+      assert.equal(state.rows[0].content_hash, hash);
+      await assert.rejects(
+        as(
+          null,
+          "select public.ai2_upsert_asset_embedding($1,$2,$3,$4,$5,$6::extensions.vector)",
+          [
+            rep.userId,
+            stock.assetId,
+            stock.version,
+            "0".repeat(64),
+            "6".repeat(64),
+            vector(1),
+          ],
+          "service_role",
+        ),
+      );
+      const updated = await as(
+        null,
+        "select public.ai2_upsert_asset_embedding($1,$2,$3,$4,$5,$6::extensions.vector) result",
+        [
+          rep.userId,
+          stock.assetId,
+          stock.version,
+          src.sourceFingerprint,
+          "7".repeat(64),
+          vector(1),
+        ],
+        "service_role",
+      );
+      assert.equal(updated.rows[0].result.status, "updated");
+    },
+  );
+  await check(
     "schema vectors reject 383/385 dimensions and enforce one embedding per asset",
     async () => {
       assert.equal(
@@ -142,6 +260,44 @@ try {
           "insert into public.asset_embeddings(asset_id,embedding,model,content_hash) values($1,$2::extensions.vector,'gte-small',$3)",
           [stock.assetId, vector(), hash],
         ),
+      );
+    },
+  );
+  await check(
+    "whole-asset scope and inactive owning department reject source refresh",
+    async () => {
+      const stock = await asset();
+      await db.query(
+        "update public.stock_portions set owner_department_id=$2 where asset_id=$1 and active",
+        [stock.assetId, receiver.departmentId],
+      );
+      await assert.rejects(
+        as(
+          null,
+          "select public.ai2_embedding_source($1,$2)",
+          [rep.userId, stock.assetId],
+          "service_role",
+        ),
+      );
+      await db.query(
+        "update public.stock_portions set owner_department_id=$2 where asset_id=$1 and active",
+        [stock.assetId, rep.departmentId],
+      );
+      await db.query(
+        "update public.departments set active=false where department_id=$1",
+        [rep.departmentId],
+      );
+      await assert.rejects(
+        as(
+          null,
+          "select public.ai2_embedding_source($1,$2)",
+          [rep.userId, stock.assetId],
+          "service_role",
+        ),
+      );
+      await db.query(
+        "update public.departments set active=true where department_id=$1",
+        [rep.departmentId],
       );
     },
   );

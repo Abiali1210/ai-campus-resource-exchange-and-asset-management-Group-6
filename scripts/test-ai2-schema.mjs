@@ -29,6 +29,15 @@ for (const contract of [
   "public.can_read_portion(s.portion_id)",
   "public.workflow_suitable(p_request,s.portion_id)",
   "grant execute on function public.ai2_candidates",
+  "create function public.ai2_embedding_source(p_actor uuid,p_asset uuid)",
+  "create function public.ai2_upsert_asset_embedding(p_actor uuid,p_asset uuid,p_expected_version integer,p_source_fingerprint text,p_content_hash text,p_embedding extensions.vector(384))",
+  "grant execute on function public.ai2_embedding_source(uuid,uuid) to service_role",
+  "grant execute on function public.ai2_upsert_asset_embedding(uuid,uuid,integer,text,text,extensions.vector) to service_role",
+  "sourceFingerprint",
+  "Conflict: source snapshot changed",
+  "Whole-asset scope deliberately matches asset_access(asset,true)",
+  "Conflict: asset version changed",
+  "normalized finite vector required",
 ])
   assert.ok(sql.includes(contract), `Missing AI2 SQL contract: ${contract}`);
 assert.ok(!/returns table[^;]*embedding\s+extensions\.vector/is.test(sql));

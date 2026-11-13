@@ -18,6 +18,65 @@ create table public.asset_embeddings (
  embedded_at timestamptz not null default now()
 );
 
+-- Whole-asset scope deliberately matches asset_access(asset,true): every active
+-- portion must remain under the representative's active department authority.
+create function public.ai2_embedding_actor_manages(p_actor uuid,p_asset uuid) returns boolean
+language sql stable security definer set search_path=public,pg_temp as $$
+ select exists(select 1 from public.profiles p join public.departments d on d.department_id=p.department_id and d.active
+  join public.user_roles r on r.user_id=p.user_id and r.role='representative'
+  where p.user_id=p_actor and p.active
+   and exists(select 1 from public.stock_portions s where s.asset_id=p_asset and s.active)
+   and not exists(select 1 from public.stock_portions s where s.asset_id=p_asset and s.active and (s.owner_department_id<>p.department_id or not exists(select 1 from public.departments sd where sd.department_id=s.owner_department_id and sd.active))))
+$$;
+revoke all on function public.ai2_embedding_actor_manages(uuid,uuid) from public,anon,authenticated,service_role;
+
+create function public.ai2_embedding_fingerprint(p_asset uuid) returns text
+language sql stable security definer set search_path=public,pg_temp as $$
+ select encode(sha256(convert_to(jsonb_build_object('version',a.version,'name',a.name,'category',c.name,'description',a.description,'tags',a.tags,'specifications',a.specifications)::text,'UTF8')),'hex')
+ from public.assets a join public.categories c using(category_id) where a.asset_id=p_asset
+$$;
+revoke all on function public.ai2_embedding_fingerprint(uuid) from public,anon,authenticated,service_role;
+
+create function public.ai2_embedding_source(p_actor uuid,p_asset uuid) returns jsonb
+language plpgsql stable security definer set search_path=public,pg_temp as $$
+declare a public.assets; out jsonb;
+begin
+ if not public.ai2_embedding_actor_manages(p_actor,p_asset) then raise exception 'Forbidden: asset unavailable'; end if;
+ select * into a from public.assets where asset_id=p_asset;
+ select jsonb_build_object('assetId',a.asset_id,'version',a.version,'name',a.name,'category',c.name,
+  'description',a.description,'tags',a.tags,'specifications',a.specifications,
+  'contentHash',a.ai_content_hash,'storedModel',e.model,'storedContentHash',e.content_hash,
+  'sourceFingerprint',public.ai2_embedding_fingerprint(a.asset_id))
+ into out from public.categories c left join public.asset_embeddings e on e.asset_id=a.asset_id where c.category_id=a.category_id;
+ return out;
+end $$;
+revoke all on function public.ai2_embedding_source(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.ai2_embedding_source(uuid,uuid) to service_role;
+
+-- service_role is the provenance boundary for canonical text and its SHA-256.
+-- The snapshot fingerprint prevents stale writes; this transaction binds the
+-- trusted canonical hash and vector atomically without duplicating canonicalization.
+create function public.ai2_upsert_asset_embedding(p_actor uuid,p_asset uuid,p_expected_version integer,p_source_fingerprint text,p_content_hash text,p_embedding extensions.vector(384)) returns jsonb
+language plpgsql security definer set search_path=public,extensions,pg_temp as $$
+declare a public.assets; existed boolean;
+begin
+ if p_content_hash is null or p_content_hash !~ '^[0-9a-f]{64}$' then raise exception 'Validation: lowercase SHA-256 required'; end if;
+ if p_source_fingerprint is null or p_source_fingerprint !~ '^[0-9a-f]{64}$' then raise exception 'Validation: source fingerprint required'; end if;
+ if p_embedding is null or abs(extensions.vector_norm(p_embedding)-1)>0.02 then raise exception 'Validation: normalized finite vector required'; end if;
+ if not public.ai2_embedding_actor_manages(p_actor,p_asset) then raise exception 'Forbidden: asset unavailable'; end if;
+ select * into a from public.assets where asset_id=p_asset for update;
+ if a.version<>p_expected_version then raise exception 'Conflict: asset version changed'; end if;
+ if public.ai2_embedding_fingerprint(p_asset)<>p_source_fingerprint then raise exception 'Conflict: source snapshot changed'; end if;
+ select exists(select 1 from public.asset_embeddings where asset_id=p_asset) into existed;
+ insert into public.asset_embeddings(asset_id,embedding,model,content_hash,embedded_at)
+ values(p_asset,p_embedding,'gte-small',p_content_hash,now())
+ on conflict(asset_id) do update set embedding=excluded.embedding,model='gte-small',content_hash=excluded.content_hash,embedded_at=excluded.embedded_at;
+ update public.assets set ai_content_hash=p_content_hash where asset_id=p_asset;
+ return jsonb_build_object('status',case when existed then 'updated' else 'created' end,'model','gte-small');
+end $$;
+revoke all on function public.ai2_upsert_asset_embedding(uuid,uuid,integer,text,text,extensions.vector) from public,anon,authenticated;
+grant execute on function public.ai2_upsert_asset_embedding(uuid,uuid,integer,text,text,extensions.vector) to service_role;
+
 create table public.ai_match_runs (
  run_id uuid primary key default gen_random_uuid(),
  request_id uuid not null references public.resource_requests(request_id),
