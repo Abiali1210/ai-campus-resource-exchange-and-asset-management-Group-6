@@ -16,7 +16,7 @@ await db.exec(`
  grant execute on function auth.uid() to anon,authenticated,service_role;
 `);
 for (const file of (await readdir("supabase/migrations"))
-  .filter((f) => f.endsWith(".sql"))
+  .filter((f) => f.endsWith(".sql") && !f.includes("_ai2_"))
   .sort()) {
   await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
 }

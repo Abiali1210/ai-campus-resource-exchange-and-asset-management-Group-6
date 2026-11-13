@@ -10,7 +10,7 @@
     "format:check": "prettier --check . --ignore-unknown",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
-    "test:db": "node scripts/test-database.mjs && node scripts/test-workflows.mjs",
+    "test:db": "node scripts/test-ai2-schema.mjs && node scripts/test-database.mjs && node scripts/test-workflows.mjs",
     "test:concurrency": "node scripts/test-workflow-concurrency.mjs",
     "test:db:native": "node scripts/test-native-workflows.mjs",
     "test:browser": "playwright test",
