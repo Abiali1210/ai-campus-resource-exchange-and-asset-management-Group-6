@@ -1222,6 +1222,57 @@ small {
 /* Request and transfer forms reuse the catalogue's typography and controls. */
 .workflow-panel {
   max-width: 1120px;
+  min-width: 0;
+}
+.workflow-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1.6rem;
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.workflow-summary div {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+}
+.workflow-summary dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.workflow-summary dd {
+  margin: 0;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.workflow-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.4rem;
+  border-bottom: 1px solid var(--line);
+  margin: 1rem 0;
+}
+.workflow-section-button {
+  flex: 1 1 auto;
+  background: transparent;
+  color: #60735c;
+  border-bottom: 2px solid transparent;
+  padding: 0.65rem 0.9rem;
+}
+.workflow-section-button.active {
+  color: var(--green);
+  border-color: #719452;
+  font-weight: 650;
+}
+.workflow-section-button:focus-visible,
+.workflow-panel button:focus-visible {
+  outline: 2px solid #719452;
+}
+.workflow-panel [hidden] {
+  display: none !important;
 }
 .workflow-panel h2 {
   margin: 1.6rem 0 1rem;

@@ -7,6 +7,7 @@ import {
 } from "react";
 import { api } from "./api";
 import type { AssetView, Bootstrap, Profile } from "./types";
+import { groupTransfers, transferActions } from "./workflowPresentation";
 import {
   nextRequestAction,
   nextTransferAction,
@@ -289,39 +290,12 @@ function TransferCard({
   done: () => void;
 }) {
   const [action, setAction] = useState<WorkflowAction | "">("");
-  const rep = profile.roles.includes("representative"),
-    supplier = rep && profile.departmentId === t.supplierDepartmentId;
-  const receiver = rep && profile.departmentId === t.receiverDepartmentId;
   const i = w.interests.find((i) => i.interestId === t.interestId),
     q = w.requests.find((q) => q.requestId === t.requestId);
-  const self =
-    profile.userId === i?.createdBy || profile.userId === q?.requesterId;
-  const assigned =
-    profile.roles.includes("facilities") && profile.userId === t.facilitiesId;
+  const actions = transferActions(t, w, profile);
   const personName = (id: string | null) =>
     t.holders.find((p) => p.userId === id)?.name ??
     (id ? `User ${id.slice(0, 8)}` : "Not recorded");
-  const actions: [WorkflowAction, string][] = [];
-  if (supplier && !self && t.state === "Pending Approval")
-    actions.push(
-      ["approveRelease", "Approve release"],
-      ["rejectRelease", "Reject release"],
-    );
-  if (assigned && ["Approved", "Scheduled"].includes(t.state))
-    actions.push(["schedule", "Schedule pickup"]);
-  if (assigned && t.state === "Scheduled")
-    actions.push(["dispatch", "Record dispatch"]);
-  if (receiver && t.state === "In Transit")
-    actions.push(["receive", "Record receipt"]);
-  if (receiver && t.state === "Disputed")
-    actions.push(["reconcile", "Accept reconciled receipt"]);
-  if (supplier && t.state === "Disputed")
-    actions.push(["confirmReturn", "Confirm physical return"]);
-  if (
-    (supplier || receiver || profile.userId === q?.requesterId) &&
-    ["Pending Approval", "Approved", "Scheduled"].includes(t.state)
-  )
-    actions.push(["cancelTransfer", "Cancel before dispatch"]);
   return (
     <article className="workflow-card" aria-label={`Transfer ${t.assetName}`}>
       <h3>
@@ -440,6 +414,8 @@ export function WorkflowPanel({
   const [revision, setRevision] = useState(0),
     [loaded, setLoaded] = useState(false),
     [success, setSuccess] = useState("");
+  const [activeSection, setActiveSection] = useState("requests");
+  const [requestFormOpen, setRequestFormOpen] = useState(false);
   const [purpose, setPurpose] = useState(""),
     [category, setCategory] = useState(""),
     [qty, setQty] = useState(1);
@@ -452,6 +428,7 @@ export function WorkflowPanel({
   const [requestId, setRequestId] = useState(""),
     [portionId, setPortionId] = useState("");
   const pending = useRef<WorkflowOperation | null>(null);
+  const requestPurposeRef = useRef<HTMLInputElement>(null);
   const canRequest = profile.roles.some((r) =>
     ["requester", "representative"].includes(r),
   );
@@ -538,6 +515,7 @@ export function WorkflowPanel({
   );
   const selected = own.find((q) => q.requestId === requestId);
   const selectedAsset = catalogue.find((a) => a.portionId === portionId);
+  const transferGroups = groupTransfers(w.transfers, w, profile);
   return (
     <section aria-label="Requests and transfers" className="workflow-panel">
       <div className="results-heading">
@@ -559,307 +537,396 @@ export function WorkflowPanel({
           {success}
         </p>
       )}
-      {canRequest && (
-        <details>
-          <summary>Submit a resource request</summary>
-          <form onSubmit={submit} className="workflow-form">
-            <Input label="Purpose">
-              <input
-                required
-                maxLength={2000}
-                value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
-              />
-            </Input>
-            <Input label="Request category">
-              <select
-                required
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="">Choose category</option>
-                {metadata.categories.map((c) => (
-                  <option key={c.categoryId} value={c.categoryId}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </Input>
-            <Input label="Requested quantity">
-              <input
-                required
-                type="number"
-                min="1"
-                step="1"
-                value={qty}
-                onChange={(e) => setQty(Number(e.target.value))}
-              />
-            </Input>
-            <Input label="Minimum suitable condition">
-              <select
-                value={condition}
-                onChange={(e) => setCondition(e.target.value)}
-              >
-                {["Excellent", "Good", "Fair"].map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-            </Input>
-            <Input label="Urgency">
-              <select
-                value={urgency}
-                onChange={(e) => setUrgency(e.target.value)}
-              >
-                {["Low", "Normal", "High"].map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-            </Input>
-            <Input label="Required date">
-              <input
-                required
-                type="date"
-                value={required}
-                onChange={(e) => setRequired(e.target.value)}
-              />
-            </Input>
-            <Input label="Receiving destination">
-              <input
-                required
-                maxLength={200}
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-              />
-            </Input>
-            <Input label="Mandatory specifications (JSON object)">
-              <textarea
-                value={specs}
-                onChange={(e) => setSpecs(e.target.value)}
-              />
-            </Input>
-            <p className="muted">
-              Use exact requirements, for example{" "}
-              {JSON.stringify({ connector: "HDMI" })}. Leave an empty object
-              when no mandatory specifications apply. Missing evidence blocks
-              supplier allocation.
-            </p>
-            <button className="button" disabled={busy}>
-              {busy ? "Submitting…" : "Submit request"}
-            </button>
-          </form>
-        </details>
+      {loaded && (
+        <dl className="workflow-summary" aria-label="Workflow summary">
+          <div>
+            <dt>Open requests</dt>
+            <dd>
+              {
+                w.requests.filter(
+                  (q) =>
+                    !["Closed", "Canceled", "Fulfilled"].includes(q.status),
+                ).length
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>Interests awaiting action</dt>
+            <dd>{w.interests.filter((i) => i.status === "Pending").length}</dd>
+          </div>
+          <div>
+            <dt>Active transfers</dt>
+            <dd>
+              {w.transfers.filter((t) => !terminal.includes(t.state)).length}
+            </dd>
+          </div>
+          <div>
+            <dt>Completed transfers</dt>
+            <dd>{w.transfers.filter((t) => t.state === "Completed").length}</dd>
+          </div>
+        </dl>
       )}
+      <nav className="workflow-sections" aria-label="Workflow sections">
+        {[
+          ["requests", "Requests"],
+          ["interests", "Interests"],
+          ["transfers", "Transfers"],
+          ["history", "History"],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={`workflow-section-button${activeSection === id ? " active" : ""}`}
+            aria-pressed={activeSection === id}
+            aria-controls={`workflow-${id}`}
+            onClick={() => setActiveSection(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
       {!loaded ? (
         <p role="status">Loading permitted workflows…</p>
       ) : (
         <>
-          <h2>Request tracking</h2>
-          {w.requests.length === 0 && (
-            <p>No requests are visible in your current scope.</p>
-          )}
-          {w.requests.map((q) => (
-            <article
-              className="workflow-card"
-              aria-label={`Request ${q.purpose}`}
-              key={q.requestId}
-            >
-              <h3>
-                {q.purpose} <span className="badge">{q.status}</span>
-              </h3>
-              <p>
-                {department(q.departmentId)} · Need by {q.requiredDate} ·{" "}
-                {q.urgency} urgency · {q.destination}
-              </p>
-              <p className="workflow-quantities">
-                Requested <strong>{q.requestedQty}</strong> · Accepted{" "}
-                <strong>{q.acceptedQty}</strong> · Actively allocated{" "}
-                <strong>{q.allocatedQty}</strong> · Remaining{" "}
-                <strong>{q.remainingQty}</strong>
-              </p>
-              <p>
-                <strong>Next action:</strong> {nextRequestAction(q)}
-              </p>
-              <p>
-                Minimum condition: {q.condition} · Mandatory specifications:{" "}
-                <code>{JSON.stringify(q.specifications)}</code>
-              </p>
-              {own.includes(q) &&
-                !["Closed", "Canceled", "Fulfilled"].includes(q.status) &&
-                q.allocatedQty === 0 && (
-                  <details>
-                    <summary>Close or cancel remaining need</summary>
-                    <ActionForm
-                      action={
-                        q.acceptedQty > 0 ? "closeRequest" : "cancelRequest"
-                      }
-                      base={{
-                        requestId: q.requestId,
-                        expectedVersion: q.version,
-                      }}
-                      workspace={w}
-                      button={
-                        q.acceptedQty > 0
-                          ? "Close unmet need"
-                          : "Cancel request"
-                      }
-                      onDone={done}
-                    />
-                  </details>
-                )}
-            </article>
-          ))}
-          {canRequest && (
-            <details>
-              <summary>Select a published item for Interest</summary>
-              <p>
-                Selection creates linked Interest. Stock and demand remain
-                unallocated until a supplier representative approves.
-              </p>
-              <Input label="Open request">
-                <select
-                  value={requestId}
-                  onChange={(e) => {
-                    setRequestId(e.target.value);
-                    setPortionId("");
+          <section
+            id="workflow-requests"
+            aria-labelledby="workflow-requests-title"
+            hidden={activeSection !== "requests"}
+          >
+            <h2 id="workflow-requests-title">Requests</h2>
+            {canRequest && (
+              <>
+                <button
+                  type="button"
+                  className="button"
+                  aria-expanded={requestFormOpen}
+                  aria-controls="new-request-form"
+                  onClick={() => {
+                    setRequestFormOpen((v) => {
+                      if (!v)
+                        requestAnimationFrame(() =>
+                          requestPurposeRef.current?.focus(),
+                        );
+                      return !v;
+                    });
                   }}
                 >
-                  <option value="">Choose request</option>
-                  {own
-                    .filter(
-                      (q) =>
-                        q.remainingQty > 0 &&
-                        !["Closed", "Canceled", "Fulfilled"].includes(q.status),
-                    )
-                    .map((q) => (
-                      <option key={q.requestId} value={q.requestId}>
-                        {q.purpose} ({q.remainingQty} remaining)
-                      </option>
-                    ))}
-                </select>
-              </Input>
-              <Input label="Published item">
-                <select
-                  value={portionId}
-                  onChange={(e) => setPortionId(e.target.value)}
-                >
-                  <option value="">Choose current portion</option>
-                  {catalogue
-                    .filter(
-                      (a) =>
-                        a.state === "Available" &&
-                        (!selected || selected.categoryId === a.categoryId),
-                    )
-                    .map((a) => (
-                      <option key={a.portionId} value={a.portionId}>
-                        {a.name} · {a.departmentName} · {a.qty} available ·{" "}
-                        {a.condition} · {a.portionId.slice(0, 8)}
-                      </option>
-                    ))}
-                </select>
-              </Input>
-              {selected && selectedAsset && (
-                <ActionForm
-                  key={
-                    selected.requestId +
-                    ":" +
-                    selected.version +
-                    ":" +
-                    portionId
-                  }
-                  action="recordInterest"
-                  base={{
-                    requestId: selected.requestId,
-                    portionId,
-                    expectedVersion: selected.version,
-                  }}
-                  workspace={w}
-                  qty={Math.min(selected.remainingQty, selectedAsset.qty)}
-                  button="Record Interest"
-                  onDone={done}
-                />
-              )}
-            </details>
-          )}
-          <h2>Interests and reservation decisions</h2>
-          {w.interests.length === 0 && <p>No linked interests yet.</p>}
-          {w.interests.map((i) => (
-            <article
-              className="workflow-card"
-              aria-label={`Interest ${i.assetName}`}
-              key={i.interestId}
-            >
-              <h3>
-                {i.assetName} · {i.qty} selected{" "}
-                <span className="badge">{i.status}</span>
-              </h3>
-              <p>
-                Request:{" "}
-                {w.requests.find((q) => q.requestId === i.requestId)?.purpose} ·
-                Submitted {labelDate(i.submittedAt)}
-              </p>
-              {!i.currentAvailable && i.status === "Pending" && (
-                <p className="notice">
-                  This source portion has changed. Select its current Available
-                  child from the catalogue before approval.
+                  {requestFormOpen ? "Close request form" : "New request"}
+                </button>
+                <div id="new-request-form" hidden={!requestFormOpen}>
+                  <form onSubmit={submit} className="workflow-form">
+                    <Input label="Purpose">
+                      <input
+                        required
+                        maxLength={2000}
+                        ref={requestPurposeRef}
+                        value={purpose}
+                        onChange={(e) => setPurpose(e.target.value)}
+                      />
+                    </Input>
+                    <Input label="Request category">
+                      <select
+                        required
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                      >
+                        <option value="">Choose category</option>
+                        {metadata.categories.map((c) => (
+                          <option key={c.categoryId} value={c.categoryId}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Input>
+                    <Input label="Requested quantity">
+                      <input
+                        required
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={qty}
+                        onChange={(e) => setQty(Number(e.target.value))}
+                      />
+                    </Input>
+                    <Input label="Minimum suitable condition">
+                      <select
+                        value={condition}
+                        onChange={(e) => setCondition(e.target.value)}
+                      >
+                        {["Excellent", "Good", "Fair"].map((c) => (
+                          <option key={c}>{c}</option>
+                        ))}
+                      </select>
+                    </Input>
+                    <Input label="Urgency">
+                      <select
+                        value={urgency}
+                        onChange={(e) => setUrgency(e.target.value)}
+                      >
+                        {["Low", "Normal", "High"].map((c) => (
+                          <option key={c}>{c}</option>
+                        ))}
+                      </select>
+                    </Input>
+                    <Input label="Required date">
+                      <input
+                        required
+                        type="date"
+                        value={required}
+                        onChange={(e) => setRequired(e.target.value)}
+                      />
+                    </Input>
+                    <Input label="Receiving destination">
+                      <input
+                        required
+                        maxLength={200}
+                        value={destination}
+                        onChange={(e) => setDestination(e.target.value)}
+                      />
+                    </Input>
+                    <Input label="Mandatory specifications (JSON object)">
+                      <textarea
+                        value={specs}
+                        onChange={(e) => setSpecs(e.target.value)}
+                      />
+                    </Input>
+                    <p className="muted">
+                      Use exact requirements, for example{" "}
+                      {JSON.stringify({ connector: "HDMI" })}. Leave an empty
+                      object when no mandatory specifications apply. Missing
+                      evidence blocks supplier allocation.
+                    </p>
+                    <button className="button" disabled={busy}>
+                      {busy ? "Submitting…" : "Submit request"}
+                    </button>
+                  </form>
+                </div>
+              </>
+            )}
+            <h3>Request tracking</h3>
+            {w.requests.length === 0 && (
+              <p>No requests are visible in your current scope.</p>
+            )}
+            {w.requests.map((q) => (
+              <article
+                className="workflow-card"
+                aria-label={`Request ${q.purpose}`}
+                key={q.requestId}
+              >
+                <h3>
+                  {q.purpose} <span className="badge">{q.status}</span>
+                </h3>
+                <p>
+                  {department(q.departmentId)} · Need by {q.requiredDate} ·{" "}
+                  {q.urgency} urgency · {q.destination}
                 </p>
-              )}
-              {rep &&
-                i.supplierDepartmentId === profile.departmentId &&
-                i.status === "Pending" &&
-                profile.userId !== i.createdBy &&
-                profile.userId !==
-                  w.requests.find((q) => q.requestId === i.requestId)
-                    ?.requesterId && (
-                  <>
+                <p className="workflow-quantities">
+                  Requested <strong>{q.requestedQty}</strong> · Accepted{" "}
+                  <strong>{q.acceptedQty}</strong> · Actively allocated{" "}
+                  <strong>{q.allocatedQty}</strong> · Remaining{" "}
+                  <strong>{q.remainingQty}</strong>
+                </p>
+                <p>
+                  <strong>Next action:</strong> {nextRequestAction(q)}
+                </p>
+                <p>
+                  Minimum condition: {q.condition} · Mandatory specifications:{" "}
+                  <code>{JSON.stringify(q.specifications)}</code>
+                </p>
+                {own.includes(q) &&
+                  !["Closed", "Canceled", "Fulfilled"].includes(q.status) &&
+                  q.allocatedQty === 0 && (
                     <details>
-                      <summary>Approve reservation</summary>
-                      <p>
-                        Review suitability and submission order. Explain any
-                        urgency or suitability override in the reason.
-                      </p>
+                      <summary>Close or cancel remaining need</summary>
                       <ActionForm
-                        action="approveReservation"
+                        action={
+                          q.acceptedQty > 0 ? "closeRequest" : "cancelRequest"
+                        }
                         base={{
-                          interestId: i.interestId,
-                          expectedVersion: i.version,
+                          requestId: q.requestId,
+                          expectedVersion: q.version,
                         }}
                         workspace={w}
-                        qty={i.qty}
-                        button="Approve reservation"
+                        button={
+                          q.acceptedQty > 0
+                            ? "Close unmet need"
+                            : "Cancel request"
+                        }
                         onDone={done}
                       />
                     </details>
-                    <details>
-                      <summary>Reject reservation</summary>
-                      <ActionForm
-                        action="rejectReservation"
-                        base={{
-                          interestId: i.interestId,
-                          expectedVersion: i.version,
-                        }}
-                        workspace={w}
-                        button="Reject reservation"
-                        onDone={done}
-                      />
-                    </details>
-                  </>
+                  )}
+              </article>
+            ))}
+          </section>
+          <section
+            id="workflow-interests"
+            aria-labelledby="workflow-interests-title"
+            hidden={activeSection !== "interests"}
+          >
+            <h2 id="workflow-interests-title">Interests</h2>
+            {canRequest && (
+              <details open>
+                <summary>Record Interest</summary>
+                <p>
+                  Recording Interest links a published item to an open request;
+                  it does not reserve stock. A supplier representative must
+                  separately approve a reservation.
+                </p>
+                <Input label="Open request">
+                  <select
+                    value={requestId}
+                    onChange={(e) => {
+                      setRequestId(e.target.value);
+                      setPortionId("");
+                    }}
+                  >
+                    <option value="">Choose request</option>
+                    {own
+                      .filter(
+                        (q) =>
+                          q.remainingQty > 0 &&
+                          !["Closed", "Canceled", "Fulfilled"].includes(
+                            q.status,
+                          ),
+                      )
+                      .map((q) => (
+                        <option key={q.requestId} value={q.requestId}>
+                          {q.purpose} ({q.remainingQty} remaining)
+                        </option>
+                      ))}
+                  </select>
+                </Input>
+                <Input label="Published item">
+                  <select
+                    value={portionId}
+                    onChange={(e) => setPortionId(e.target.value)}
+                  >
+                    <option value="">Choose current portion</option>
+                    {catalogue
+                      .filter(
+                        (a) =>
+                          a.state === "Available" &&
+                          (!selected || selected.categoryId === a.categoryId),
+                      )
+                      .map((a) => (
+                        <option key={a.portionId} value={a.portionId}>
+                          {a.name} · {a.departmentName} · {a.qty} available ·{" "}
+                          {a.condition} · {a.portionId.slice(0, 8)}
+                        </option>
+                      ))}
+                  </select>
+                </Input>
+                {selected && selectedAsset && (
+                  <ActionForm
+                    key={
+                      selected.requestId +
+                      ":" +
+                      selected.version +
+                      ":" +
+                      portionId
+                    }
+                    action="recordInterest"
+                    base={{
+                      requestId: selected.requestId,
+                      portionId,
+                      expectedVersion: selected.version,
+                    }}
+                    workspace={w}
+                    qty={Math.min(selected.remainingQty, selectedAsset.qty)}
+                    button="Record Interest"
+                    onDone={done}
+                  />
                 )}
-              {w.decisions
-                .filter((a) => a.interest_id === i.interestId)
-                .map((a) => (
-                  <p key={a.approval_id}>
-                    {a.decision}: {a.reason} · {a.actor_id} ·{" "}
-                    {labelDate(a.decided_at)}
+              </details>
+            )}
+            {w.interests.length === 0 && <p>No linked interests yet.</p>}
+            {w.interests.map((i) => (
+              <article
+                className="workflow-card"
+                aria-label={`Interest ${i.assetName}`}
+                key={i.interestId}
+              >
+                <h3>
+                  {i.assetName} · {i.qty} selected{" "}
+                  <span className="badge">{i.status}</span>
+                </h3>
+                <p>
+                  Request:{" "}
+                  {w.requests.find((q) => q.requestId === i.requestId)?.purpose}{" "}
+                  · Submitted {labelDate(i.submittedAt)}
+                </p>
+                {!i.currentAvailable && i.status === "Pending" && (
+                  <p className="notice">
+                    This source portion has changed. Select its current
+                    Available child from the catalogue before approval.
                   </p>
-                ))}
-            </article>
-          ))}
-          <h2>Transfers</h2>
-          {w.transfers.length === 0 && <p>No approved allocations yet.</p>}
-          {w.transfers
-            .filter((t) => !terminal.includes(t.state))
-            .concat(w.transfers.filter((t) => terminal.includes(t.state)))
-            .map((t) => (
+                )}
+                {rep &&
+                  i.supplierDepartmentId === profile.departmentId &&
+                  i.status === "Pending" &&
+                  profile.userId !== i.createdBy &&
+                  profile.userId !==
+                    w.requests.find((q) => q.requestId === i.requestId)
+                      ?.requesterId && (
+                    <>
+                      <details>
+                        <summary>Approve reservation</summary>
+                        <p>
+                          Review suitability and submission order. Explain any
+                          urgency or suitability override in the reason.
+                        </p>
+                        <ActionForm
+                          action="approveReservation"
+                          base={{
+                            interestId: i.interestId,
+                            expectedVersion: i.version,
+                          }}
+                          workspace={w}
+                          qty={i.qty}
+                          button="Approve reservation"
+                          onDone={done}
+                        />
+                      </details>
+                      <details>
+                        <summary>Reject reservation</summary>
+                        <ActionForm
+                          action="rejectReservation"
+                          base={{
+                            interestId: i.interestId,
+                            expectedVersion: i.version,
+                          }}
+                          workspace={w}
+                          button="Reject reservation"
+                          onDone={done}
+                        />
+                      </details>
+                    </>
+                  )}
+                {w.decisions
+                  .filter((a) => a.interest_id === i.interestId)
+                  .map((a) => (
+                    <p key={a.approval_id}>
+                      {a.decision}: {a.reason} · {a.actor_id} ·{" "}
+                      {labelDate(a.decided_at)}
+                    </p>
+                  ))}
+              </article>
+            ))}
+          </section>
+          <section
+            id="workflow-transfers"
+            aria-labelledby="workflow-transfers-title"
+            hidden={activeSection !== "transfers"}
+          >
+            <h2 id="workflow-transfers-title">Transfers</h2>
+            {w.transfers.length === 0 && <p>No approved allocations yet.</p>}
+            <h3>Needs your action</h3>
+            {transferGroups.needsAction.length === 0 && (
+              <p>No transfers currently need action from your roles.</p>
+            )}
+            {transferGroups.needsAction.map((t) => (
               <TransferCard
                 key={t.transferId}
                 t={t}
@@ -869,8 +936,48 @@ export function WorkflowPanel({
                 done={done}
               />
             ))}
-          <details>
-            <summary>Workflow history: who did what and when</summary>
+            <h3>In progress</h3>
+            {transferGroups.inProgress.length === 0 && (
+              <p>No transfers are currently in progress.</p>
+            )}
+            {transferGroups.inProgress.map((t) => (
+              <TransferCard
+                key={t.transferId}
+                t={t}
+                w={w}
+                profile={profile}
+                department={department}
+                done={done}
+              />
+            ))}
+            <h3>Completed</h3>
+            <p className="muted">
+              Completed transfers are shown here. Canceled and Returned
+              transfers are also terminal records and remain available below.
+            </p>
+            {transferGroups.completed.length === 0 && (
+              <p>No completed or other terminal transfers yet.</p>
+            )}
+            {transferGroups.completed.map((t) => (
+              <TransferCard
+                key={t.transferId}
+                t={t}
+                w={w}
+                profile={profile}
+                department={department}
+                done={done}
+              />
+            ))}
+          </section>
+          <section
+            id="workflow-history"
+            aria-labelledby="workflow-history-title"
+            hidden={activeSection !== "history"}
+          >
+            <h2 id="workflow-history-title">History</h2>
+            {w.history.length === 0 && (
+              <p>No workflow history is available in your current scope.</p>
+            )}
             {w.history.map((h) => {
               const before = record(h.before),
                 after = record(h.after),
@@ -914,7 +1021,7 @@ export function WorkflowPanel({
                 </div>
               );
             })}
-          </details>
+          </section>
         </>
       )}
     </section>
