@@ -175,6 +175,37 @@ end $$;
 revoke all on function public.ai2_candidates(uuid,extensions.vector,integer) from public,anon,authenticated;
 grant execute on function public.ai2_candidates(uuid,extensions.vector,integer) to authenticated;
 
+-- Narrow caller-scoped projection; no requester identity or private request fields.
+create function public.ai2_request_source(p_request uuid) returns jsonb
+language plpgsql stable security definer set search_path=public,pg_temp as $$
+declare q public.resource_requests; totals jsonb;
+begin
+ perform public.require_active();
+ if not public.workflow_request_access(p_request,false) then raise exception 'Forbidden: request unavailable'; end if;
+ select * into q from public.resource_requests where request_id=p_request;
+ totals:=public.workflow_totals(p_request);
+ if q.status<>'Open' or (totals->>'remainingQty')::integer<=0 then raise exception 'Conflict: request is not open or has no remaining demand'; end if;
+ return jsonb_build_object('requestId',q.request_id,'version',q.version,'category',(select c.name from public.categories c where c.category_id=q.category_id),'purpose',q.purpose,
+  'requirements',q.specifications,'minimumCondition',q.condition,'remainingQty',(totals->>'remainingQty')::integer);
+end $$;
+revoke all on function public.ai2_request_source(uuid) from public,anon;
+grant execute on function public.ai2_request_source(uuid) to authenticated;
+
+create function public.ai2_match_operation(p_request uuid,p_operation_key uuid) returns jsonb
+language plpgsql stable security definer set search_path=public,pg_temp as $$
+declare r public.ai_match_runs; out jsonb;
+begin
+ perform public.require_active();
+ if p_operation_key is null or not public.workflow_request_access(p_request,false) then raise exception 'Forbidden: request unavailable'; end if;
+ if exists(select 1 from public.ai_match_runs where actor_id=auth.uid() and operation_key=p_operation_key and request_id<>p_request) then raise exception 'Conflict: operation key reused for different input'; end if;
+ select * into r from public.ai_match_runs where actor_id=auth.uid() and operation_key=p_operation_key and request_id=p_request;
+ if not found then return null; end if;
+ select public.ai2_match_results(r.run_id) into out;
+ return out;
+end $$;
+revoke all on function public.ai2_match_operation(uuid,uuid) from public,anon;
+grant execute on function public.ai2_match_operation(uuid,uuid) to authenticated;
+
 create function public.ai2_actor_request_access(p_actor uuid,p_request uuid) returns boolean
 language sql stable security definer set search_path=public,pg_temp as $$
  select exists(select 1 from public.profiles p join public.departments d using(department_id) where p.user_id=p_actor and p.active and d.active)
@@ -188,43 +219,55 @@ $$;
 revoke all on function public.ai2_actor_portion_access(uuid,uuid) from public,anon,authenticated,service_role;
 
 create function public.ai2_save_match_run(p_actor uuid,p_input jsonb) returns jsonb
-language plpgsql security definer set search_path=public,pg_temp as $$
-  declare k uuid:=(p_input->>'operationKey')::uuid;
- q public.resource_requests; item jsonb; r_id uuid; rec jsonb; n integer:=0; seen uuid[]:='{}'; totals jsonb;
-  fp text; result jsonb; started timestamptz:=clock_timestamp(); eligible_count integer;
+language plpgsql security definer set search_path=public,extensions,pg_temp as $$
+declare k uuid:=(p_input->>'operationKey')::uuid; q public.resource_requests; r_id uuid; rec jsonb; n integer:=0; seen uuid[]:='{}'; totals jsonb; result jsonb; expected text; outcome text; p_query extensions.vector(384); authoritative_snapshot jsonb; authoritative_count integer; authoritative_fingerprint text;
 begin
-  if p_actor is null or k is null then raise exception 'Validation: actor and operationKey required'; end if;
-  if not public.ai2_actor_request_access(p_actor,(p_input->>'requestId')::uuid) then raise exception 'Forbidden: request unavailable'; end if;
-  perform pg_advisory_xact_lock(hashtextextended(p_actor::text||':'||k::text,0));
-  select jsonb_build_object('runId',run_id,'requestId',request_id,'recommendationCount',(select count(*) from public.ai_match_recommendations m where m.run_id=r.run_id)) into result from public.ai_match_runs r where actor_id=p_actor and operation_key=k;
-  if result is not null then
-   if (select payload_hash from public.ai_match_runs where actor_id=p_actor and operation_key=k)<>encode(sha256(convert_to(p_input::text,'UTF8')),'hex') then raise exception 'Conflict: operation key reused for different input'; end if;
+ if p_actor is null or k is null then raise exception 'Validation: actor and operationKey required'; end if;
+ if not public.ai2_actor_request_access(p_actor,(p_input->>'requestId')::uuid) then raise exception 'Forbidden: request unavailable'; end if;
+ perform pg_advisory_xact_lock(hashtextextended(p_actor::text||':'||k::text,0));
+ select run_id into r_id from public.ai_match_runs where actor_id=p_actor and operation_key=k;
+ if r_id is not null then
+   if (select payload_hash from public.ai_match_runs where run_id=r_id)<>encode(sha256(convert_to((p_input-ARRAY['durationMs','providerCallCount','candidateCount','candidateFingerprint','queryVector','candidateSnapshot'])::text,'UTF8')),'hex') then raise exception 'Conflict: operation key reused for different input'; end if;
+   select jsonb_build_object('runId',r.run_id,'requestId',r.request_id,'recommendationCount',(select count(*) from public.ai_match_recommendations m where m.run_id=r.run_id),'outcome',case when r.error_code='no_candidates' then 'no_candidates' else 'completed' end) into result from public.ai_match_runs r where r.run_id=r_id;
    return result;
-  end if;
+ end if;
  select * into q from public.resource_requests where request_id=(p_input->>'requestId')::uuid for update;
+ if q.request_id is null or q.version<>(p_input->>'requestVersion')::integer then raise exception 'Conflict: stale_request'; end if;
  totals:=public.workflow_totals(q.request_id);
- if q.status<>'Open' or (totals->>'remainingQty')::int<=0 then raise exception 'Conflict: request not open or no demand'; end if;
-  if jsonb_typeof(p_input->'recommendations') is distinct from 'array' or jsonb_array_length(p_input->'recommendations')>5 then raise exception 'Validation: at most five recommendations required'; end if;
-  if length(coalesce(p_input->>'configurationVersion','v1')) not between 1 and 80 then raise exception 'Validation: invalid configuration version'; end if;
-  select encode(sha256(convert_to(coalesce(jsonb_agg(jsonb_build_array(s.portion_id,s.asset_id,s.qty,s.condition,a.ai_content_hash,e.content_hash,e.embedded_at) order by s.asset_id,s.portion_id)::text,'[]'),'UTF8')),'hex'),count(*) into fp,eligible_count
-  from public.stock_portions s join public.assets a using(asset_id) join public.asset_embeddings e using(asset_id)
-  join public.departments d on d.department_id=s.owner_department_id and d.active
- where s.active and s.state='Available' and s.qty>0 and not exists(select 1 from public.stock_portions ch where ch.parent_portion_id=s.portion_id and ch.active)
+ if q.status<>'Open' or (totals->>'remainingQty')::int<=0 then raise exception 'Conflict: stale_request'; end if;
+ if jsonb_typeof(p_input->'queryVector') is distinct from 'array' or jsonb_array_length(p_input->'queryVector')<>384 or jsonb_typeof(p_input->'candidateSnapshot') is distinct from 'array' or jsonb_array_length(p_input->'candidateSnapshot')>20 then raise exception 'Validation: bounded candidate snapshot and query vector required'; end if;
+ p_query:=(p_input->'queryVector')::text::extensions.vector(384);
+ if p_query is null or abs(extensions.vector_norm(p_query)-1)>.02 then raise exception 'Validation: normalized finite request vector required'; end if;
+ select coalesce(jsonb_agg(jsonb_build_object('portion_id',c.portion_id,'asset_id',c.asset_id,'asset_name',c.asset_name,'description',c.description,'category_id',c.category_id,'specifications',c.specifications,'qty',c.qty,'condition',c.condition,'department_id',c.department_id,'department_name',c.department_name,'assigned_location',c.assigned_location,'physical_location',c.physical_location,'similarity',c.similarity) order by c.distance,c.asset_id,c.portion_id),'[]'::jsonb)
+ into authoritative_snapshot from (
+  select s.portion_id,a.asset_id,a.name asset_name,a.description,a.category_id,a.specifications,s.qty,s.condition,s.owner_department_id department_id,d.name department_name,s.assigned_location,s.physical_location,(1-(e.embedding <=> p_query))::real similarity,e.embedding <=> p_query distance
+  from public.stock_portions s join public.assets a using(asset_id) join public.departments d on d.department_id=s.owner_department_id and d.active join public.asset_embeddings e using(asset_id)
+  where s.active and s.state='Available' and s.qty>0 and not exists(select 1 from public.stock_portions child where child.parent_portion_id=s.portion_id and child.active)
    and public.ai2_actor_portion_access(p_actor,s.portion_id) and coalesce(public.workflow_suitable(q.request_id,s.portion_id),false)
- and e.model='gte-small' and a.ai_content_hash=e.content_hash;
-  insert into public.ai_match_runs(request_id,actor_id,operation_key,payload_hash,status,model,configuration_version,candidate_fingerprint,candidate_count,provider_call_count,completed_at,duration_ms)
-   values(q.request_id,p_actor,k,encode(sha256(convert_to(p_input::text,'UTF8')),'hex'),'completed','gte-small',coalesce(p_input->>'configurationVersion','v1'),fp,least(eligible_count,20),1,clock_timestamp(),greatest(0,(extract(epoch from clock_timestamp()-started)*1000)::int)) returning run_id into r_id;
+   and e.model='gte-small' and a.ai_content_hash is not null and a.ai_content_hash=e.content_hash
+  order by e.embedding <=> p_query,a.asset_id,s.portion_id limit 20
+ ) c;
+ authoritative_count:=jsonb_array_length(authoritative_snapshot);
+ if p_input->'candidateSnapshot' is distinct from authoritative_snapshot then raise exception 'Conflict: candidate_set_changed'; end if;
+ authoritative_fingerprint:=encode(sha256(convert_to(authoritative_snapshot::text,'UTF8')),'hex');
+ outcome:=p_input->>'outcome';
+ if outcome not in ('completed','no_candidates') or jsonb_typeof(p_input->'recommendations') is distinct from 'array' or jsonb_array_length(p_input->'recommendations')>5 then raise exception 'Validation: invalid match outcome or recommendations'; end if;
+ if (outcome='no_candidates' and (jsonb_array_length(p_input->'recommendations')<>0 or authoritative_count<>0)) or (outcome='completed' and (jsonb_array_length(p_input->'recommendations')=0 or authoritative_count=0)) then raise exception 'Validation: outcome/recommendation mismatch'; end if;
+ if p_input->>'model' is distinct from 'gte-small' or length(coalesce(p_input->>'configurationVersion','')) not between 1 and 80 or coalesce((p_input->>'durationMs')::integer,-1)<0 or coalesce((p_input->>'providerCallCount')::integer,0)<>1 then raise exception 'Validation: invalid trusted run metadata'; end if;
+ expected:=encode(sha256(convert_to((p_input-ARRAY['durationMs','providerCallCount','candidateCount','candidateFingerprint','queryVector','candidateSnapshot'])::text,'UTF8')),'hex');
+ insert into public.ai_match_runs(request_id,actor_id,operation_key,payload_hash,status,model,configuration_version,candidate_fingerprint,candidate_count,provider_call_count,completed_at,duration_ms,error_code)
+ values(q.request_id,p_actor,k,expected,case when outcome='no_candidates' then 'failed' else 'completed' end,'gte-small',p_input->>'configurationVersion',authoritative_fingerprint,authoritative_count::smallint,1,now(),(p_input->>'durationMs')::integer,case when outcome='no_candidates' then 'no_candidates' else null end) returning run_id into r_id;
  for rec in select value from jsonb_array_elements(p_input->'recommendations') loop
-  n:=n+1; if n>5 then raise exception 'Validation: at most five recommendations required'; end if;
-  if (rec->>'rank')::int not between 1 and 5 or (rec->>'rank')::int<>n then raise exception 'Validation: contiguous ranks required'; end if;
-  if (rec->>'portionId')::uuid=any(seen) then raise exception 'Validation: duplicate portion'; end if;
+  n:=n+1;
+  if (rec->>'rank')::int<>n or (rec->>'portionId')::uuid=any(seen) then raise exception 'Validation: invalid ranks or duplicate portions'; end if;
   seen:=array_append(seen,(rec->>'portionId')::uuid);
-    if not exists(select 1 from public.stock_portions s join public.assets a using(asset_id) join public.asset_embeddings e using(asset_id) join public.departments d on d.department_id=s.owner_department_id and d.active where s.portion_id=(rec->>'portionId')::uuid and s.asset_id=(rec->>'assetId')::uuid and s.active and s.state='Available' and s.qty>0 and not exists(select 1 from public.stock_portions ch where ch.parent_portion_id=s.portion_id and ch.active) and public.ai2_actor_portion_access(p_actor,s.portion_id) and public.workflow_suitable(q.request_id,s.portion_id) and e.model='gte-small' and a.ai_content_hash=e.content_hash) then raise exception 'Conflict: candidate no longer eligible'; end if;
+  if not exists(select 1 from public.stock_portions s join public.assets a using(asset_id) join public.asset_embeddings e using(asset_id) join public.departments d on d.department_id=s.owner_department_id and d.active where s.portion_id=(rec->>'portionId')::uuid and s.asset_id=(rec->>'assetId')::uuid and s.active and s.state='Available' and s.qty>0 and not exists(select 1 from public.stock_portions ch where ch.parent_portion_id=s.portion_id and ch.active) and public.ai2_actor_portion_access(p_actor,s.portion_id) and public.workflow_suitable(q.request_id,s.portion_id) and e.model='gte-small' and a.ai_content_hash=e.content_hash) then raise exception 'Conflict: candidate_set_changed'; end if;
+  if abs((rec->>'compatibilityScore')::numeric-100*(.65*(rec->>'s')::numeric+.15*(rec->>'c')::numeric+.10*(rec->>'q')::numeric+.10*(rec->>'l')::numeric))>.02 or abs((rec->>'finalRankScore')::numeric-100*(.60*(rec->>'f')::numeric+.15*(rec->>'t')::numeric+.10*(rec->>'k')::numeric+.10*(rec->>'w')::numeric+.05*(rec->>'e')::numeric))>.02 then raise exception 'Validation: score formula mismatch'; end if;
+  if abs((rec->>'s')::numeric-greatest(0,least(1,(rec->>'semanticCosineScore')::numeric)))>.0002 or (rec->>'l')::numeric<>0 or (rec->>'t')::numeric<>0 or (rec->>'k')::numeric<>0 or (rec->>'w')::numeric<>0 or (rec->>'e')::numeric<>0 or abs((rec->>'f')::numeric-(rec->>'compatibilityScore')::numeric/100)>.0002 or not exists(select 1 from public.stock_portions s where s.portion_id=(rec->>'portionId')::uuid and abs((rec->>'q')::numeric-least(s.qty::numeric/(totals->>'remainingQty')::numeric,1))<.0002 and (rec->>'c')::numeric=1) then raise exception 'Validation: persisted factor mismatch'; end if;
   insert into public.ai_match_recommendations(run_id,request_id,asset_id,portion_id,rank,semantic_cosine_score,s,c,q,l,f,t,k,w,e,compatibility_score,final_rank_score,reason,missing_evidence)
   values(r_id,q.request_id,(rec->>'assetId')::uuid,(rec->>'portionId')::uuid,n,(rec->>'semanticCosineScore')::real,(rec->>'s')::real,(rec->>'c')::real,(rec->>'q')::real,(rec->>'l')::real,(rec->>'f')::real,(rec->>'t')::real,(rec->>'k')::real,(rec->>'w')::real,(rec->>'e')::real,(rec->>'compatibilityScore')::real,(rec->>'finalRankScore')::real,rec->>'reason',coalesce(rec->'missingEvidence','[]'));
  end loop;
- result:=jsonb_build_object('runId',r_id,'requestId',q.request_id,'recommendationCount',n);
-  return result;
+ return jsonb_build_object('runId',r_id,'requestId',q.request_id,'recommendationCount',n,'outcome',outcome);
 end $$;
 
 create function public.ai2_match_results(p_id uuid) returns jsonb
@@ -239,7 +282,9 @@ begin
    select run_id into rid from public.ai_match_runs where request_id=req order by started_at desc,run_id desc limit 1;
   end if;
  if not public.workflow_request_access(req,false) then raise exception 'Forbidden: request unavailable'; end if;
-  select jsonb_build_object('run',jsonb_build_object('runId',r.run_id,'requestId',r.request_id,'status',r.status,'model',r.model,'candidateCount',r.candidate_count,'startedAt',r.started_at,'completedAt',r.completed_at), 'recommendations',coalesce(jsonb_agg(jsonb_build_object('recommendationId',m.recommendation_id,'assetId',m.asset_id,'portionId',m.portion_id,'rank',m.rank,'scores',jsonb_build_object('S',m.s,'C',m.c,'Q',m.q,'L',m.l,'F',m.f,'T',m.t,'K',m.k,'W',m.w,'E',m.e,'compatibility',m.compatibility_score,'final',m.final_rank_score),'reason',m.reason,'missingEvidence',m.missing_evidence,'reviewState',m.review_state) order by m.rank) filter(where m.recommendation_id is not null),'[]')) into out from public.ai_match_runs r left join public.ai_match_recommendations m using(run_id) where r.run_id=rid group by r.run_id;
+   select jsonb_build_object('outcome',case when r.error_code='no_candidates' then 'no_candidates' else 'completed' end,'runId',r.run_id,'requestId',r.request_id,
+   'recommendations',coalesce(jsonb_agg(jsonb_build_object('recommendationId',m.recommendation_id,'portionId',m.portion_id,'assetId',m.asset_id,'rank',m.rank,'assetName',a.name,'condition',s.condition,'availableQty',s.qty,'compatibilityScore',m.compatibility_score,'finalRankScore',m.final_rank_score,'reason',m.reason,'missingEvidence',m.missing_evidence,'reviewState',m.review_state,'interestId',m.interest_id) order by m.rank) filter(where m.recommendation_id is not null),'[]')) into out
+   from public.ai_match_runs r left join public.ai_match_recommendations m using(run_id) left join public.assets a using(asset_id) left join public.stock_portions s using(portion_id) where r.run_id=rid group by r.run_id;
  return coalesce(out,'{}');
 end $$;
 

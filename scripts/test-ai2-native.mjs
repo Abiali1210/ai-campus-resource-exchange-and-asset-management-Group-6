@@ -9,6 +9,8 @@ let count = 0;
 const uuid = () => randomUUID();
 const vector = (n = 0) =>
   `[${Array.from({ length: 384 }, (_, i) => (i === n ? 1 : 0)).join(",")}]`;
+const vectorArray = () =>
+  Array.from({ length: 384 }, (_, i) => (i === 0 ? 1 : 0));
 const score = (portionId, assetId, rank = 1, semanticCosineScore = 1) => ({
   portionId,
   assetId,
@@ -17,14 +19,14 @@ const score = (portionId, assetId, rank = 1, semanticCosineScore = 1) => ({
   s: 1,
   c: 1,
   q: 1,
-  l: 1,
-  f: 1,
-  t: 1,
-  k: 1,
-  w: 1,
-  e: 1,
-  compatibilityScore: 100,
-  finalRankScore: 100,
+  l: 0,
+  f: 0.9,
+  t: 0,
+  k: 0,
+  w: 0,
+  e: 0,
+  compatibilityScore: 90,
+  finalRankScore: 54,
   reason: "Synthetic formula-valid recommendation",
   missingEvidence: [],
 });
@@ -54,7 +56,17 @@ async function run(
   recommendations,
   actor = requester,
   operationKey = uuid(),
+  snapshot,
 ) {
+  const rows =
+    snapshot ??
+    (
+      await as(
+        requester,
+        "select * from public.ai2_candidates($1,$2::extensions.vector,20)",
+        [req.requestId, vector()],
+      )
+    ).rows;
   return as(
     null,
     "select public.ai2_save_match_run($1,$2::jsonb) result",
@@ -63,7 +75,14 @@ async function run(
       JSON.stringify({
         operationKey,
         requestId: req.requestId,
+        requestVersion: req.version,
+        queryVector: vectorArray(),
+        candidateSnapshot: rows,
         configurationVersion: "native-test-v1",
+        model: "gte-small",
+        providerCallCount: 1,
+        durationMs: 4,
+        outcome: recommendations.length ? "completed" : "no_candidates",
         recommendations,
       }),
     ],
@@ -100,6 +119,38 @@ async function prepared() {
     requester,
     "select public.ai2_match_results($1) result",
     [saved.runId],
+  );
+  assert.equal(result.rows[0].result.outcome, "completed");
+  const metadata = await db.query(
+    "select model,configuration_version,candidate_count,provider_call_count,duration_ms,candidate_fingerprint from public.ai_match_runs where run_id=$1",
+    [saved.runId],
+  );
+  assert.deepEqual(metadata.rows[0], {
+    model: "gte-small",
+    configuration_version: "native-test-v1",
+    candidate_count: rows.rowCount,
+    provider_call_count: 1,
+    duration_ms: 4,
+    candidate_fingerprint: metadata.rows[0].candidate_fingerprint,
+  });
+  assert.match(metadata.rows[0].candidate_fingerprint, /^[a-f0-9]{64}$/);
+  assert.deepEqual(
+    Object.keys(result.rows[0].result.recommendations[0]).sort(),
+    [
+      "recommendationId",
+      "portionId",
+      "assetId",
+      "rank",
+      "assetName",
+      "condition",
+      "availableQty",
+      "compatibilityScore",
+      "finalRankScore",
+      "reason",
+      "missingEvidence",
+      "reviewState",
+      "interestId",
+    ].sort(),
   );
   return {
     stock,
@@ -226,6 +277,31 @@ try {
         "service_role",
       );
       assert.equal(updated.rows[0].result.status, "updated");
+    },
+  );
+  await check(
+    "request source is caller-scoped and exposes category label only",
+    async () => {
+      const req = await request();
+      const src = await as(
+        requester,
+        "select public.ai2_request_source($1) result",
+        [req.requestId],
+      );
+      assert.equal(src.rows[0].result.category, h.fixture.categories[0].name);
+      assert.equal(src.rows[0].result.version, req.version);
+      assert.equal("destination" in src.rows[0].result, false);
+      await assert.rejects(
+        as(rep, "select public.ai2_request_source($1)", [req.requestId]),
+      );
+      await assert.rejects(
+        as(
+          null,
+          "select public.ai2_request_source($1)",
+          [req.requestId],
+          "anon",
+        ),
+      );
     },
   );
   await check(
@@ -521,6 +597,12 @@ try {
     const first = await run(p.req, rec, requester, key),
       second = await run(p.req, rec, requester, key);
     assert.deepEqual(second, first);
+    const visibleRetry = await as(
+      requester,
+      "select public.ai2_match_operation($1,$2) result",
+      [p.req.requestId, key],
+    );
+    assert.equal(visibleRetry.rows[0].result.outcome, "completed");
     await assert.rejects(run(p.req, [], requester, key));
     assert.equal(
       (
@@ -532,6 +614,157 @@ try {
       1,
     );
   });
+  await check(
+    "no-candidates is saved as failed/no_candidates with empty visible results",
+    async () => {
+      const req = await request(1, {
+          specifications: { noCandidateFixture: uuid() },
+        }),
+        key = uuid();
+      const saved = await run(req, [], requester, key);
+      const result = await as(
+        requester,
+        "select public.ai2_match_results($1) result",
+        [saved.runId],
+      );
+      assert.equal(result.rows[0].result.outcome, "no_candidates");
+      assert.deepEqual(result.rows[0].result.recommendations, []);
+      assert.equal(
+        (
+          await db.query(
+            "select status,error_code,provider_call_count,candidate_count,duration_ms from public.ai_match_runs where run_id=$1",
+            [saved.runId],
+          )
+        ).rows[0].status,
+        "failed",
+      );
+    },
+  );
+  await check(
+    "false no_candidates is rejected when the authoritative set is nonempty",
+    async () => {
+      const p = await prepared(),
+        snapshot = (
+          await as(
+            requester,
+            "select * from public.ai2_candidates($1,$2::extensions.vector,20)",
+            [p.req.requestId, vector()],
+          )
+        ).rows;
+      assert.ok(snapshot.length > 0);
+      await assert.rejects(run(p.req, [], requester, uuid(), snapshot));
+    },
+  );
+  await check(
+    "trusted save detects candidate mutation, addition, and removal after retrieval",
+    async () => {
+      const changed = await prepared(),
+        changedSnapshot = (
+          await as(
+            requester,
+            "select * from public.ai2_candidates($1,$2::extensions.vector,20)",
+            [changed.req.requestId, vector()],
+          )
+        ).rows;
+      await db.query(
+        "update public.stock_portions set condition='Excellent' where portion_id=$1",
+        [changed.row.portion_id],
+      );
+      await assert.rejects(
+        run(
+          changed.req,
+          [score(changed.row.portion_id, changed.stock.assetId)],
+          requester,
+          uuid(),
+          changedSnapshot,
+        ),
+      );
+
+      const addedReq = await request(),
+        original = await indexed(addedReq, await asset());
+      const beforeAdd = (
+        await as(
+          requester,
+          "select * from public.ai2_candidates($1,$2::extensions.vector,20)",
+          [addedReq.requestId, vector()],
+        )
+      ).rows;
+      await indexed(addedReq, await asset());
+      await assert.rejects(
+        run(
+          addedReq,
+          [score(beforeAdd[0].portion_id, original.assetId)],
+          requester,
+          uuid(),
+          beforeAdd,
+        ),
+      );
+
+      const removedReq = await request(),
+        removable = await indexed(removedReq, await asset());
+      const beforeRemove = (
+        await as(
+          requester,
+          "select * from public.ai2_candidates($1,$2::extensions.vector,20)",
+          [removedReq.requestId, vector()],
+        )
+      ).rows;
+      await db.query(
+        "update public.stock_portions set state='In Use' where portion_id=$1",
+        [removable.portionId],
+      );
+      await assert.rejects(
+        run(
+          removedReq,
+          [score(beforeRemove[0].portion_id, removable.assetId)],
+          requester,
+          uuid(),
+          beforeRemove,
+        ),
+      );
+    },
+  );
+  await check(
+    "stale request version and stale candidate are rejected by trusted save",
+    async () => {
+      const p = await prepared(),
+        rec = [score(p.row.portion_id, p.stock.assetId)];
+      await assert.rejects(
+        as(
+          null,
+          "select public.ai2_save_match_run($1,$2::jsonb)",
+          [
+            requester.userId,
+            JSON.stringify({
+              operationKey: uuid(),
+              requestId: p.req.requestId,
+              requestVersion: p.req.version - 1,
+              queryVector: vectorArray(),
+              candidateSnapshot: (
+                await as(
+                  requester,
+                  "select * from public.ai2_candidates($1,$2::extensions.vector,20)",
+                  [p.req.requestId, vector()],
+                )
+              ).rows,
+              configurationVersion: "native-test-v1",
+              model: "gte-small",
+              providerCallCount: 1,
+              durationMs: 1,
+              outcome: "completed",
+              recommendations: rec,
+            }),
+          ],
+          "service_role",
+        ),
+      );
+      await db.query(
+        "update public.asset_embeddings set content_hash=$2 where asset_id=$1",
+        [p.stock.assetId, "f".repeat(64)],
+      );
+      await assert.rejects(run(p.req, rec));
+    },
+  );
   await check(
     "explicit unauthorized and inactive actors rejected",
     async () => {
