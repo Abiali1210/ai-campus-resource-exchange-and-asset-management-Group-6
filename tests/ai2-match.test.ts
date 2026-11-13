@@ -109,11 +109,26 @@ describe("AI2 match serialization and ranking", () => {
     const r = rankCandidates(source, [candidate("p")])[0];
     expect(r.l).toBe(0);
     expect([r.t, r.k, r.w, r.e]).toEqual([0, 0, 0, 0]);
-    expect(r.missingEvidence).toHaveLength(5);
+    expect(r.missingEvidence).toEqual([
+      "Delivery timing unavailable",
+      "Location evidence unavailable",
+      "Transfer and repair costs unavailable",
+      "Diverted fraction unavailable",
+      "Avoided-emissions evidence unavailable",
+    ]);
     expect(r.compatibilityScore).toBeCloseTo(100 * (0.65 * 0.8 + 0.15 + 0.1));
     expect(r.finalRankScore).toBeCloseTo(100 * 0.6 * r.f);
     expect(r.semanticCosineScore).toBe(0.8);
-    expect(r.reason).toContain("Weak match");
+    expect(r.reason).toContain("Strong semantic fit");
+    expect(r.reason).toContain("good condition");
+    expect(r.reason).toContain("quantity covers remaining need");
+    expect(r.reason).toContain(
+      "location, timing, cost, waste, and emissions evidence are unavailable",
+    );
+    expect(r.reason.length).toBeLessThanOrEqual(300);
+    expect(r.reason).not.toMatch(
+      /benefit|probability|confidence|likely|suitable/i,
+    );
   });
   it("clamps S but retains raw cosine, ties by semantic then asset and portion IDs, caps five", () => {
     const x = rankCandidates(source, [

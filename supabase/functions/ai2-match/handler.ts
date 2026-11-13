@@ -157,7 +157,7 @@ export function rankCandidates(source: RequestSource, candidates: Candidate[]) {
         "Avoided-emissions evidence unavailable",
       );
       const final = 100 * (0.6 * F + 0.15 * T + 0.1 * K + 0.1 * W + 0.05 * E);
-      const reason = `${final < 60 ? "Weak match — " : ""}${S >= 0.6 ? "Strong" : "Partial"} semantic fit; ${x.condition.toLowerCase()} condition; ${Q >= 1 ? "quantity covers remaining need" : "quantity is partial"}.`;
+      const reason = `${S >= 0.6 ? "Strong" : "Partial"} semantic fit; ${x.condition.toLowerCase()} condition; ${Q >= 1 ? "quantity covers remaining need" : "quantity is partial"}; location, timing, cost, waste, and emissions evidence are unavailable.`;
       return {
         candidate: x,
         semanticCosineScore: Math.max(-1, Math.min(1, x.similarity)),
