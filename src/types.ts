@@ -88,6 +88,17 @@ export interface AssetDetail {
   asset: AssetView;
   history: AuditEvent[];
 }
+export interface SelectedResource {
+  portionId: string;
+  assetId: string;
+  name: string;
+  categoryId: string | null;
+  categoryName: string;
+  departmentName: string;
+  qty: number;
+  condition: string;
+  assignedLocation: string;
+}
 export interface AssetInput {
   assetId?: string;
   portionId?: string;
