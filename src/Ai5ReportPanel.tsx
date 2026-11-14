@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import { normalizeAi5NumberWords } from "./ai5NumberWords";
+import { formatAi5PeriodDate, formatAi5Timestamp } from "./ai5Dates";
 import type { Ai5WorkspaceItem } from "./types";
 
 const actor = (name?: string | null, id?: string | null) => name || id || "—";
@@ -88,9 +89,15 @@ export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
         </p>
       )}
       {isAdmin && (
-        <button className="button" disabled={!!working} onClick={capture}>
-          {working === "capture" ? "Capturing…" : "Capture snapshot"}
-        </button>
+        <>
+          <button className="button" disabled={!!working} onClick={capture}>
+            {working === "capture" ? "Capturing…" : "Capture snapshot"}
+          </button>
+          <p>
+            Drafts can be edited. Ready reports are locked after review;
+            publishing makes them visible to users.
+          </p>
+        </>
       )}
       {busy ? (
         <p role="status">Loading reports…</p>
@@ -114,8 +121,8 @@ export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
             <article className="workflow-card ai5-card" key={s.snapshot_id}>
               <header className="workflow-card-header">
                 <h3>
-                  Report · {new Date(s.period_start).toLocaleDateString()} –{" "}
-                  {new Date(s.period_end).toLocaleDateString()}
+                  Report · {formatAi5PeriodDate(s.period_start)} –{" "}
+                  {formatAi5PeriodDate(s.period_end)}
                 </h3>
                 {n ? (
                   <span className="badge">{n.status}</span>
@@ -228,16 +235,22 @@ export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
                     {n.status === "Published" ? (
                       <>
                         Reviewed by {actor(n.reviewer_name, n.reviewed_by)}
-                        {n.reviewed_at ? ` · ${n.reviewed_at}` : ""} · Published
-                        by {actor(n.publisher_name, n.published_by)}
-                        {n.published_at ? ` · ${n.published_at}` : ""}
+                        {n.reviewed_at
+                          ? ` · ${formatAi5Timestamp(n.reviewed_at)}`
+                          : ""}{" "}
+                        · Published by {actor(n.publisher_name, n.published_by)}
+                        {n.published_at
+                          ? ` · ${formatAi5Timestamp(n.published_at)}`
+                          : ""}
                       </>
                     ) : (
                       <>
                         Created by {actor(n.creator_name, n.created_by)}
-                        {n.created_at ? ` · ${n.created_at}` : ""}
+                        {n.created_at
+                          ? ` · ${formatAi5Timestamp(n.created_at)}`
+                          : ""}
                         {n.reviewed_at
-                          ? ` · Reviewed by ${actor(n.reviewer_name, n.reviewed_by)} · ${n.reviewed_at}`
+                          ? ` · Reviewed by ${actor(n.reviewer_name, n.reviewed_by)} · ${formatAi5Timestamp(n.reviewed_at)}`
                           : ""}
                       </>
                     )}
@@ -248,7 +261,9 @@ export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
                       <small>
                         Model: {n.model_id || "Not recorded"} · Edited by{" "}
                         {actor(n.editor_name, n.edited_by)}
-                        {n.edited_at ? ` · ${n.edited_at}` : ""}
+                        {n.edited_at
+                          ? ` · ${formatAi5Timestamp(n.edited_at)}`
+                          : ""}
                       </small>
                       <p>
                         Generated: {n.generated_text || "No generated text"}
@@ -277,8 +292,9 @@ export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
                 <summary>Snapshot details</summary>
                 <small>
                   Captured by {actor(s.creator_name, s.created_by)} ·{" "}
-                  {s.captured_at} · Calculation {s.calculation_version} · Schema{" "}
-                  {s.schema_version} · Snapshot {s.snapshot_id}
+                  {formatAi5Timestamp(s.captured_at)} · Calculation{" "}
+                  {s.calculation_version} · Schema {s.schema_version} · Snapshot{" "}
+                  {s.snapshot_id}
                 </small>
               </details>
             </article>
