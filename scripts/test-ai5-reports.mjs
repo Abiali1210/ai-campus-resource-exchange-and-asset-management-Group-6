@@ -25,10 +25,23 @@ async function check(name, fn) {
 
 try {
   await check(
-    "exact facts exclude canceled, closed and non-completed transfer receipts",
+    "facts count only completed transfers, excluding returned, disputed, canceled, and in-transit transfers",
     async () => {
       const { t: completed } = await dispatched(2);
       await h.transfer(receiver, completed, "receive", {
+        qty: 2,
+        condition: "Good",
+        accept: true,
+        location: "Lab",
+      });
+      const { t: reconciled } = await dispatched(2);
+      let reconciliation = await h.transfer(receiver, reconciled, "receive", {
+        qty: 1,
+        condition: "Poor",
+        accept: false,
+        location: "Bay",
+      });
+      reconciliation = await h.transfer(receiver, reconciliation, "reconcile", {
         qty: 2,
         condition: "Good",
         accept: true,
@@ -53,6 +66,12 @@ try {
         accept: false,
         location: "Bay",
       });
+      const canceledStock = await h.asset();
+      const canceledRequest = await h.request();
+      const canceledInterest = await h.interest(canceledRequest, canceledStock);
+      const canceledTransfer = await h.approve(canceledInterest);
+      await h.transfer(requester, canceledTransfer, "cancelTransfer");
+      await h.dispatched(); // Explicit In Transit transfer, intentionally unfinished.
       const canceled = await h.request();
       await h.command(requester, {
         action: "cancelRequest",
@@ -70,11 +89,18 @@ try {
       const open = await h.request(3);
       const snapshot = await capture(admin, "facts-1");
       assert.deepEqual(snapshot.facts, {
-        requests_submitted: 6,
-        open_requests: 3,
-        completed_transfers: 1,
-        units_successfully_transferred: 2,
+        requests_submitted: 9,
+        open_requests: 5,
+        completed_transfers: 2,
+        units_successfully_transferred: 4,
       });
+      const activity = await db.query(
+        "select min(ts) ts from (select submitted_at ts from public.resource_requests union all select h.recorded_at from public.handovers h join public.transfers t using(transfer_id) where t.state='Completed') a",
+      );
+      assert.equal(
+        Date.parse(snapshot.period_start),
+        activity.rows[0].ts.getTime(),
+      );
       assert.ok(open.requestId);
     },
   );
