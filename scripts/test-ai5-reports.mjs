@@ -125,6 +125,7 @@ try {
       const first = await capture(admin, "retry-key");
       const second = await capture(admin, "retry-key");
       assert.deepEqual(second, first);
+      assert.equal(second.snapshot_id, first.snapshot_id);
       assert.equal(
         (
           await db.query(
@@ -181,12 +182,29 @@ try {
             JSON.stringify({ request: "test" }),
           ],
         ).then((r) => r.rows[0].result);
+      const replay = (user, snapshot, key) =>
+        as(user, "select public.ai5_generation_replay($1,$2) result", [
+          snapshot,
+          key,
+        ]).then((r) => r.rows[0].result);
       await denied(() =>
         as(rep, "select public.ai5_generation_context($1)", [snap.snapshot_id]),
       );
       await denied(() =>
         as(null, "select public.ai5_generation_context($1)", [
           snap.snapshot_id,
+        ]),
+      );
+      await denied(() =>
+        as(rep, "select public.ai5_generation_replay($1,$2)", [
+          snap.snapshot_id,
+          "none",
+        ]),
+      );
+      await denied(() =>
+        as(null, "select public.ai5_generation_replay($1,$2)", [
+          snap.snapshot_id,
+          "none",
         ]),
       );
       const inactive = person("system_administrator");
@@ -197,6 +215,12 @@ try {
       await denied(() =>
         as(inactive, "select public.ai5_generation_context($1)", [
           snap.snapshot_id,
+        ]),
+      );
+      await denied(() =>
+        as(inactive, "select public.ai5_generation_replay($1,$2)", [
+          snap.snapshot_id,
+          "none",
         ]),
       );
       text = `Report records ${snap.facts.requests_submitted} requests, ${snap.facts.open_requests} open requests, ${snap.facts.completed_transfers} completed transfers and ${snap.facts.units_successfully_transferred} units transferred.`;
@@ -239,15 +263,30 @@ try {
           ),
         /unsupported narrative/,
       );
-      for (const [key, candidate] of [
-        ["month-name", "Report covers January activity."],
-        ["month-abbrev", "Report covers Jan activity."],
-      ]) {
-        await assert.rejects(
-          () => save(admin, snap.snapshot_id, key, candidate),
-          /unsupported narrative/,
-        );
-      }
+      const monthSnapshot = await capture(admin, "month-name-snapshot");
+      assert.equal(
+        (
+          await save(
+            admin,
+            monthSnapshot.snapshot_id,
+            "month-name",
+            "Report covers January activity.",
+          )
+        ).generated_text,
+        "Report covers January activity.",
+      );
+      const openSnapshot = await capture(admin, "open-prose-snapshot");
+      assert.equal(
+        (
+          await save(
+            admin,
+            openSnapshot.snapshot_id,
+            "open-prose",
+            "Activity may remain open.",
+          )
+        ).generated_text,
+        "Activity may remain open.",
+      );
       const substringSnapshot = await capture(
         admin,
         "month-substring-snapshot",
@@ -277,7 +316,18 @@ try {
         await save(admin, snap.snapshot_id, "narrative-key", text),
         row,
       );
+      const exactReplay = await replay(
+        admin,
+        snap.snapshot_id,
+        "narrative-key",
+      );
+      assert.deepEqual(exactReplay.snapshot, snap);
+      assert.deepEqual(exactReplay.report, row);
       const otherSnapshot = await capture(admin, "other-snapshot");
+      await assert.rejects(
+        () => replay(admin, otherSnapshot.snapshot_id, "narrative-key"),
+        /conflict/,
+      );
       await assert.rejects(
         () => save(admin, otherSnapshot.snapshot_id, "narrative-key", text),
         /conflict/,

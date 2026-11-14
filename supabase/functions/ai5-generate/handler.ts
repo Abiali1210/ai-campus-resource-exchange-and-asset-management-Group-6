@@ -8,6 +8,11 @@ export type Snapshot = {
 };
 export interface Ai5Gateway {
   authenticate(token: string, apiKey: string): Promise<unknown>;
+  replay(
+    token: string,
+    snapshotId: string,
+    key: string,
+  ): Promise<{ snapshot: Snapshot; report: unknown } | null>;
   context(token: string, snapshotId: string): Promise<Snapshot>;
   save(
     token: string,
@@ -28,8 +33,6 @@ const FACT_KEYS = [
 ];
 const numberWords =
   /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth|thirtieth|fortieth|fiftieth|sixtieth|seventieth|eightieth|ninetieth|hundredth|thousandth)\b/i;
-const monthNames =
-  /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i;
 export function validateSummary(
   value: unknown,
   facts: Record<string, unknown>,
@@ -47,7 +50,6 @@ export function validateSummary(
   const s = obj.summary;
   if (
     numberWords.test(s) ||
-    monthNames.test(s) ||
     /[%$€£]|\b(?:percent|percentage|date|rank|ranking|ordinal|savings?|saved|impact|emissions?|waste|utilization|maintenance|estimate|estimated|aed|usd|eur|gbp|dollars?|euros?|pounds?|reduced|avoided)\b/i.test(
       s,
     )
@@ -126,6 +128,21 @@ export function createAi5GenerateHandler(config: {
     } catch {
       return json({ error: { code: "unauthorized" } }, 401);
     }
+    try {
+      const replay = await config.gateway.replay(
+        token,
+        input.snapshotId,
+        input.idempotencyKey,
+      );
+      if (replay)
+        return json({
+          snapshot: replay.snapshot,
+          report: replay.report,
+          replay: true,
+        });
+    } catch {
+      return json({ error: { code: "validation" }, snapshot: null }, 400);
+    }
     let snapshot: Snapshot;
     try {
       snapshot = await config.gateway.context(token, input.snapshotId);
@@ -141,13 +158,19 @@ export function createAi5GenerateHandler(config: {
           throw Error("validation");
         facts[k] = n;
       }
+      const metadata = {
+        period_start: snapshot.period_start,
+        period_end: snapshot.period_end,
+        captured_at: snapshot.captured_at,
+        schema_version: snapshot.schema_version,
+        calculation_version: snapshot.calculation_version,
+      };
+      const prompt = `Write a concise factual summary from these four facts only: ${JSON.stringify(facts)}. Snapshot metadata (context only): ${JSON.stringify(metadata)}. Do not add numeric values, dates, percentages, ranges, arithmetic, impact/savings/emissions claims, or number words (including ordinals).`;
       const payload = {
-        model: MODEL,
-        input: `Write a concise factual summary from these four facts only: ${JSON.stringify(facts)}. Period and schema/calculation metadata: ${JSON.stringify({ period_start: snapshot.period_start, period_end: snapshot.period_end, captured_at: snapshot.captured_at, schema_version: snapshot.schema_version, calculation_version: snapshot.calculation_version })}. Do not add numeric values, dates, percentages, ranges, arithmetic, impact/savings/emissions claims, or number words (including ordinals).`,
-        response_format: {
-          type: "text",
-          mime_type: "application/json",
-          schema: {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseJsonSchema: {
             type: "object",
             properties: { summary: { type: "string", maxLength: 600 } },
             required: ["summary"],
@@ -165,18 +188,16 @@ export function createAi5GenerateHandler(config: {
           ),
         ),
       ]);
-      const steps = (result as any)?.steps;
-      if ((result as any)?.status !== "completed" || !Array.isArray(steps))
+      const candidates = (result as any)?.candidates;
+      if (
+        !Array.isArray(candidates) ||
+        candidates.length !== 1 ||
+        candidates[0]?.finishReason !== "STOP"
+      )
         throw Object.assign(Error("malformed"), { category: "malformed" });
-      const blocks = steps
-        .flatMap((step: any) =>
-          Array.isArray(step?.content) ? step.content : [],
-        )
-        .filter(
-          (block: any) =>
-            block?.type === "text" && typeof block.text === "string",
-        );
-      const text = blocks.length === 1 ? blocks[0].text : undefined;
+      const parts = candidates[0]?.content?.parts;
+      const text =
+        Array.isArray(parts) && parts.length === 1 ? parts[0]?.text : undefined;
       if (typeof text !== "string")
         throw Object.assign(Error("malformed"), { category: "malformed" });
       let parsed;
@@ -194,12 +215,16 @@ export function createAi5GenerateHandler(config: {
         MODEL,
         parsed.summary,
         {
-          provider: "google-interactions",
-          contract: "interactions-rest-v1",
+          provider: "google-generate-content",
+          contract: "generate-content-v1beta",
           response_format: "application/json",
-          ...(typeof (result as any)?.id === "string" &&
-          (result as any).id.length <= 256
-            ? { provider_interaction_id: (result as any).id }
+          ...(typeof (result as any)?.responseId === "string" &&
+          (result as any).responseId.length <= 256
+            ? { provider_response_id: (result as any).responseId }
+            : {}),
+          ...(typeof (result as any)?.modelVersion === "string" &&
+          (result as any).modelVersion.length <= 128
+            ? { model_version: (result as any).modelVersion }
             : {}),
         },
       );

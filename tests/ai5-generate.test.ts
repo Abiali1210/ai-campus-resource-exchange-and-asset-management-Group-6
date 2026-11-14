@@ -23,24 +23,26 @@ const snapshot = {
 const id = "00000000-0000-4000-8000-000000000002";
 function setup(
   provider: any = vi.fn(async () => ({
-    status: "completed",
-    id: "interaction-123",
-    steps: [
+    responseId: "response-123",
+    candidates: [
       {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              summary: "The snapshot records 20 requests, with 8 open.",
-            }),
-          },
-        ],
+        finishReason: "STOP",
+        content: {
+          parts: [
+            {
+              text: JSON.stringify({
+                summary: "The snapshot records 20 requests, with 8 open.",
+              }),
+            },
+          ],
+        },
       },
     ],
   })),
 ) {
   const gateway = {
     authenticate: vi.fn(async () => "user"),
+    replay: vi.fn(async () => null),
     context: vi.fn(async () => snapshot),
     save: vi.fn(async (...args: any[]) => ({ saved: true, args })),
   };
@@ -63,16 +65,17 @@ function setup(
   return { handler, gateway, provider, request };
 }
 describe("AI5 generation", () => {
-  it("keeps the production Gemini Interactions REST contract aligned", () => {
+  it("keeps the production Gemini generateContent REST contract aligned", () => {
     const source = readFileSync(
       new URL("../supabase/functions/ai5-generate/index.ts", import.meta.url),
       "utf8",
     );
     expect(source).toContain(
-      '"https://generativelanguage.googleapis.com/v1beta/interactions"',
+      '"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"',
     );
     expect(source).toContain('"x-goog-api-key": apiKey');
-    expect(source).toContain('"Api-Revision": "2026-05-20"');
+    expect(source).not.toContain("Api-Revision");
+    expect(source).not.toContain("/v1beta/interactions");
   });
   it("validates exact shape, permits repeated fact values and rejects unsupported numeric forms", () => {
     expect(
@@ -86,9 +89,6 @@ describe("AI5 generation", () => {
       "2,5",
       "2026/11/14",
       "2026-11-14",
-      "January report",
-      "Jan report",
-      "summary ends in December",
       "$20",
       "20 dollars",
       "8-20",
@@ -108,8 +108,9 @@ describe("AI5 generation", () => {
       "8th result",
     ])
       expect(validateSummary({ summary }, facts)).toBe(false);
-    for (const summary of ["The Januarys were busy.", "The subject is marjan."])
-      expect(validateSummary({ summary }, facts)).toBe(true);
+    expect(
+      validateSummary({ summary: "Activity may remain open." }, facts),
+    ).toBe(true);
     for (const value of [
       { summary: "" },
       { summary: "x".repeat(601) },
@@ -126,9 +127,18 @@ describe("AI5 generation", () => {
     expect(body.snapshot).toEqual(snapshot);
     expect(x.provider).toHaveBeenCalledTimes(1);
     const payload = x.provider.mock.calls[0][0];
-    expect(payload.model).toBe("gemini-3.5-flash-lite");
-    expect(payload.input).toContain(JSON.stringify(facts));
-    expect(payload.input).toContain("Do not add");
+    expect(Object.keys(payload)).toEqual(["contents", "generationConfig"]);
+    expect(payload.contents[0].role).toBe("user");
+    expect(payload.contents[0].parts[0].text).toContain(JSON.stringify(facts));
+    expect(payload.generationConfig).toEqual({
+      responseMimeType: "application/json",
+      responseJsonSchema: {
+        type: "object",
+        properties: { summary: { type: "string", maxLength: 600 } },
+        required: ["summary"],
+        additionalProperties: false,
+      },
+    });
     for (const key of [
       "period_start",
       "period_end",
@@ -136,25 +146,19 @@ describe("AI5 generation", () => {
       "schema_version",
       "calculation_version",
     ])
-      expect(payload.input).toContain(`"${key}":`);
+      expect(payload.contents[0].parts[0].text).toContain(`"${key}":`);
     for (const key of [
       "snapshot_id",
       "created_by",
       "idempotency_key",
       "request_metadata",
       "status",
+      "actor_id",
+      "user_id",
+      "snapshotId",
+      "idempotencyKey",
     ])
-      expect(payload.input).not.toContain(key);
-    expect(payload.response_format).toEqual({
-      type: "text",
-      mime_type: "application/json",
-      schema: {
-        type: "object",
-        properties: { summary: { type: "string", maxLength: 600 } },
-        required: ["summary"],
-        additionalProperties: false,
-      },
-    });
+      expect(payload.contents[0].parts[0].text).not.toContain(key);
     expect(x.gateway.save).toHaveBeenCalledWith(
       "session",
       snapshot.snapshot_id,
@@ -164,69 +168,80 @@ describe("AI5 generation", () => {
       expect.any(Object),
     );
     expect(x.gateway.save.mock.calls[0][5]).toMatchObject({
-      provider: "google-interactions",
-      contract: "interactions-rest-v1",
+      provider: "google-generate-content",
+      contract: "generate-content-v1beta",
       response_format: "application/json",
-      provider_interaction_id: "interaction-123",
+      provider_response_id: "response-123",
     });
   });
-  it("persists provider interaction IDs only up to 256 characters", async () => {
+  it("persists provider response IDs only up to 256 characters", async () => {
     for (const length of [256, 257]) {
       const x = setup(
         vi.fn(async () => ({
-          status: "completed",
-          id: "x".repeat(length),
-          steps: [
+          responseId: "x".repeat(length),
+          candidates: [
             {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    summary: "The snapshot records 20 requests, with 8 open.",
-                  }),
-                },
-              ],
+              finishReason: "STOP",
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      summary: "The snapshot records 20 requests, with 8 open.",
+                    }),
+                  },
+                ],
+              },
             },
           ],
         })),
       );
       await x.handler(x.request());
       const metadata = x.gateway.save.mock.calls[0][5];
-      expect(metadata.provider_interaction_id).toBe(
+      expect(metadata.provider_response_id).toBe(
         length === 256 ? "x".repeat(256) : undefined,
       );
     }
   });
   it("returns snapshot on provider and malformed failures without retries", async () => {
     const result = (value: unknown) => ({
-      status: "completed",
-      steps: [
+      candidates: [
         {
-          content: [
-            {
-              type: "text",
-              text: typeof value === "string" ? value : JSON.stringify(value),
-            },
-          ],
+          finishReason: "STOP",
+          content: {
+            parts: [
+              {
+                text: typeof value === "string" ? value : JSON.stringify(value),
+              },
+            ],
+          },
         },
       ],
     });
     for (const provider of [
       ...["in_progress", "failed", "incomplete"].map((status) =>
         vi.fn(async () => ({
-          status,
-          steps: [{ content: [{ type: "text", text: '{"summary":"x"}' }] }],
+          candidates: [
+            {
+              finishReason: status,
+              content: { parts: [{ text: '{"summary":"x"}' }] },
+            },
+          ],
         })),
       ),
-      vi.fn(async () => ({ status: "completed", steps: [{ content: [] }] })),
+      vi.fn(async () => ({ candidates: [] })),
       vi.fn(async () => ({
-        status: "completed",
-        steps: [
+        candidates: [{ finishReason: "STOP" }, { finishReason: "STOP" }],
+      })),
+      vi.fn(async () => ({
+        candidates: [{ finishReason: "STOP", content: { parts: [] } }],
+      })),
+      vi.fn(async () => ({
+        candidates: [
           {
-            content: [
-              { type: "text", text: '{"summary":"x"}' },
-              { type: "text", text: '{"summary":"x"}' },
-            ],
+            finishReason: "STOP",
+            content: {
+              parts: [{ text: '{"summary":"x"}' }, { text: '{"summary":"x"}' }],
+            },
           },
         ],
       })),
@@ -234,6 +249,11 @@ describe("AI5 generation", () => {
         throw Error("429 quota");
       }),
       vi.fn(async () => result("{")),
+      vi.fn(async () => ({
+        candidates: [
+          { finishReason: "STOP", content: { parts: [{ text: "" }] } },
+        ],
+      })),
       ...[
         "9 items.",
         "8 impact",
@@ -306,6 +326,9 @@ describe("AI5 generation", () => {
       new Request("http://edge", { method: "POST", body: "{}" }),
     );
     expect(denied.status).toBe(401);
+    expect(x.gateway.replay).not.toHaveBeenCalled();
+    expect(x.gateway.context).not.toHaveBeenCalled();
+    expect(x.provider).not.toHaveBeenCalled();
     const timeout = createAi5GenerateHandler({
       gateway: x.gateway,
       provider: x.provider,
@@ -315,5 +338,42 @@ describe("AI5 generation", () => {
     const body = await (await timeout(x.request())).json();
     expect(body.error.code).toBe("timeout");
     expect(body.snapshot).toEqual(snapshot);
+  });
+  it("replays sequential identical requests before context/provider/save", async () => {
+    const x = setup();
+    let saved: any;
+    x.gateway.save.mockImplementation(async (...args: any[]) => {
+      saved = {
+        snapshot,
+        report: { narrative_id: id, generated_text: args[4] },
+      };
+      return saved.report;
+    });
+    x.gateway.replay.mockImplementation(async () => saved ?? null);
+    const first = await (await x.handler(x.request())).json();
+    const second = await (await x.handler(x.request())).json();
+    expect(first.snapshot).toEqual(snapshot);
+    expect(second).toEqual({ ...saved, replay: true });
+    expect(x.gateway.replay).toHaveBeenCalledTimes(2);
+    expect(x.gateway.context).toHaveBeenCalledTimes(1);
+    expect(x.provider).toHaveBeenCalledTimes(1);
+    expect(x.gateway.save).toHaveBeenCalledTimes(1);
+  });
+  it("surfaces same-key different-snapshot replay conflicts without generation", async () => {
+    const x = setup();
+    x.gateway.replay.mockRejectedValue(Error("conflict"));
+    const body = await (await x.handler(x.request())).json();
+    expect(body.snapshot).toBeNull();
+    expect(x.gateway.context).not.toHaveBeenCalled();
+    expect(x.provider).not.toHaveBeenCalled();
+    expect(x.gateway.save).not.toHaveBeenCalled();
+  });
+  it("does not consult replay after authentication failure", async () => {
+    const x = setup();
+    x.gateway.authenticate.mockRejectedValue(Error("auth"));
+    expect((await x.handler(x.request())).status).toBe(401);
+    expect(x.gateway.replay).not.toHaveBeenCalled();
+    expect(x.gateway.context).not.toHaveBeenCalled();
+    expect(x.provider).not.toHaveBeenCalled();
   });
 });

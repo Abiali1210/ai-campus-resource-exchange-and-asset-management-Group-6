@@ -30,8 +30,6 @@ begin
  perform public.require_active();
  if not public.has_role('business_administrator') then raise exception 'Forbidden: business administrator required'; end if;
  if nullif(trim(p_idempotency_key),'') is null or length(p_idempotency_key)>200 then raise exception 'Validation: nonblank idempotency key required'; end if;
- select * into result from public.ai5_report_snapshots where created_by=auth.uid() and idempotency_key=p_idempotency_key;
- if found then return to_jsonb(result); end if;
  select coalesce(min(ts),captured) into start_at from (
   select submitted_at ts from public.resource_requests where submitted_at<=captured
    union all select h.recorded_at from public.handovers h join public.transfers t using(transfer_id)
@@ -44,7 +42,8 @@ begin
    'units_successfully_transferred',(select coalesce(sum(t.approved_qty),0) from public.transfers t where t.state='Completed')
  );
  insert into public.ai5_report_snapshots(period_start,period_end,captured_at,facts,idempotency_key,created_by)
- values(start_at,captured,captured,facts_value,p_idempotency_key,auth.uid()) returning * into result;
+  values(start_at,captured,captured,facts_value,p_idempotency_key,auth.uid()) on conflict(created_by,idempotency_key) do nothing returning * into result;
+  if not found then select * into result from public.ai5_report_snapshots where created_by=auth.uid() and idempotency_key=p_idempotency_key; end if;
  return to_jsonb(result);
 end $$;
 

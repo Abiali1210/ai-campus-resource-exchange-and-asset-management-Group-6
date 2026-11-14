@@ -26,6 +26,14 @@ const gateway: Ai5Gateway = {
     if (error || !data) throw Error("context");
     return data;
   },
+  async replay(token, snapshotId, key) {
+    const { data, error } = await caller(token).rpc("ai5_generation_replay", {
+      p_snapshot_id: snapshotId,
+      p_key: key,
+    });
+    if (error) throw Error("replay_failed");
+    return data;
+  },
   async save(token, snapshotId, idempotencyKey, model, summary, metadata) {
     const { data, error } = await caller(token).rpc("ai5_save_generation", {
       p_snapshot_id: snapshotId,
@@ -52,13 +60,12 @@ Deno.serve(
     provider: async (payload) => {
       if (!apiKey) throw Error("provider_unconfigured");
       const response = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/interactions",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "x-goog-api-key": apiKey,
-            "Api-Revision": "2026-05-20",
           },
           body: JSON.stringify(payload),
         },
