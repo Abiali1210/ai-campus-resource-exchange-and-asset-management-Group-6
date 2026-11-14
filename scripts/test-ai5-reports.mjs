@@ -16,6 +16,25 @@ const workspace = (user, limit = 20) =>
     "select coalesce(jsonb_agg(x), '[]'::jsonb) result from public.ai5_report_workspace($1) x",
     [limit],
   ).then((r) => r.rows[0].result);
+const assertNoEmailKeys = (value) => {
+  if (Array.isArray(value)) return value.forEach(assertNoEmailKeys);
+  if (value && typeof value === "object") {
+    assert.equal(
+      Object.keys(value).some((key) => /email/i.test(key)),
+      false,
+    );
+    Object.values(value).forEach(assertNoEmailKeys);
+  }
+};
+const assertActorNames = (obj, expected) => {
+  for (const key of Object.keys(expected)) {
+    assert.ok(
+      obj[key] === null || typeof obj[key] === "string",
+      `${key} must be scalar or null`,
+    );
+    assert.equal(obj[key], expected[key], key);
+  }
+};
 let count = 0;
 async function check(name, fn) {
   await fn();
@@ -290,6 +309,22 @@ try {
       );
       text = `Report records ${snap.facts.requests_submitted} requests, ${snap.facts.open_requests} open requests, ${snap.facts.completed_transfers} completed transfers and ${snap.facts.units_successfully_transferred} units transferred.`;
       const row = await save(admin, snap.snapshot_id, "narrative-key", text);
+      const initialWorkspace = await as(
+        admin,
+        "select * from public.ai5_narrative_workspace()",
+      );
+      const initialItem = initialWorkspace.rows
+        .map((r) => r.ai5_narrative_workspace)
+        .find((x) => x.snapshot.snapshot_id === snap.snapshot_id);
+      assert.ok(initialItem);
+      assertActorNames(initialItem.snapshot, { creator_name: admin.name });
+      assertActorNames(initialItem.narrative, {
+        creator_name: admin.name,
+        editor_name: null,
+        reviewer_name: null,
+        publisher_name: null,
+      });
+      assertNoEmailKeys(initialItem);
       await assert.rejects(
         () =>
           as(
@@ -426,6 +461,17 @@ try {
         edited.current_text,
         `Edited report repeats ${snap.facts.requests_submitted} requests and ${snap.facts.requests_submitted} requests.`,
       );
+      const afterEdit = await as(
+        admin,
+        "select * from public.ai5_narrative_workspace()",
+      );
+      const editItem = afterEdit.rows
+        .map((r) => r.ai5_narrative_workspace)
+        .find((x) => x.snapshot.snapshot_id === snap.snapshot_id);
+      assertActorNames(editItem.narrative, {
+        creator_name: admin.name,
+        editor_name: admin.name,
+      });
       await assert.rejects(
         () =>
           call(admin, "ai5_edit_narrative", [row.narrative_id, "999 requests"]),
@@ -441,6 +487,18 @@ try {
       );
       const ready = await call(admin, "ai5_mark_ready", [row.narrative_id]);
       assert.equal(ready.status, "Ready");
+      const afterReview = await as(
+        admin,
+        "select * from public.ai5_narrative_workspace()",
+      );
+      const reviewItem = afterReview.rows
+        .map((r) => r.ai5_narrative_workspace)
+        .find((x) => x.snapshot.snapshot_id === snap.snapshot_id);
+      assertActorNames(reviewItem.narrative, {
+        creator_name: admin.name,
+        editor_name: admin.name,
+        reviewer_name: admin.name,
+      });
       await assert.rejects(
         () =>
           call(admin, "ai5_edit_narrative", [row.narrative_id, "Late edit"]),
@@ -468,10 +526,32 @@ try {
         "select * from public.ai5_published_narratives()",
       );
       assert.equal(visible.rows.length, 1);
+      const publishedItem = visible.rows[0].ai5_published_narratives;
       assert.equal(
-        visible.rows[0].ai5_published_narratives.snapshot.facts
-          .requests_submitted,
+        publishedItem.snapshot.facts.requests_submitted,
         snap.facts.requests_submitted,
+      );
+      assert.equal(publishedItem.snapshot.creator_name, admin.name);
+      assert.equal(publishedItem.narrative.creator_name, admin.name);
+      assert.equal(publishedItem.narrative.editor_name, admin.name);
+      assert.equal(publishedItem.narrative.reviewer_name, admin.name);
+      assert.equal(publishedItem.narrative.publisher_name, admin.name);
+      assertActorNames(publishedItem.snapshot, { creator_name: admin.name });
+      assertActorNames(publishedItem.narrative, {
+        creator_name: admin.name,
+        editor_name: admin.name,
+        reviewer_name: admin.name,
+        publisher_name: admin.name,
+      });
+      assertNoEmailKeys(publishedItem);
+      const activeNonAdmin = person("representative");
+      const visibleToActiveNonAdmin = await as(
+        activeNonAdmin,
+        "select * from public.ai5_published_narratives()",
+      );
+      assert.equal(visibleToActiveNonAdmin.rows.length, 1);
+      await denied(() =>
+        as(activeNonAdmin, "select * from public.ai5_narrative_workspace()"),
       );
       await denied(() =>
         as(rep, "select * from public.ai5_narrative_workspace()"),
@@ -488,6 +568,23 @@ try {
       );
       assert.ok(currentItem);
       assert.equal(currentItem.narrative.narrative_id, row.narrative_id);
+      assert.equal(currentItem.snapshot.creator_name, admin.name);
+      assert.equal(currentItem.narrative.creator_name, admin.name);
+      assert.equal(currentItem.narrative.editor_name, admin.name);
+      assert.equal(currentItem.narrative.reviewer_name, admin.name);
+      assert.equal(currentItem.narrative.publisher_name, admin.name);
+      const noNarrativeItem = workspaceItems.find((x) => x.narrative === null);
+      if (noNarrativeItem) {
+        assert.equal(noNarrativeItem.snapshot.creator_name, admin.name);
+      }
+      assertActorNames(currentItem.snapshot, { creator_name: admin.name });
+      assertActorNames(currentItem.narrative, {
+        creator_name: admin.name,
+        editor_name: admin.name,
+        reviewer_name: admin.name,
+        publisher_name: admin.name,
+      });
+      assertNoEmailKeys(currentItem);
       assert.ok(workspaceItems.length >= 25);
       const factsAfter = await db.query(
         "select facts from public.ai5_report_snapshots where snapshot_id=$1",

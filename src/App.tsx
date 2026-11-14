@@ -1565,7 +1565,7 @@ export default function App() {
               <h1 className="hero-title">{title}</h1>
               <p className="hero-subtitle">
                 {view === "reports"
-                  ? "Review captured, all-time asset facts. Reports contain deterministic calculations and no AI-generated content."
+                  ? "Four snapshot facts are calculated and immutable; the narrative is AI-drafted and admin-reviewed before publication."
                   : view === "admin"
                     ? "Manage departmental membership and explicit role assignments. Every change remains traceable."
                     : view === "workflows"

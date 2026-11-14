@@ -164,6 +164,7 @@ export interface Ai5Snapshot {
   };
   idempotency_key: string;
   created_by: string;
+  creator_name?: string | null;
 }
 export interface Ai5Narrative {
   narrative_id: string;
@@ -182,6 +183,10 @@ export interface Ai5Narrative {
   reviewed_at: string | null;
   published_by: string | null;
   published_at: string | null;
+  creator_name?: string | null;
+  editor_name?: string | null;
+  reviewer_name?: string | null;
+  publisher_name?: string | null;
 }
 export interface Ai5WorkspaceItem {
   snapshot: Ai5Snapshot;
