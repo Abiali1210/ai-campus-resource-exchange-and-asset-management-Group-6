@@ -22,16 +22,25 @@ export function parseArgs(args) {
   return { apply, confirmation: confirm[0]?.split("=")[1] };
 }
 export function validateGuards(env, args, linkedRef = null) {
-  const ref = (() => {
+  const validOrigin = (() => {
     try {
-      return new URL(env.SUPABASE_URL).hostname.split(".")[0];
+      const url = new URL(env.SUPABASE_URL);
+      return (
+        url.protocol === "https:" &&
+        url.hostname === `${TARGET_REF}.supabase.co` &&
+        !url.username &&
+        !url.password &&
+        !url.port &&
+        url.pathname === "/" &&
+        !url.search &&
+        !url.hash
+      );
     } catch {
-      return "";
+      return false;
     }
   })();
-  if (ref !== TARGET_REF)
-    throw new Error("SUPABASE_URL project reference mismatch.");
-  if (linkedRef && linkedRef !== TARGET_REF)
+  if (!validOrigin) throw new Error("SUPABASE_URL project reference mismatch.");
+  if (linkedRef !== null && linkedRef !== undefined && linkedRef !== TARGET_REF)
     throw new Error("Local linked project reference mismatch.");
   if (!env.SUPABASE_PUBLISHABLE_KEY || !env.DEMO_ACCOUNT_PASSWORD)
     throw new Error("Missing required environment configuration.");
@@ -59,23 +68,46 @@ export async function runBackfill({
     ),
   );
   const representatives = fixture.users.filter(
-    (u) => u.active && u.roles.length === 1 && u.roles[0] === "representative",
+    (u) => u.active && u.roles?.length === 1 && u.roles[0] === "representative",
   );
+  const selected = representatives.map((representative) => ({
+    representative,
+    email: demoEmailFor(representative, fixture.departments),
+  }));
+  const aliases = new Set();
+  const mappings = new Set();
+  for (const { representative, email } of selected) {
+    const alias = email.toLowerCase();
+    const mapping = `${alias}|${representative.departmentId}`;
+    if (aliases.has(alias) || mappings.has(mapping))
+      throw new Error("Synthetic representative alias mapping is ambiguous.");
+    aliases.add(alias);
+    mappings.add(mapping);
+  }
   const counts = { created: 0, updated: 0, unchanged: 0, failed: 0 };
-  for (const representative of representatives) {
-    const email = demoEmailFor(representative, fixture.departments);
+  for (const { representative, email } of selected) {
     const client = clientFactory(
       env.SUPABASE_URL,
       env.SUPABASE_PUBLISHABLE_KEY,
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
+    let authUser;
     {
-      const { error } = await client.auth.signInWithPassword({
+      const { data: authData, error } = await client.auth.signInWithPassword({
         email,
         password: env.DEMO_ACCOUNT_PASSWORD,
       });
       if (error)
         throw new Error("Synthetic representative authentication failed.");
+      authUser = authData?.user ?? authData?.session?.user;
+      if (
+        !authUser?.id ||
+        typeof authUser.email !== "string" ||
+        authUser.email.toLowerCase() !== email.toLowerCase()
+      )
+        throw new Error(
+          "Synthetic representative authentication identity mismatch.",
+        );
     }
     const { data: bootstrap, error: bootstrapError } = await client.rpc(
       "foundation_bootstrap",
@@ -83,8 +115,11 @@ export async function runBackfill({
     const profile = bootstrap?.profile;
     if (
       bootstrapError ||
+      !profile ||
+      typeof profile !== "object" ||
+      Array.isArray(profile) ||
       !profile?.active ||
-      profile.userId !== representative.userId ||
+      profile.userId !== authUser.id ||
       profile.departmentId !== representative.departmentId ||
       !Array.isArray(profile.roles) ||
       profile.roles.length !== 1 ||
