@@ -1,4 +1,4 @@
-import { uuid } from "../foundation/validation";
+import { uuid } from "../foundation/validation.ts";
 
 export type RequestSource = {
   requestId: string;
