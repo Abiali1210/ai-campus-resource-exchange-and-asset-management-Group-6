@@ -37,7 +37,11 @@ function setup(
   };
   const handler = createAi2Handler({
     supabaseUrl: "https://test.supabase.co",
-    allowedOrigins: ["https://app.test"],
+    allowedOrigins: [
+      "http://127.0.0.1:5173",
+      "http://localhost:5173",
+      "https://ai-campus-exchange-g6.pages.dev",
+    ],
     gateway,
     embed,
   });
@@ -53,13 +57,57 @@ function req(
     headers: {
       authorization: "Bearer token",
       apikey: "sb_publishable_test",
-      origin: "https://app.test",
+      origin: "http://127.0.0.1:5173",
       ...headers,
     },
     body: JSON.stringify({ action, ...body }),
   });
 }
 describe("AI2 asset embeddings", () => {
+  it("handles exact-origin CORS preflights and rejects unknown origins", async () => {
+    const { handler } = setup();
+    const requestedHeaders =
+      "authorization, apikey, content-type, x-client-info";
+    for (const origin of [
+      "http://127.0.0.1:5173",
+      "http://localhost:5173",
+      "https://ai-campus-exchange-g6.pages.dev",
+    ]) {
+      const response = await handler(
+        new Request("https://edge.test", {
+          method: "OPTIONS",
+          headers: {
+            origin,
+            "access-control-request-method": "POST",
+            "access-control-request-headers": requestedHeaders,
+          },
+        }),
+      );
+      expect(response.status).toBe(204);
+      expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+      const allowed = response.headers.get("access-control-allow-headers")!;
+      for (const name of requestedHeaders.split(", "))
+        expect(
+          allowed
+            .toLowerCase()
+            .split(",")
+            .map((x) => x.trim()),
+        ).toContain(name);
+      expect(allowed).not.toContain("*");
+    }
+    const denied = await handler(
+      new Request("https://edge.test", {
+        method: "OPTIONS",
+        headers: {
+          origin: "https://unknown.test",
+          "access-control-request-method": "POST",
+          "access-control-request-headers": requestedHeaders,
+        },
+      }),
+    );
+    expect(denied.status).toBe(403);
+    expect(denied.headers.get("access-control-allow-origin")).toBeNull();
+  });
   it("canonicalizes order, whitespace, tags and ignores unrelated fields", async () => {
     const a = canonicalizeAsset(src),
       b = canonicalizeAsset({

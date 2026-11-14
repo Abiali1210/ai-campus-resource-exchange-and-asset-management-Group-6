@@ -47,7 +47,11 @@ function setup(
   const handler = createAi2MatchHandler({
     gateway,
     embed,
-    allowedOrigins: ["https://allowed.test"],
+    allowedOrigins: [
+      "http://127.0.0.1:5173",
+      "http://localhost:5173",
+      "https://ai-campus-exchange-g6.pages.dev",
+    ],
   });
   const request = (
     body: unknown = {
@@ -159,6 +163,61 @@ describe("AI2 match serialization and ranking", () => {
   });
 });
 describe("AI2 match handler", () => {
+  it("handles exact-origin CORS preflights and rejects unknown origins", async () => {
+    const { handler } = setup();
+    const requestedHeaders =
+      "authorization, apikey, content-type, x-client-info";
+    for (const origin of [
+      "http://127.0.0.1:5173",
+      "http://localhost:5173",
+      "https://ai-campus-exchange-g6.pages.dev",
+    ]) {
+      const response = await handler(
+        new Request("https://edge.test", {
+          method: "OPTIONS",
+          headers: {
+            origin,
+            "access-control-request-method": "POST",
+            "access-control-request-headers": requestedHeaders,
+          },
+        }),
+      );
+      expect(response.status).toBe(204);
+      expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+      const allowed = response.headers.get("access-control-allow-headers")!;
+      for (const name of requestedHeaders.split(", "))
+        expect(
+          allowed
+            .toLowerCase()
+            .split(",")
+            .map((x) => x.trim()),
+        ).toContain(name);
+      expect(allowed).not.toContain("*");
+    }
+    const denied = await handler(
+      new Request("https://edge.test", {
+        method: "OPTIONS",
+        headers: {
+          origin: "https://unknown.test",
+          "access-control-request-method": "POST",
+          "access-control-request-headers": requestedHeaders,
+        },
+      }),
+    );
+    expect(denied.status).toBe(403);
+    expect(denied.headers.get("access-control-allow-origin")).toBeNull();
+  });
+  it("still requires bearer auth and a publishable API key for POST", async () => {
+    const { handler } = setup();
+    const response = await handler(
+      new Request("https://edge.test", {
+        method: "POST",
+        headers: { origin: "http://127.0.0.1:5173" },
+        body: "{}",
+      }),
+    );
+    expect(response.status).toBe(401);
+  });
   it("requires only the browser requestId/operationKey envelope", async () => {
     const { request, embed } = setup();
     expect(

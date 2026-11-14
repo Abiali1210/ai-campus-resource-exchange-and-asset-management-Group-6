@@ -211,7 +211,8 @@ export function createAi2MatchHandler(config: {
         "Content-Type": "application/json",
         "Cache-Control": "no-store",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+        "Access-Control-Allow-Headers":
+          "authorization, apikey, content-type, x-client-info",
         Vary: "Origin",
       });
     if (origin && allowed) headers.set("Access-Control-Allow-Origin", origin);
