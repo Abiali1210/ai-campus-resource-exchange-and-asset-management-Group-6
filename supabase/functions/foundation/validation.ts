@@ -39,7 +39,7 @@ export function text(value: unknown, label: string, max = 1000): string {
 export function uuid(value: unknown, label = "Identifier"): string {
   const result = text(value, label, 36);
   if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       result,
     )
   )

@@ -98,6 +98,7 @@ export interface SelectedResource {
   qty: number;
   condition: string;
   assignedLocation: string;
+  preferredRequestId?: string;
 }
 export interface AssetInput {
   assetId?: string;

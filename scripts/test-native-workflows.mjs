@@ -12,6 +12,7 @@ try {
   for (const script of [
     "test-workflows.mjs",
     "test-workflow-concurrency.mjs",
+    "test-ai2-native.mjs",
   ]) {
     const name = "workflow_" + randomUUID().replaceAll("-", "");
     await admin.query(`create database ${name}`);
@@ -22,6 +23,7 @@ try {
       env: {
         ...process.env,
         WORKFLOW_TEST_DATABASE_URL: databaseUrl.toString(),
+        INCLUDE_AI2: script === "test-ai2-native.mjs" ? "1" : "0",
       },
       stdio: "inherit",
       windowsHide: true,

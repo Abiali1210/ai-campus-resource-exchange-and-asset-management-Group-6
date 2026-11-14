@@ -1,0 +1,9 @@
+# AI2 matching gateway
+
+The browser submits only `requestId` and `operationKey`. The caller-scoped Supabase client reads the narrow request projection, checks for an existing operation result, retrieves at most 20 authorized candidates and reads completed results. The service-role client is restricted to saving validated run metadata and recommendations. Embeddings are one normalized 384-value `gte-small` inference; vectors are not returned to callers.
+
+The model input is labeled deterministic text (category, purpose, minimum condition, recursively key-sorted mandatory requirements). Whitespace is collapsed. Limits are 120 characters for category, 500 for purpose, 300 per requirement string, 80 per key, 40 keys per object, depth 5, 200 requirement nodes, 3,000 requirement-content characters and 4,000 total serialized characters. Arrays, null, non-finite numbers and non-JSON values are rejected.
+
+Scoring follows finalized Phase 4–5 Design v1.4 §12.1: compatibility = `100 × (.65S + .15C + .10Q + .10L)`; rank = `100 × (.60F + .15T + .10K + .10W + .05E)`. The design defines C as 1 for the preferred condition and .5 for a suitable condition below preference if allowed. Current mandatory eligibility (`workflow_suitable`) excludes below-minimum condition, so every eligible recommendation receives C=1; it is not penalized as unsuitable. Semantic signal is clamped cosine, Q is quantity/remaining need capped at one. Location L, timing T, costs K, diverted fraction W, and avoided-emissions E are zero with explicit missing-evidence warnings; weights are not redistributed. This is not a calibrated probability. Results sort by final rank, semantic score, asset ID and portion ID, then cap at five.
+
+Run focused unit checks with `npx vitest run tests/ai2-match.test.ts`; schema text checks with `node scripts/test-ai2-schema.mjs`. Native database behavior requires the configured local PostgreSQL test harness.

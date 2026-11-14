@@ -12,6 +12,7 @@ import {
   compatibleRequests,
   eligiblePortions,
   selectedPortionIsStale,
+  preferredCompatibleRequest,
 } from "./resourceHandoff";
 import {
   groupRequests,
@@ -19,6 +20,19 @@ import {
   transferActions,
 } from "./workflowPresentation";
 import { formatSpecifications } from "./requestRequirements";
+import {
+  beginRequestMatch,
+  clampReviewQty,
+  failMatch,
+  fallbackCopy,
+  getRecommendations,
+  settleMatch,
+  reviewRecommendation,
+  visibleRecommendations,
+  isWeakRecommendation,
+  type Recommendation,
+  type MatchState,
+} from "./ai2";
 import {
   serializeRequirements,
   type RequirementRow,
@@ -430,6 +444,124 @@ function TransferCard({
     </article>
   );
 }
+function RecommendationCard({
+  row,
+  maxQty,
+  view,
+  done,
+  onReviewed,
+}: {
+  row: Recommendation;
+  maxQty: number;
+  view: () => void;
+  done: () => void;
+  onReviewed: (decision: "accepted" | "rejected", interestId?: string) => void;
+}) {
+  const [note, setNote] = useState(""),
+    [amount, setAmount] = useState(1),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState("");
+  const operationKeys = useRef<
+    Partial<Record<"accepted" | "rejected", string>>
+  >({});
+  async function review(decision: "accepted" | "rejected") {
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await reviewRecommendation({
+        operationKey:
+          operationKeys.current[decision] ??
+          (operationKeys.current[decision] = crypto.randomUUID()),
+        recommendationId: row.recommendationId,
+        decision,
+        ...(note.trim() ? { note: note.trim() } : {}),
+        ...(decision === "accepted"
+          ? { qty: clampReviewQty(amount, row.availableQty, maxQty) }
+          : {}),
+      });
+      operationKeys.current[decision] = undefined;
+      onReviewed(decision, result.interestId);
+      setMessage(decision === "accepted" ? "Accepted" : "Rejected");
+      done();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Review could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <article
+      className="workflow-card"
+      aria-label={`AI recommendation ${row.assetName}`}
+    >
+      <header className="workflow-card-header">
+        <h4>
+          {row.rank}. {row.assetName}{" "}
+          <span className="badge">{row.reviewState}</span>
+        </h4>
+      </header>
+      <p>Ranking indicator, not a probability.</p>
+      <p>
+        Ranking score: {row.finalRankScore.toFixed(1)}
+        {isWeakRecommendation(row.finalRankScore) && (
+          <span className="badge warn">Weak match</span>
+        )}{" "}
+        · Compatibility: {row.compatibilityScore.toFixed(1)} · {row.condition} ·{" "}
+        {row.availableQty} available
+      </p>
+      <p>{row.reason}</p>
+      {row.missingEvidence.length > 0 && (
+        <p className="notice">
+          Evidence to verify: {row.missingEvidence.join(", ")}
+        </p>
+      )}
+      <div className="workflow-card-actions">
+        <button type="button" className="button secondary small" onClick={view}>
+          View resource
+        </button>
+        {row.reviewState === "pending" && (
+          <>
+            <label className="workflow-field">
+              Quantity
+              <input
+                type="number"
+                min="1"
+                max={maxQty}
+                value={amount}
+                onChange={(e) => setAmount(Number(e.target.value))}
+              />
+            </label>
+            <label className="workflow-field">
+              Optional note
+              <input
+                value={note}
+                maxLength={2000}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="button small"
+              disabled={busy || amount < 1 || amount > maxQty}
+              onClick={() => review("accepted")}
+            >
+              {busy ? "Saving…" : "Accept"}
+            </button>
+            <button
+              type="button"
+              className="button secondary small"
+              disabled={busy}
+              onClick={() => review("rejected")}
+            >
+              Reject
+            </button>
+          </>
+        )}
+      </div>
+      {message && <p role="status">{message}</p>}
+    </article>
+  );
+}
 export function WorkflowPanel({
   profile,
   metadata,
@@ -441,7 +573,11 @@ export function WorkflowPanel({
   metadata: Bootstrap;
   selectedResource?: SelectedResource | null;
   onClearResource?: () => void;
-  onViewResource?: () => void;
+  onViewResource?: (recommendation?: {
+    assetId: string;
+    portionId: string;
+    requestId: string;
+  }) => void;
 }) {
   const [w, setW] = useState(empty),
     [catalogue, setCatalogue] = useState<AssetView[]>([]),
@@ -450,6 +586,15 @@ export function WorkflowPanel({
     [loaded, setLoaded] = useState(false),
     [success, setSuccess] = useState("");
   const [activeSection, setActiveSection] = useState("requests");
+  const [ai2, setAi2] = useState<Record<string, MatchState>>({});
+  const ai2Ref = useRef<Record<string, MatchState>>({});
+  const updateAi2 = (
+    update: (current: Record<string, MatchState>) => Record<string, MatchState>,
+  ) => {
+    const next = update(ai2Ref.current);
+    ai2Ref.current = next;
+    setAi2(next);
+  };
   const [requestFormOpen, setRequestFormOpen] = useState(false);
   const [purpose, setPurpose] = useState(""),
     [category, setCategory] = useState(""),
@@ -482,6 +627,23 @@ export function WorkflowPanel({
   const done = () => {
     setSuccess("Change saved with its audit history.");
     setRevision((n) => n + 1);
+  };
+  const findMatches = async (id: string) => {
+    const started = beginRequestMatch(ai2Ref, id);
+    if (!started) return;
+    updateAi2((s) => ({ ...s, [id]: started }));
+    try {
+      const result = await getRecommendations(id, started.operationKey);
+      updateAi2((s) => ({
+        ...s,
+        [id]: settleMatch(s[id] ?? started, started.generation, result),
+      }));
+    } catch {
+      updateAi2((s) => ({
+        ...s,
+        [id]: failMatch(s[id] ?? started, started.generation),
+      }));
+    }
   };
   useEffect(() => {
     let live = true;
@@ -583,14 +745,15 @@ export function WorkflowPanel({
   useEffect(() => {
     if (selectedResource)
       setRequestId((current) =>
-        compatible.length === 1
-          ? compatible[0].requestId
-          : compatible.some((request) => request.requestId === current)
-            ? current
-            : "",
+        preferredCompatibleRequest(
+          selectedResource.preferredRequestId,
+          compatible,
+          current,
+        ),
       );
   }, [
     selectedResource?.portionId,
+    selectedResource?.preferredRequestId,
     compatible.map((r) => r.requestId).join("|"),
   ]);
   const transferGroups = groupTransfers(w.transfers, w, profile);
@@ -634,7 +797,7 @@ export function WorkflowPanel({
             <button
               type="button"
               className="button secondary small"
-              onClick={onViewResource}
+              onClick={() => onViewResource?.()}
             >
               View resource
             </button>
@@ -984,6 +1147,104 @@ export function WorkflowPanel({
                           ))}
                         </dl>
                       )}
+                      {own.includes(q) &&
+                        q.status === "Open" &&
+                        q.remainingQty > 0 && (
+                          <div className="ai2-panel">
+                            <p className="muted">
+                              AI recommendations rank catalogue matches; scores
+                              are ranking signals, not probabilities. Catalogue
+                              search remains available regardless of AI results.
+                            </p>
+                            <div className="workflow-card-actions">
+                              <button
+                                type="button"
+                                className="button secondary small"
+                                onClick={() => {
+                                  setActiveSection("interests");
+                                  setRequestId(q.requestId);
+                                }}
+                              >
+                                Find catalogue items
+                              </button>
+                              <button
+                                type="button"
+                                className="button small"
+                                disabled={ai2[q.requestId]?.loading}
+                                onClick={() => findMatches(q.requestId)}
+                              >
+                                {ai2[q.requestId]?.loading
+                                  ? "Finding recommendations…"
+                                  : "Get AI recommendations"}
+                              </button>
+                            </div>
+                            {ai2[q.requestId]?.loading && (
+                              <p role="status">
+                                Preparing recommendations. The first run may
+                                take longer while the service starts.
+                              </p>
+                            )}
+                            {ai2[q.requestId]?.error && (
+                              <p className="notice" role="status">
+                                {fallbackCopy}{" "}
+                                <button
+                                  type="button"
+                                  className="button secondary small"
+                                  onClick={() => {
+                                    setActiveSection("interests");
+                                    setRequestId(q.requestId);
+                                  }}
+                                >
+                                  Find catalogue items
+                                </button>
+                              </p>
+                            )}
+                            {ai2[q.requestId]?.outcome === "no_candidates" && (
+                              <p>
+                                No catalogue matches were found. You can still
+                                search the catalogue.
+                              </p>
+                            )}
+                            {visibleRecommendations(
+                              ai2[q.requestId]?.rows ?? [],
+                            ).map((r) => (
+                              <RecommendationCard
+                                key={r.recommendationId}
+                                row={r}
+                                maxQty={Math.min(
+                                  q.remainingQty,
+                                  r.availableQty,
+                                )}
+                                view={() =>
+                                  onViewResource?.({
+                                    assetId: r.assetId,
+                                    portionId: r.portionId,
+                                    requestId: q.requestId,
+                                  })
+                                }
+                                done={done}
+                                onReviewed={(decision, interestId) =>
+                                  updateAi2((s) => ({
+                                    ...s,
+                                    [q.requestId]: {
+                                      ...s[q.requestId],
+                                      rows: s[q.requestId].rows.map((item) =>
+                                        item.recommendationId ===
+                                        r.recommendationId
+                                          ? {
+                                              ...item,
+                                              reviewState: decision,
+                                              interestId,
+                                            }
+                                          : item,
+                                      ),
+                                    },
+                                  }))
+                                }
+                              />
+                            ))}
+                          </div>
+                        )}
                       {own.includes(q) &&
                         !["Closed", "Canceled", "Fulfilled"].includes(
                           q.status,
