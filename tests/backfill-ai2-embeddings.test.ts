@@ -32,6 +32,7 @@ function harness({
   signInError = null,
   statuses = [],
   duplicateAcrossPages = false,
+  assetIds,
 } = {}) {
   const invoke = vi.fn(async (_name, { body }) => ({
     data: {
@@ -68,9 +69,15 @@ function harness({
       if (name !== "search_assets" || !params?.p_filters?.ownOnly)
         throw new Error("unexpected RPC");
       const { offset, limit } = params.p_filters;
-      const rows = Array.from({ length: count }, (_, i) => ({
-        assetId: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
-      })).slice(offset, offset + limit);
+      const rows = (
+        assetIds ??
+        Array.from(
+          { length: count },
+          (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+        )
+      )
+        .slice(offset, offset + limit)
+        .map((assetId) => ({ assetId }));
       if (duplicateAcrossPages && offset === 200)
         rows.push({ assetId: "00000000-0000-4000-8000-000000000000" });
       return {
@@ -98,6 +105,27 @@ const run = (
   } as Parameters<typeof runBackfill>[0]);
 
 describe("AI2 embedding backfill", () => {
+  it.each([
+    ["RFC UUID", "f47ac10b-58cc-4372-a567-0e02b2c3d479"],
+    ["nonstandard version", "f47ac10b-58cc-0372-a567-0e02b2c3d479"],
+    ["nonstandard variant", "f47ac10b-58cc-4372-0567-0e02b2c3d479"],
+    ["uppercase", "F47AC10B-58CC-4372-A567-0E02B2C3D479"],
+  ])("accepts %s asset UUID", async (_label, assetId) => {
+    await expect(run(harness({ assetIds: [assetId] }))).resolves.toBeDefined();
+  });
+  it.each([
+    "f47ac10b-58cc-4372-a567-0e02b2c3d47",
+    "f47ac10b-58cc-4372a567-0e02b2c3d479",
+    "f47ac10b-58cc-4372-a567x-0e02b2c3d479",
+    "{f47ac10b-58cc-4372-a567-0e02b2c3d479}",
+    "urn:uuid:f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "prefix-f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "not-a-uuid",
+  ])("rejects malformed asset UUID %s", async (assetId) => {
+    await expect(run(harness({ assetIds: [assetId] }))).rejects.toThrow(
+      "Malformed authorized asset projection",
+    );
+  });
   it("accepts hosted UUID distinct from fixture metadata and uses caller-scoped RPCs", async () => {
     const h = harness();
     await run(h);
