@@ -149,3 +149,19 @@ export interface Bootstrap {
   departments: Department[];
   profiles: Profile[];
 }
+export interface Ai5Snapshot {
+  snapshot_id: string;
+  schema_version: number;
+  calculation_version: string;
+  period_start: string;
+  period_end: string;
+  captured_at: string;
+  facts: {
+    requests_submitted: number;
+    open_requests: number;
+    completed_transfers: number;
+    units_successfully_transferred: number;
+  };
+  idempotency_key: string;
+  created_by: string;
+}

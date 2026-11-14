@@ -10,6 +10,7 @@ import type {
   Department,
   Filters,
   Profile,
+  Ai5Snapshot,
 } from "./types";
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim();
@@ -67,6 +68,14 @@ export class FoundationService {
     const { data, error } = await this.db.rpc(name, args);
     if (error) throw new ServiceError(error.message, error.code);
     return data as T;
+  }
+  async ai5Snapshots(): Promise<Ai5Snapshot[]> {
+    return this.rpc<Ai5Snapshot[]>("ai5_report_workspace", { p_limit: 20 });
+  }
+  async captureAi5Snapshot(key: string): Promise<Ai5Snapshot> {
+    return this.rpc<Ai5Snapshot>("ai5_capture_report", {
+      p_idempotency_key: key,
+    });
   }
   private remember(rows: AssetView[]): AssetView[] {
     for (const r of rows) {
