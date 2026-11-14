@@ -3,6 +3,7 @@ import { api } from "./api";
 import { normalizeAi5NumberWords } from "./ai5NumberWords";
 import { formatAi5PeriodDate, formatAi5Timestamp } from "./ai5Dates";
 import type { Ai5WorkspaceItem } from "./types";
+import { parseAi5Narrative } from "./ai5Narrative";
 
 const actor = (name?: string | null, id?: string | null) => name || id || "—";
 const validationMessage = (error: unknown) => {
@@ -111,12 +112,16 @@ export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
             ? (drafts[n.narrative_id] ?? n.current_text ?? "")
             : "";
           const dirty = !!n && value !== (n.current_text ?? "");
-          const facts = [
-            s.facts.requests_submitted,
-            s.facts.open_requests,
-            s.facts.completed_transfers,
-            s.facts.units_successfully_transferred,
-          ];
+          const facts = Object.values(s.facts);
+          const labels: Record<string, string> = {
+            requests_submitted: "Requests submitted",
+            open_requests: "Open requests",
+            non_open_requests: "Non-open requests",
+            open_request_rate_percent: "Open request rate",
+            completed_transfers: "Completed transfers",
+            units_successfully_transferred: "Units transferred",
+            units_per_completed_transfer: "Units per transfer",
+          };
           return (
             <article className="workflow-card ai5-card" key={s.snapshot_id}>
               <header className="workflow-card-header">
@@ -141,8 +146,8 @@ export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
               <dl className="workflow-facts ai5-facts">
                 {Object.entries(s.facts).map(([k, v]) => (
                   <div key={k}>
-                    <dt>{k.replaceAll("_", " ")}</dt>
-                    <dd>{v}</dd>
+                    <dt>{labels[k] || k.replaceAll("_", " ")}</dt>
+                    <dd>{k === "open_request_rate_percent" ? `${v}%` : v}</dd>
                   </div>
                 ))}
               </dl>
@@ -167,7 +172,7 @@ export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
                             aria-describedby={`ai5-help-${n.narrative_id}`}
                           />
                           <small id={`ai5-help-${n.narrative_id}`}>
-                            Up to 600 characters. Numbers must match the four
+                            Up to 600 characters. Numbers must match the bound
                             snapshot facts; database validation is final.
                           </small>
                         </label>
@@ -228,7 +233,13 @@ export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
                         </div>
                       </>
                     ) : (
-                      <p>{n.current_text || n.generated_text}</p>
+                      <NarrativeDisplay
+                        text={
+                          n.current_text ||
+                          n.generated_text ||
+                          "Narrative unavailable."
+                        }
+                      />
                     )}
                   </section>
                   <p className="ai5-attribution">
@@ -302,5 +313,35 @@ export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
         })
       )}
     </section>
+  );
+}
+
+function NarrativeDisplay({ text }: { text: string }) {
+  const parsed = parseAi5Narrative(text);
+  if (parsed.kind === "plain") return <p>{parsed.text}</p>;
+  return (
+    <div className="ai5-briefing">
+      <h5>{parsed.headline}</h5>
+      <p>
+        <strong>Demand</strong>
+        <br />
+        {parsed.demand}
+      </p>
+      <p>
+        <strong>Transfer activity</strong>
+        <br />
+        {parsed.transferActivity}
+      </p>
+      <p>
+        <strong>Interpretation</strong>
+        <br />
+        {parsed.interpretation}
+      </p>
+      <p>
+        <strong>Limitation</strong>
+        <br />
+        {parsed.limitation}
+      </p>
+    </div>
   );
 }

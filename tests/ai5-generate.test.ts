@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  compileV2Narrative,
   createAi5GenerateHandler,
   validateSummary,
 } from "../supabase/functions/ai5-generate/handler.ts";
@@ -65,6 +66,50 @@ function setup(
   return { handler, gateway, provider, request };
 }
 describe("AI5 generation", () => {
+  it("compiles and validates the exact v2 sections and repeated metric multiplicity", () => {
+    const v2Facts = {
+      ...facts,
+      non_open_requests: 12,
+      open_request_rate_percent: 40,
+      units_per_completed_transfer: 0.7,
+    };
+    const structured = {
+      headline: "Requests remain active",
+      demand:
+        "20 submitted requests, 8 open requests, 12 non-open requests, a 40% open-request rate",
+      transferActivity:
+        "7 completed transfers, 5 units successfully transferred, 0.7 units per completed transfer",
+      interpretation: "Demand remains visible across the reporting snapshot",
+      limitation: "These figures describe recorded activity only",
+    };
+    expect(compileV2Narrative(structured, v2Facts)).toBe(
+      `Headline: ${structured.headline}\nDemand: ${structured.demand}\nTransfer activity: ${structured.transferActivity}\nInterpretation: ${structured.interpretation}\nLimitation: ${structured.limitation}`,
+    );
+    expect(
+      compileV2Narrative(
+        {
+          ...structured,
+          demand: structured.demand.replace("12 non-open", "8 non-open"),
+        },
+        v2Facts,
+      ),
+    ).toBeNull();
+    expect(
+      compileV2Narrative(
+        { ...structured, interpretation: "This helped 20 people" },
+        v2Facts,
+      ),
+    ).toBeNull();
+    expect(
+      compileV2Narrative(
+        {
+          ...structured,
+          transferActivity: structured.transferActivity.replace("0.7", "0.8"),
+        },
+        v2Facts,
+      ),
+    ).toBeNull();
+  });
   it("keeps the production Gemini generateContent REST contract aligned", () => {
     const source = readFileSync(
       new URL("../supabase/functions/ai5-generate/index.ts", import.meta.url),

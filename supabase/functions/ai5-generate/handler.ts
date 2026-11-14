@@ -31,6 +31,12 @@ const FACT_KEYS = [
   "completed_transfers",
   "units_successfully_transferred",
 ];
+const V2_FACT_KEYS = [
+  ...FACT_KEYS,
+  "non_open_requests",
+  "open_request_rate_percent",
+  "units_per_completed_transfer",
+];
 const numberWords =
   /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth|thirtieth|fortieth|fiftieth|sixtieth|seventieth|eightieth|ninetieth|hundredth|thousandth)\b/i;
 export function validateSummary(
@@ -74,6 +80,104 @@ export function validateSummary(
     tokens.every((n) => permitted.has(n)) &&
     !/(?:\b\d+\s*(?:kg|g|tonnes?|co2|usd|aed)\b)/i.test(s)
   );
+}
+
+export function compileV2Narrative(
+  value: unknown,
+  facts: Record<string, unknown>,
+): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const input = value as Record<string, unknown>;
+  const keys = [
+    "headline",
+    "demand",
+    "transferActivity",
+    "interpretation",
+    "limitation",
+  ];
+  if (
+    Object.keys(input).length !== keys.length ||
+    keys.some((key) => !Object.hasOwn(input, key))
+  )
+    return null;
+  if (
+    keys.some(
+      (key) =>
+        typeof input[key] !== "string" ||
+        !(input[key] as string).trim() ||
+        (input[key] as string).length > 180,
+    )
+  )
+    return null;
+  const sections = [
+    `Headline: ${input.headline}`,
+    `Demand: ${input.demand}`,
+    `Transfer activity: ${input.transferActivity}`,
+    `Interpretation: ${input.interpretation}`,
+    `Limitation: ${input.limitation}`,
+  ];
+  const output = sections.join("\n");
+  if (output.length > 600) return null;
+  const demand = input.demand as string;
+  const transfer = input.transferActivity as string;
+  const expected = [
+    facts.requests_submitted,
+    facts.open_requests,
+    facts.non_open_requests,
+    facts.open_request_rate_percent,
+  ];
+  const transferExpected = [
+    facts.completed_transfers,
+    facts.units_successfully_transferred,
+    facts.units_per_completed_transfer,
+  ];
+  const numericTokens = (text: string) =>
+    [...text.matchAll(/\d+(?:\.\d+)?%?/g)].map((match) => match[0]);
+  const exactNumbers = (text: string, values: unknown[]) => {
+    const tokens = numericTokens(text);
+    const permitted = values.map((value) => String(value));
+    return (
+      tokens.length === permitted.length &&
+      tokens.every(
+        (token, i) =>
+          token === permitted[i] ||
+          (text === demand &&
+            i === permitted.length - 1 &&
+            token === `${permitted[i]}%`),
+      )
+    );
+  };
+  if (
+    !exactNumbers(demand, expected) ||
+    !exactNumbers(transfer, transferExpected)
+  )
+    return null;
+  if (
+    demand.match(/\d+(?:\.\d+)?%?/g)?.filter((x) => x.endsWith("%")).length !==
+      1 ||
+    !demand.includes(`${facts.open_request_rate_percent}%`)
+  )
+    return null;
+  const remainder = [
+    input.headline,
+    input.interpretation,
+    input.limitation,
+  ].join(" ");
+  if (
+    /\d|%|[$€£]|\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b/i.test(
+      remainder,
+    )
+  )
+    return null;
+  const safeText = output.replace(/[0-9]+(?:\.[0-9]+)?%?/g, "");
+  if (!validateSummary({ summary: safeText }, facts)) return null;
+  if (
+    /[+$€£]|[%]|\b(?:percent|percentage|date|rank|ranking|ordinal|savings?|saved|impact|emissions?|waste|utilization|maintenance|estimate|estimated|aed|usd|eur|gbp|dollars?|euros?|pounds?|reduced|avoided|zero|one|two|three|four|five|six|seven|eight|nine|ten|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|minus|plus|divided|times)\b|[+*/=<>^]/i.test(
+      safeText,
+    )
+  )
+    return null;
+  return output;
 }
 
 export function createAi5GenerateHandler(config: {
@@ -152,9 +256,16 @@ export function createAi5GenerateHandler(config: {
     const responseBase = { snapshot };
     try {
       const facts: Record<string, unknown> = {};
-      for (const k of FACT_KEYS) {
+      const v2 = snapshot.calculation_version === "ai5-operational-v2";
+      for (const k of v2 ? V2_FACT_KEYS : FACT_KEYS) {
         const n = snapshot.facts?.[k];
-        if (!Number.isSafeInteger(n) || (n as number) < 0)
+        const ratio = k === "units_per_completed_transfer";
+        if (
+          typeof n !== "number" ||
+          !Number.isFinite(n) ||
+          n < 0 ||
+          (ratio ? Math.round(n * 10) !== n * 10 : !Number.isSafeInteger(n))
+        )
           throw Error("validation");
         facts[k] = n;
       }
@@ -165,17 +276,40 @@ export function createAi5GenerateHandler(config: {
         schema_version: snapshot.schema_version,
         calculation_version: snapshot.calculation_version,
       };
-      const prompt = `Write a concise factual summary from these four facts only: ${JSON.stringify(facts)}. Snapshot metadata (context only): ${JSON.stringify(metadata)}. Do not add numeric values, dates, percentages, ranges, arithmetic, impact/savings/emissions claims, or number words (including ordinals).`;
+      const prompt = v2
+        ? `Write a concise university-administrator briefing, preferably under 700 characters, using only these supplied snapshot facts: ${JSON.stringify(facts)}. Return JSON with exactly five string fields: headline, demand, transferActivity, interpretation, limitation. Headline: neutral and useful, with no figures. Demand: explain requests_submitted, open_requests, non_open_requests, and open_request_rate_percent. Transfer activity: explain completed_transfers, units_successfully_transferred, and units_per_completed_transfer. Include each supplied value exactly; do not derive, substitute, omit, or duplicate values. Interpretation: compare only supplied facts and add operational meaning rather than repeating labels. Limitation: explicitly state that this snapshot cannot establish causes or future outcomes. Use direct, natural university-administrator language. No dates, currency, trends, forecasts, impact claims, recommendations, sustainability, emissions, savings, waste, cost, or maintenance claims, or invented figures. Metadata for context only: ${JSON.stringify(metadata)}.`
+        : `Write a concise factual summary from these four facts only: ${JSON.stringify(facts)}. Snapshot metadata (context only): ${JSON.stringify(metadata)}. Do not add numeric values, dates, percentages, ranges, arithmetic, impact/savings/emissions claims, or number words (including ordinals).`;
       const payload = {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: "application/json",
-          responseJsonSchema: {
-            type: "object",
-            properties: { summary: { type: "string", maxLength: 600 } },
-            required: ["summary"],
-            additionalProperties: false,
-          },
+          responseJsonSchema: v2
+            ? {
+                type: "object",
+                properties: Object.fromEntries(
+                  [
+                    "headline",
+                    "demand",
+                    "transferActivity",
+                    "interpretation",
+                    "limitation",
+                  ].map((key) => [key, { type: "string", maxLength: 180 }]),
+                ),
+                required: [
+                  "headline",
+                  "demand",
+                  "transferActivity",
+                  "interpretation",
+                  "limitation",
+                ],
+                additionalProperties: false,
+              }
+            : {
+                type: "object",
+                properties: { summary: { type: "string", maxLength: 600 } },
+                required: ["summary"],
+                additionalProperties: false,
+              },
         },
       };
       const result = await Promise.race([
@@ -206,14 +340,20 @@ export function createAi5GenerateHandler(config: {
       } catch {
         throw Object.assign(Error("malformed"), { category: "malformed" });
       }
-      if (!validateSummary(parsed, facts))
+      const summary =
+        snapshot.calculation_version === "ai5-operational-v2"
+          ? compileV2Narrative(parsed, facts)
+          : validateSummary(parsed, facts)
+            ? parsed.summary
+            : null;
+      if (!summary)
         throw Object.assign(Error("malformed"), { category: "malformed" });
       const saved = await config.gateway.save(
         token,
         input.snapshotId,
         input.idempotencyKey,
         MODEL,
-        parsed.summary,
+        summary,
         {
           provider: "google-generate-content",
           contract: "generate-content-v1beta",
@@ -228,7 +368,7 @@ export function createAi5GenerateHandler(config: {
             : {}),
         },
       );
-      return json({ ...responseBase, summary: parsed.summary, report: saved });
+      return json({ ...responseBase, summary, report: saved });
     } catch (e) {
       const err = e as { category?: string; message?: string };
       const code =

@@ -1,6 +1,27 @@
 import assert from "node:assert/strict";
 import { testDatabase } from "./workflow-test-support.mjs";
 
+const empty = await testDatabase();
+const emptyAdmin = empty.person("business_administrator");
+const emptySnapshot = (
+  await empty.as(
+    emptyAdmin,
+    "select public.ai5_capture_report('zero-activity') result",
+  )
+).rows[0].result;
+assert.deepEqual(emptySnapshot.facts, {
+  requests_submitted: 0,
+  open_requests: 0,
+  completed_transfers: 0,
+  units_successfully_transferred: 0,
+  non_open_requests: 0,
+  open_request_rate_percent: 0,
+  units_per_completed_transfer: 0,
+});
+assert.equal(emptySnapshot.schema_version, 2);
+assert.equal(emptySnapshot.calculation_version, "ai5-operational-v2");
+await empty.db.close();
+
 const h = await testDatabase();
 const { db, as, person, requester, rep, receiver, facilities, dispatched } = h;
 const admin = person("business_administrator");
@@ -10,6 +31,8 @@ const capture = (user, key) =>
   as(user, "select public.ai5_capture_report($1) result", [key]).then(
     (r) => r.rows[0].result,
   );
+const v2Text = (facts, headline = "Recorded activity") =>
+  `Headline: ${headline}\nDemand: ${facts.requests_submitted} submitted requests, ${facts.open_requests} open requests, ${facts.non_open_requests} non-open requests, a ${facts.open_request_rate_percent}% open-request rate\nTransfer activity: ${facts.completed_transfers} completed transfers, ${facts.units_successfully_transferred} units successfully transferred, ${facts.units_per_completed_transfer} units per completed transfer\nInterpretation: Demand remains visible across the reporting snapshot\nLimitation: These figures describe recorded activity only`;
 const workspace = (user, limit = 20) =>
   as(
     user,
@@ -112,6 +135,9 @@ try {
         open_requests: 5,
         completed_transfers: 2,
         units_successfully_transferred: 4,
+        non_open_requests: 4,
+        open_request_rate_percent: 56,
+        units_per_completed_transfer: 2,
       });
       const qualifyingActivity = await db.query(
         "select min(ts) ts from (select submitted_at ts from public.resource_requests where submitted_at<=$1 union all select h.recorded_at from public.handovers h join public.transfers t using(transfer_id) where t.state='Completed' and h.kind in ('Receipt','Reconciliation') and h.accepted and h.recorded_at<=$1) activity",
@@ -307,7 +333,7 @@ try {
           "none",
         ]),
       );
-      text = `Report records ${snap.facts.requests_submitted} requests, ${snap.facts.open_requests} open requests, ${snap.facts.completed_transfers} completed transfers and ${snap.facts.units_successfully_transferred} units transferred.`;
+      text = v2Text(snap.facts);
       const row = await save(admin, snap.snapshot_id, "narrative-key", text);
       const initialWorkspace = await as(
         admin,
@@ -363,44 +389,36 @@ try {
           ),
         /unsupported narrative/,
       );
-      const monthSnapshot = await capture(admin, "month-name-snapshot");
-      assert.equal(
-        (
-          await save(
-            admin,
-            monthSnapshot.snapshot_id,
-            "month-name",
-            "Report covers January activity.",
-          )
-        ).generated_text,
-        "Report covers January activity.",
+      const oldSnapshotId = crypto.randomUUID();
+      const oldFacts = {
+        requests_submitted: 1,
+        open_requests: 1,
+        completed_transfers: 0,
+        units_successfully_transferred: 0,
+      };
+      await db.query(
+        "insert into public.ai5_report_snapshots(snapshot_id,schema_version,calculation_version,period_start,period_end,captured_at,facts,idempotency_key,created_by) values($1,1,'ai5-all-time-v1',now(),now(),now(),$2,'legacy-readable',$3)",
+        [oldSnapshotId, oldFacts, admin.userId],
       );
-      const openSnapshot = await capture(admin, "open-prose-snapshot");
+      const legacyText = "Report covers January activity.";
       assert.equal(
-        (
-          await save(
-            admin,
-            openSnapshot.snapshot_id,
-            "open-prose",
-            "Activity may remain open.",
-          )
-        ).generated_text,
-        "Activity may remain open.",
+        (await save(admin, oldSnapshotId, "legacy-valid", legacyText))
+          .generated_text,
+        legacyText,
       );
-      const substringSnapshot = await capture(
-        admin,
-        "month-substring-snapshot",
+      await assert.rejects(
+        () => save(admin, oldSnapshotId, "legacy-invalid", "999 requests."),
+        /unsupported narrative/,
       );
-      assert.equal(
-        (
-          await save(
+      await assert.rejects(
+        () =>
+          save(
             admin,
-            substringSnapshot.snapshot_id,
-            "month-substring",
-            "Report covers marjan activity.",
-          )
-        ).generated_text,
-        "Report covers marjan activity.",
+            snap.snapshot_id,
+            "malformed-v2-no-v1",
+            "Report records 9 requests.",
+          ),
+        /unsupported narrative/,
       );
       await assert.rejects(
         () =>
@@ -455,11 +473,11 @@ try {
       const beforeEdit = await countSources();
       const edited = await call(admin, "ai5_edit_narrative", [
         row.narrative_id,
-        `Edited report repeats ${snap.facts.requests_submitted} requests and ${snap.facts.requests_submitted} requests.`,
+        v2Text(snap.facts, "Edited operational activity"),
       ]);
       assert.equal(
         edited.current_text,
-        `Edited report repeats ${snap.facts.requests_submitted} requests and ${snap.facts.requests_submitted} requests.`,
+        v2Text(snap.facts, "Edited operational activity"),
       );
       const afterEdit = await as(
         admin,
