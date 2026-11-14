@@ -170,6 +170,32 @@ describe("AI2 asset embeddings", () => {
     expect((await bad.handler(req())).status).toBe(409);
     expect(bad.gateway.upsert).not.toHaveBeenCalled();
   });
+  it("accepts hosted PostgreSQL UUIDs without RFC version or variant bits", async () => {
+    const hostedActor = "00000000-0000-f000-f000-000000000001";
+    const hostedAsset = "00000000-0000-f000-f000-000000000002";
+    const s = setup({
+      authenticate: vi.fn(async () => hostedActor),
+      bootstrap: vi.fn(async () => ({
+        profile: {
+          userId: hostedActor,
+          active: true,
+          roles: ["representative"],
+        },
+      })),
+      source: vi.fn(async () => ({ ...src, assetId: hostedAsset })),
+    });
+    expect(
+      (await s.handler(req("refresh_asset", { assetId: hostedAsset }))).status,
+    ).toBe(200);
+    expect(s.gateway.upsert).toHaveBeenCalledWith(
+      hostedActor,
+      hostedAsset,
+      expect.any(Number),
+      expect.any(String),
+      expect.any(String),
+      expect.any(Array),
+    );
+  });
   it("refreshes changed content and passes exact atomic upsert arguments without returning the vector", async () => {
     const vector = Array(384).fill(1 / Math.sqrt(384));
     const upsert = vi.fn(async () => ({ status: "updated" }));

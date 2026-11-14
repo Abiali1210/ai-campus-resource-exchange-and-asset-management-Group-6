@@ -1,3 +1,5 @@
+import { uuid } from "../foundation/validation";
+
 export type RequestSource = {
   requestId: string;
   version: number;
@@ -39,8 +41,14 @@ export interface MatchGateway {
   visible(token: string, runId: string): Promise<unknown>;
 }
 export type Embed = (text: string) => Promise<number[]>;
-const uuid =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isUuid = (value: unknown) => {
+  try {
+    uuid(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
 const finite01 = (n: unknown) =>
   typeof n === "number" && Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0;
 export function serializeRequest(s: RequestSource): string {
@@ -251,8 +259,8 @@ export function createAi2MatchHandler(config: {
         Object.keys(input).some(
           (k) => !["requestId", "operationKey"].includes(k),
         ) ||
-        !uuid.test(input.requestId) ||
-        !uuid.test(input.operationKey)
+        !isUuid(input.requestId) ||
+        !isUuid(input.operationKey)
       )
         return json(
           {

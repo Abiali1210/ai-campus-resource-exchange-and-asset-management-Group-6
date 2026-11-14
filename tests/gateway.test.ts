@@ -3,7 +3,10 @@ import {
   createFoundationHandler,
   type GatewayConfig,
 } from "../supabase/functions/foundation/handler";
-import { boundedBytes } from "../supabase/functions/foundation/validation";
+import {
+  boundedBytes,
+  uuid,
+} from "../supabase/functions/foundation/validation";
 
 const id = "00000000-0000-4000-8000-000000000001";
 const targetId = "00000000-0000-4000-8000-000000000002";
@@ -108,6 +111,23 @@ const createHandler = (mock: ReturnType<typeof backend>, adminEnabled = true) =>
   );
 
 describe("authenticated account gateway", () => {
+  it("accepts PostgreSQL UUID lexical forms but rejects malformed identifiers", () => {
+    for (const value of [
+      id,
+      "00000000-0000-f000-f000-000000000001",
+      "ABCDEFAB-CDEF-ABCD-EFAB-CDEFABCDEFAB",
+    ])
+      expect(uuid(value)).toBe(value);
+    for (const value of [
+      "0000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-00000000000g",
+      "00000000000040008000000000000001",
+      `{${id}}`,
+      `urn:uuid:${id}`,
+      "arbitrary",
+    ])
+      expect(() => uuid(value)).toThrow();
+  });
   it("denies hostile origins and missing sessions before any backend access", async () => {
     const mock = backend();
     const handle = createHandler(mock);

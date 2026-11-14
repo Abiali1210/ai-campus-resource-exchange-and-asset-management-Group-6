@@ -203,6 +203,25 @@ describe("AI2 match handler", () => {
       ],
     });
   });
+  it("accepts PostgreSQL-valid request and operation UUIDs", async () => {
+    const requestId = "00000000-0000-f000-f000-000000000001";
+    const operationKey = "00000000-0000-0000-0000-000000000002";
+    const save = vi.fn(async (_a: string, i: Record<string, unknown>) => ({
+      runId: "run",
+    }));
+    const existing = vi.fn(async () => null);
+    const { request } = setup({
+      source: async () => ({ ...source, requestId }),
+      existing,
+      save,
+    });
+    expect((await request({ requestId, operationKey })).status).toBe(200);
+    expect(existing).toHaveBeenCalledWith("session", requestId, operationKey);
+    expect(save).toHaveBeenCalledWith(
+      "actor",
+      expect.objectContaining({ requestId, operationKey }),
+    );
+  });
   it("returns safe typed request, embedding, stale-candidate and internal outcomes", async () => {
     expect(
       (
