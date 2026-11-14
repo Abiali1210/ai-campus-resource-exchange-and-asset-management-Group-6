@@ -94,14 +94,79 @@ try {
         completed_transfers: 2,
         units_successfully_transferred: 4,
       });
-      const activity = await db.query(
-        "select min(ts) ts from (select submitted_at ts from public.resource_requests union all select h.recorded_at from public.handovers h join public.transfers t using(transfer_id) where t.state='Completed') a",
+      const qualifyingActivity = await db.query(
+        "select min(ts) ts from (select submitted_at ts from public.resource_requests where submitted_at<=$1 union all select h.recorded_at from public.handovers h join public.transfers t using(transfer_id) where t.state='Completed' and h.kind in ('Receipt','Reconciliation') and h.accepted and h.recorded_at<=$1) activity",
+        [snapshot.captured_at],
       );
       assert.equal(
         Date.parse(snapshot.period_start),
-        activity.rows[0].ts.getTime(),
+        qualifyingActivity.rows[0].ts.getTime(),
       );
       assert.ok(open.requestId);
+    },
+  );
+  await check(
+    "completed transfer facts require accepted receipt or reconciliation evidence by capture time and count each transfer once",
+    async () => {
+      const before = await capture(admin, "evidence-before");
+      const receipt = await dispatched(2);
+      await h.transfer(receiver, receipt.t, "receive", {
+        qty: 2,
+        condition: "Good",
+        accept: true,
+        location: "Lab",
+      });
+      await db.query(
+        "insert into public.handovers (transfer_id,recorded_by,kind,qty,condition,accepted,holder_id,location,reason,recorded_at) select transfer_id,recorded_by,'Reconciliation',qty,condition,accepted,holder_id,location,reason,recorded_at from public.handovers where transfer_id=$1 and kind='Receipt'",
+        [receipt.t.transferId],
+      );
+      const reconciliation = await dispatched(3);
+      let reconciliationTransfer = await h.transfer(
+        receiver,
+        reconciliation.t,
+        "receive",
+        {
+          qty: 1,
+          condition: "Poor",
+          accept: false,
+          location: "Bay",
+        },
+      );
+      await h.transfer(receiver, reconciliationTransfer, "reconcile", {
+        qty: 3,
+        condition: "Good",
+        accept: true,
+        location: "Lab",
+      });
+      const future = await dispatched(4);
+      await h.transfer(receiver, future.t, "receive", {
+        qty: 4,
+        condition: "Good",
+        accept: true,
+        location: "Lab",
+      });
+      await db.query(
+        "update public.handovers set recorded_at=transaction_timestamp()+interval '1 day' where transfer_id=$1 and kind='Receipt'",
+        [future.t.transferId],
+      );
+      const after = await capture(admin, "evidence-after");
+      assert.equal(
+        after.facts.completed_transfers - before.facts.completed_transfers,
+        2,
+      );
+      assert.equal(
+        after.facts.units_successfully_transferred -
+          before.facts.units_successfully_transferred,
+        5,
+      );
+      const qualifying = await db.query(
+        "select min(ts) ts from (select submitted_at ts from public.resource_requests where submitted_at<=$1 union all select h.recorded_at from public.handovers h join public.transfers t using(transfer_id) where t.state='Completed' and h.kind in ('Receipt','Reconciliation') and h.accepted and h.recorded_at<=$1) activity",
+        [after.captured_at],
+      );
+      assert.equal(
+        Date.parse(after.period_start),
+        qualifying.rows[0].ts.getTime(),
+      );
     },
   );
   await check(

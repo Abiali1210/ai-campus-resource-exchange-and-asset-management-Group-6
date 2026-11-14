@@ -33,13 +33,20 @@ begin
  select coalesce(min(ts),captured) into start_at from (
   select submitted_at ts from public.resource_requests where submitted_at<=captured
    union all select h.recorded_at from public.handovers h join public.transfers t using(transfer_id)
-    where t.state='Completed' and h.recorded_at<=captured
+    where t.state='Completed' and h.kind in ('Receipt','Reconciliation')
+     and h.accepted and h.recorded_at<=captured
  ) activity;
  facts_value:=jsonb_build_object(
   'requests_submitted',(select count(*) from public.resource_requests where submitted_at<=captured),
   'open_requests',(select count(*) from public.resource_requests where submitted_at<=captured and status in ('Open','Reserved','Partially Fulfilled')),
-   'completed_transfers',(select count(*) from public.transfers t where t.state='Completed'),
-   'units_successfully_transferred',(select coalesce(sum(t.approved_qty),0) from public.transfers t where t.state='Completed')
+    'completed_transfers',(select count(*) from public.transfers t where t.state='Completed' and exists (
+      select 1 from public.handovers h where h.transfer_id=t.transfer_id
+       and h.kind in ('Receipt','Reconciliation') and h.accepted and h.recorded_at<=captured
+    )),
+    'units_successfully_transferred',(select coalesce(sum(t.approved_qty),0) from public.transfers t where t.state='Completed' and exists (
+      select 1 from public.handovers h where h.transfer_id=t.transfer_id
+       and h.kind in ('Receipt','Reconciliation') and h.accepted and h.recorded_at<=captured
+    ))
  );
  insert into public.ai5_report_snapshots(period_start,period_end,captured_at,facts,idempotency_key,created_by)
   values(start_at,captured,captured,facts_value,p_idempotency_key,auth.uid()) on conflict(created_by,idempotency_key) do nothing returning * into result;
