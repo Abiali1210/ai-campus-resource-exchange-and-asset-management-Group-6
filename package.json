@@ -16,6 +16,7 @@
     "test:browser": "playwright test",
     "seed:accounts": "node --env-file=.env.local scripts/provision-demo.mjs",
     "seed:workflows": "node --env-file=.env.local scripts/seed-workflows.mjs",
+    "backfill:ai2-embeddings": "node --env-file=.env.local scripts/backfill-ai2-embeddings.mjs",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
