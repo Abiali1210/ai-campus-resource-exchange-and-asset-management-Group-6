@@ -158,6 +158,238 @@ try {
       assert.ok(snapshots.length);
     },
   );
+  await check(
+    "narrative authorization, exact snapshot binding, lifecycle and visibility",
+    async () => {
+      const snap = await capture(admin, "narrative-snapshot");
+      let text;
+      const call = (user, fn, args) =>
+        as(
+          user,
+          `select public.${fn}(${args.map((_, i) => `$${i + 1}`).join(",")}) result`,
+          args,
+        ).then((r) => r.rows[0].result);
+      const save = (user, snapshot, key, text) =>
+        as(
+          user,
+          "select public.ai5_save_generation($1,$2,$3,$4,$5::jsonb) result",
+          [
+            snapshot,
+            key,
+            "gemini-3.5-flash-lite",
+            text,
+            JSON.stringify({ request: "test" }),
+          ],
+        ).then((r) => r.rows[0].result);
+      await denied(() =>
+        as(rep, "select public.ai5_generation_context($1)", [snap.snapshot_id]),
+      );
+      await denied(() =>
+        as(null, "select public.ai5_generation_context($1)", [
+          snap.snapshot_id,
+        ]),
+      );
+      const inactive = person("system_administrator");
+      await db.query(
+        "update public.profiles set active=false where user_id=$1",
+        [inactive.userId],
+      );
+      await denied(() =>
+        as(inactive, "select public.ai5_generation_context($1)", [
+          snap.snapshot_id,
+        ]),
+      );
+      text = `Report records ${snap.facts.requests_submitted} requests, ${snap.facts.open_requests} open requests, ${snap.facts.completed_transfers} completed transfers and ${snap.facts.units_successfully_transferred} units transferred.`;
+      const row = await save(admin, snap.snapshot_id, "narrative-key", text);
+      await assert.rejects(
+        () =>
+          as(
+            admin,
+            "select public.ai5_save_generation($1,$2,$3,$4,$5::jsonb)",
+            [
+              snap.snapshot_id,
+              "oversized-metadata",
+              "gemini-3.5-flash-lite",
+              text,
+              JSON.stringify({ value: "x".repeat(2100) }),
+            ],
+          ),
+        /Validation/,
+      );
+      const boundedSnapshot = await capture(admin, "bounded-metadata-snapshot");
+      const bounded = await as(
+        admin,
+        "select public.ai5_save_generation($1,$2,$3,$4,$5::jsonb) result",
+        [
+          boundedSnapshot.snapshot_id,
+          "bounded-metadata",
+          "gemini-3.5-flash-lite",
+          text,
+          JSON.stringify({ request: "test" }),
+        ],
+      );
+      assert.equal(bounded.rows[0].result.request_metadata.request, "test");
+      await assert.rejects(
+        () =>
+          save(
+            admin,
+            snap.snapshot_id,
+            "fabricated-key",
+            "Report records 999 requests.",
+          ),
+        /unsupported narrative/,
+      );
+      for (const [key, candidate] of [
+        ["month-name", "Report covers January activity."],
+        ["month-abbrev", "Report covers Jan activity."],
+      ]) {
+        await assert.rejects(
+          () => save(admin, snap.snapshot_id, key, candidate),
+          /unsupported narrative/,
+        );
+      }
+      const substringSnapshot = await capture(
+        admin,
+        "month-substring-snapshot",
+      );
+      assert.equal(
+        (
+          await save(
+            admin,
+            substringSnapshot.snapshot_id,
+            "month-substring",
+            "Report covers marjan activity.",
+          )
+        ).generated_text,
+        "Report covers marjan activity.",
+      );
+      await assert.rejects(
+        () =>
+          save(
+            admin,
+            snap.snapshot_id,
+            "unit-claim",
+            `Report records ${snap.facts.requests_submitted} kg.`,
+          ),
+        /unsupported narrative/,
+      );
+      assert.deepEqual(
+        await save(admin, snap.snapshot_id, "narrative-key", text),
+        row,
+      );
+      const otherSnapshot = await capture(admin, "other-snapshot");
+      await assert.rejects(
+        () => save(admin, otherSnapshot.snapshot_id, "narrative-key", text),
+        /conflict/,
+      );
+      await assert.rejects(
+        () =>
+          as(
+            admin,
+            "select public.ai5_save_generation($1,'bad','wrong-model','x','{}')",
+            [snap.snapshot_id],
+          ),
+        /Validation/,
+      );
+      await denied(() =>
+        as(rep, "select public.ai5_edit_narrative($1,'Edited')", [
+          row.narrative_id,
+        ]),
+      );
+      const countSources = async () =>
+        (
+          await db.query(
+            `select (select count(*)::int from public.resource_requests) requests, (select count(*)::int from public.transfers) transfers, (select count(*)::int from public.stock_portions) stock_portions, (select count(*)::int from public.ai5_report_snapshots) snapshots`,
+          )
+        ).rows[0];
+      const beforeEdit = await countSources();
+      const edited = await call(admin, "ai5_edit_narrative", [
+        row.narrative_id,
+        `Edited report repeats ${snap.facts.requests_submitted} requests and ${snap.facts.requests_submitted} requests.`,
+      ]);
+      assert.equal(
+        edited.current_text,
+        `Edited report repeats ${snap.facts.requests_submitted} requests and ${snap.facts.requests_submitted} requests.`,
+      );
+      await assert.rejects(
+        () =>
+          call(admin, "ai5_edit_narrative", [row.narrative_id, "999 requests"]),
+        /Validation/,
+      );
+      await assert.rejects(
+        () =>
+          call(admin, "ai5_edit_narrative", [
+            row.narrative_id,
+            "Report claims impact.",
+          ]),
+        /Validation/,
+      );
+      const ready = await call(admin, "ai5_mark_ready", [row.narrative_id]);
+      assert.equal(ready.status, "Ready");
+      await assert.rejects(
+        () =>
+          call(admin, "ai5_edit_narrative", [row.narrative_id, "Late edit"]),
+        /Invalid transition|Validation or invalid transition/,
+      );
+      const published = await call(admin, "ai5_publish_narrative", [
+        row.narrative_id,
+      ]);
+      assert.equal(published.status, "Published");
+      assert.deepEqual(await countSources(), beforeEdit);
+      await assert.rejects(
+        () => call(admin, "ai5_publish_narrative", [row.narrative_id]),
+        /Invalid transition/,
+      );
+      await assert.rejects(
+        () =>
+          db.query(
+            "delete from public.ai5_report_narratives where narrative_id=$1",
+            [row.narrative_id],
+          ),
+        /Immutable/,
+      );
+      const visible = await as(
+        rep,
+        "select * from public.ai5_published_narratives()",
+      );
+      assert.equal(visible.rows.length, 1);
+      assert.equal(
+        visible.rows[0].ai5_published_narratives.snapshot.facts
+          .requests_submitted,
+        snap.facts.requests_submitted,
+      );
+      await denied(() =>
+        as(rep, "select * from public.ai5_narrative_workspace()"),
+      );
+      const workspaceRows = await as(
+        admin,
+        "select * from public.ai5_narrative_workspace()",
+      );
+      const workspaceItems = workspaceRows.rows.map(
+        (r) => r.ai5_narrative_workspace,
+      );
+      const currentItem = workspaceItems.find(
+        (x) => x.snapshot.snapshot_id === snap.snapshot_id,
+      );
+      assert.ok(currentItem);
+      assert.equal(currentItem.narrative.narrative_id, row.narrative_id);
+      assert.ok(workspaceItems.length >= 25);
+      const factsAfter = await db.query(
+        "select facts from public.ai5_report_snapshots where snapshot_id=$1",
+        [snap.snapshot_id],
+      );
+      assert.deepEqual(factsAfter.rows[0].facts, snap.facts);
+      assert.equal(
+        (
+          await db.query(
+            "select count(*)::int n from public.ai5_report_narratives where snapshot_id=$1",
+            [snap.snapshot_id],
+          )
+        ).rows[0].n,
+        1,
+      );
+    },
+  );
   console.log(`\n${count} AI5 PGlite database checks passed.`);
 } finally {
   await db.close();

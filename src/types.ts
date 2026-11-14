@@ -165,3 +165,25 @@ export interface Ai5Snapshot {
   idempotency_key: string;
   created_by: string;
 }
+export interface Ai5Narrative {
+  narrative_id: string;
+  snapshot_id: string;
+  status: "Draft" | "Ready" | "Published";
+  generated_text: string;
+  current_text: string;
+  model_id: string;
+  request_metadata: Record<string, unknown>;
+  idempotency_key: string;
+  created_by: string | null;
+  created_at: string | null;
+  edited_by: string | null;
+  edited_at: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  published_by: string | null;
+  published_at: string | null;
+}
+export interface Ai5WorkspaceItem {
+  snapshot: Ai5Snapshot;
+  narrative: Ai5Narrative | null;
+}

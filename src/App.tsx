@@ -1460,10 +1460,13 @@ export default function App() {
               Administration
             </button>
           )}
-          {profile?.roles.includes("business_administrator") && (
+          {profile && (
             <button
               className={`nav-item ${view === "reports" ? "active" : ""}`}
-              onClick={() => setView("reports")}
+              onClick={() => {
+                setView("reports");
+                setError("");
+              }}
             >
               Deterministic reports
             </button>
@@ -1659,10 +1662,11 @@ export default function App() {
                 Sign in to continue
               </button>
             </div>
-          ) : view === "reports" &&
-            profile?.roles.includes("business_administrator") ? (
+          ) : view === "reports" && profile ? (
             <Suspense fallback={<p role="status">Opening reports…</p>}>
-              <Ai5ReportPanel />
+              <Ai5ReportPanel
+                isAdmin={profile.roles.includes("business_administrator")}
+              />
             </Suspense>
           ) : view === "workflows" && profile ? (
             <Suspense fallback={<p role="status">Opening workflows…</p>}>
