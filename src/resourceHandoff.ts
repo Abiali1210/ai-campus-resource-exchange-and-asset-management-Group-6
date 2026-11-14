@@ -17,6 +17,22 @@ export function selectedPortionIsStale(
   return !current || current.state !== "Available" || current.qty <= 0;
 }
 
+export function resolveExactAvailableResource(
+  rows: AssetView[],
+  assetId: string,
+  portionId: string,
+) {
+  return (
+    rows.find(
+      (row) =>
+        row.assetId === assetId &&
+        row.portionId === portionId &&
+        row.state === "Available" &&
+        row.qty > 0,
+    ) ?? null
+  );
+}
+
 export function compatibleRequests<T extends ResourceRequest>(
   requests: T[],
   userId: string,
@@ -33,6 +49,22 @@ export function compatibleRequests<T extends ResourceRequest>(
       request.remainingQty > 0 &&
       !["Closed", "Canceled", "Fulfilled"].includes(request.status),
   );
+}
+
+export function preferredCompatibleRequest<T extends ResourceRequest>(
+  preferredId: string | undefined,
+  compatible: T[],
+  current: string,
+) {
+  if (preferredId)
+    return compatible.some((request) => request.requestId === preferredId)
+      ? preferredId
+      : "";
+  return compatible.length === 1
+    ? compatible[0].requestId
+    : compatible.some((request) => request.requestId === current)
+      ? current
+      : "";
 }
 
 export function clearHandoffPortion<T extends { portionId: string }>(

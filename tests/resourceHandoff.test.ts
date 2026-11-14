@@ -4,6 +4,8 @@ import {
   clearHandoffPortion,
   eligiblePortions,
   selectedPortionIsStale,
+  preferredCompatibleRequest,
+  resolveExactAvailableResource,
 } from "../src/resourceHandoff";
 import type { AssetView } from "../src/types";
 import type { ResourceRequest } from "../src/workflows";
@@ -105,5 +107,33 @@ describe("selected-resource handoff rules", () => {
     expect(
       clearHandoffPortion({ portionId: "p", requestId: "r", purpose: "draft" }),
     ).toEqual({ portionId: "", requestId: "r", purpose: "draft" });
+  });
+  it("selects a preferred request only while it remains compatible", () => {
+    const compatible = [request(), request({ requestId: "other" })];
+    expect(preferredCompatibleRequest("other", compatible, "")).toBe("other");
+    for (const unavailable of [
+      request({ requestId: "other", status: "Closed" }),
+      request({ requestId: "other", remainingQty: 0 }),
+      request({ requestId: "other", categoryId: "different" }),
+    ]) {
+      const current = compatibleRequests(
+        [unavailable, request()],
+        "u",
+        "d",
+        false,
+        "c",
+      );
+      expect(preferredCompatibleRequest("other", current, "")).toBe("");
+    }
+  });
+  it("resolves only the exact currently available asset portion", () => {
+    expect(resolveExactAvailableResource([asset()], "a", "p")).toEqual(asset());
+    expect(
+      resolveExactAvailableResource([asset({ portionId: "other" })], "a", "p"),
+    ).toBeNull();
+    expect(
+      resolveExactAvailableResource([asset({ state: "Reserved" })], "a", "p"),
+    ).toBeNull();
+    expect(resolveExactAvailableResource([], "a", "p")).toBeNull();
   });
 });

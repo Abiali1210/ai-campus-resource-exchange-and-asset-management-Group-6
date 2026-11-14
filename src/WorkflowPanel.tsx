@@ -12,6 +12,7 @@ import {
   compatibleRequests,
   eligiblePortions,
   selectedPortionIsStale,
+  preferredCompatibleRequest,
 } from "./resourceHandoff";
 import {
   groupRequests,
@@ -572,7 +573,11 @@ export function WorkflowPanel({
   metadata: Bootstrap;
   selectedResource?: SelectedResource | null;
   onClearResource?: () => void;
-  onViewResource?: () => void;
+  onViewResource?: (recommendation?: {
+    assetId: string;
+    portionId: string;
+    requestId: string;
+  }) => void;
 }) {
   const [w, setW] = useState(empty),
     [catalogue, setCatalogue] = useState<AssetView[]>([]),
@@ -740,14 +745,15 @@ export function WorkflowPanel({
   useEffect(() => {
     if (selectedResource)
       setRequestId((current) =>
-        compatible.length === 1
-          ? compatible[0].requestId
-          : compatible.some((request) => request.requestId === current)
-            ? current
-            : "",
+        preferredCompatibleRequest(
+          selectedResource.preferredRequestId,
+          compatible,
+          current,
+        ),
       );
   }, [
     selectedResource?.portionId,
+    selectedResource?.preferredRequestId,
     compatible.map((r) => r.requestId).join("|"),
   ]);
   const transferGroups = groupTransfers(w.transfers, w, profile);
@@ -791,7 +797,7 @@ export function WorkflowPanel({
             <button
               type="button"
               className="button secondary small"
-              onClick={onViewResource}
+              onClick={() => onViewResource?.()}
             >
               View resource
             </button>
@@ -1209,11 +1215,13 @@ export function WorkflowPanel({
                                   q.remainingQty,
                                   r.availableQty,
                                 )}
-                                view={() => {
-                                  setActiveSection("interests");
-                                  setRequestId(q.requestId);
-                                  setPortionId(r.portionId);
-                                }}
+                                view={() =>
+                                  onViewResource?.({
+                                    assetId: r.assetId,
+                                    portionId: r.portionId,
+                                    requestId: q.requestId,
+                                  })
+                                }
                                 done={done}
                                 onReviewed={(decision, interestId) =>
                                   updateAi2((s) => ({

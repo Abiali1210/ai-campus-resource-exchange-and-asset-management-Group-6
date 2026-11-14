@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { api } from "./api";
+import { resolveExactAvailableResource } from "./resourceHandoff";
 import universityLogo from "./assets/branding/khalifa-university-colour-white-background.jpg";
 import {
   CONDITIONS,
@@ -1214,6 +1215,11 @@ export default function App() {
       "login" | "setup" | "asset" | "edit" | "account" | "department" | null
     >(null),
     [selected, setSelected] = useState<AssetView | null>(null),
+    [recommendationPreview, setRecommendationPreview] = useState<{
+      assetId: string;
+      portionId: string;
+      requestId: string;
+    } | null>(null),
     [resourceHandoff, setResourceHandoff] = useState<SelectedResource | null>(
       null,
     ),
@@ -1224,7 +1230,10 @@ export default function App() {
     [adminTab, setAdminTab] = useState<"accounts" | "departments">("accounts"),
     [refresh, setRefresh] = useState(0);
   const preview = !api.configured;
-  const beginResourceRequest = (asset: AssetView) => {
+  const beginResourceRequest = (
+    asset: AssetView,
+    preferredRequestId?: string,
+  ) => {
     setResourceHandoff({
       portionId: asset.portionId,
       assetId: asset.assetId,
@@ -1235,6 +1244,7 @@ export default function App() {
       qty: asset.qty,
       condition: asset.condition,
       assignedLocation: asset.assignedLocation,
+      ...(preferredRequestId ? { preferredRequestId } : {}),
     });
     setModal(null);
     setView("workflows");
@@ -1291,7 +1301,11 @@ export default function App() {
       active = false;
     };
   }, [filters, view, profile, refresh, preview]);
-  const close = () => setModal(null);
+  const close = () => {
+    setRecommendationPreview(null);
+    setSelected(null);
+    setModal(null);
+  };
   const reload = () => setRefresh((n) => n + 1);
   const setFilter = (key: keyof Filters, value: string) => {
     setFilters((f) => ({
@@ -1627,19 +1641,59 @@ export default function App() {
                 metadata={metadata}
                 selectedResource={resourceHandoff}
                 onClearResource={() => setResourceHandoff(null)}
-                onViewResource={() => {
-                  if (resourceHandoff) {
-                    const item = assets.find(
-                      (a) =>
-                        a.assetId === resourceHandoff.assetId &&
-                        a.portionId === resourceHandoff.portionId,
+                onViewResource={async (recommendation) => {
+                  if (!recommendation) {
+                    if (resourceHandoff) {
+                      try {
+                        const rows = await api.catalogue();
+                        const item = resolveExactAvailableResource(
+                          rows,
+                          resourceHandoff.assetId,
+                          resourceHandoff.portionId,
+                        );
+                        if (item) {
+                          setSelected(item);
+                          setModal("asset");
+                        } else {
+                          setError(
+                            "This selected resource is no longer available. Refresh the catalogue before continuing.",
+                          );
+                        }
+                      } catch {
+                        setError(
+                          "This selected resource could not be verified. Try again before continuing.",
+                        );
+                      }
+                    }
+                    return;
+                  }
+                  try {
+                    const rows = await api.catalogue();
+                    const item = resolveExactAvailableResource(
+                      rows,
+                      recommendation.assetId,
+                      recommendation.portionId,
                     );
                     if (item) {
+                      setRecommendationPreview(recommendation);
                       setSelected(item);
-                      setView("catalogue");
-                      setModal("asset");
+                    } else {
+                      setRecommendationPreview(null);
+                      setSelected(null);
+                      setError(
+                        "This recommended resource is no longer available. Refresh recommendations before continuing.",
+                      );
+                      return;
                     }
+                  } catch {
+                    setRecommendationPreview(null);
+                    setSelected(null);
+                    setError(
+                      "This recommended resource could not be verified. Try again before continuing.",
+                    );
+                    return;
                   }
+                  setModal("asset");
                 }}
               />
             </Suspense>
@@ -1934,7 +1988,15 @@ export default function App() {
           onClose={close}
           onChanged={reload}
           onEdit={openEdit}
-          onRequest={beginResourceRequest}
+          onRequest={(asset) => {
+            const preference =
+              recommendationPreview?.assetId === asset.assetId &&
+              recommendationPreview.portionId === asset.portionId
+                ? recommendationPreview.requestId
+                : undefined;
+            setRecommendationPreview(null);
+            beginResourceRequest(asset, preference);
+          }}
         />
       )}{" "}
       {modal === "edit" && profile && (
