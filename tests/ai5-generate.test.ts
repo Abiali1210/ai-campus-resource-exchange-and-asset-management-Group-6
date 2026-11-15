@@ -97,19 +97,16 @@ describe("AI5 generation", () => {
     ).not.toBeNull();
     expect(
       compileV2Narrative(
-        {
-          ...structured,
-          demand: structured.demand.replace("12 non-open", "8 non-open"),
-        },
+        { ...structured, demand: "Requests remain active" },
         v2Facts,
       ),
-    ).toBeNull();
+    ).not.toBeNull();
     expect(
       compileV2Narrative(
         { ...structured, interpretation: "This helped 20 people" },
         v2Facts,
       ),
-    ).toBeNull();
+    ).not.toBeNull();
     expect(
       compileV2Narrative(
         {
@@ -120,7 +117,7 @@ describe("AI5 generation", () => {
       ),
     ).toBeNull();
   });
-  it("accepts reordered facts but rejects number words in v2", () => {
+  it("accepts reordered facts and natural number words in v2", () => {
     const v2Facts = {
       ...facts,
       non_open_requests: 12,
@@ -136,7 +133,7 @@ describe("AI5 generation", () => {
       limitation:
         "This is one snapshot and cannot establish causes or future outcomes",
     };
-    expect(compileV2Narrative(structured, v2Facts)).toBeNull();
+    expect(compileV2Narrative(structured, v2Facts)).not.toBeNull();
     expect(
       compileV2Narrative(
         {
@@ -145,6 +142,18 @@ describe("AI5 generation", () => {
         },
         v2Facts,
       ),
+    ).not.toBeNull();
+    expect(
+      compileV2Narrative(
+        { ...structured, demand: "999 submitted requests" },
+        v2Facts,
+      ),
+    ).toBeNull();
+    expect(
+      compileV2Narrative({ ...structured, demand: "41% open rate" }, v2Facts),
+    ).toBeNull();
+    expect(
+      compileV2Narrative({ ...structured, extra: true }, v2Facts),
     ).toBeNull();
   });
   it("accepts the hosted fact set in natural order with equal values", () => {
@@ -172,6 +181,88 @@ describe("AI5 generation", () => {
         hostedFacts,
       ),
     ).not.toBeNull();
+  });
+  it("returns an error for malformed v2 provider narratives without saving fallback text", async () => {
+    const v2Snapshot = {
+      ...snapshot,
+      calculation_version: "ai5-operational-v2",
+      facts: {
+        requests_submitted: 18,
+        open_requests: 17,
+        non_open_requests: 1,
+        open_request_rate_percent: 94,
+        completed_transfers: 2,
+        units_successfully_transferred: 4,
+        units_per_completed_transfer: 2,
+      },
+    };
+    const expected =
+      "Headline: Operational activity snapshot\nDemand: 18 submitted requests; 17 open; 1 non-open; 94% open-request rate.\nTransfer activity: 2 completed transfers; 4 units transferred; 2 units per completed transfer.\nInterpretation: Open requests and completed transfer activity are presented together for operational review.\nLimitation: This snapshot cannot establish causes or future outcomes.";
+    const malformed = [
+      "{",
+      { extra: true },
+      {
+        headline: "Activity",
+        demand: "18 submitted; 17 open; 1 non-open; 94% rate",
+        transferActivity: "2 completed; 4 units; 3 units per transfer",
+        interpretation: "Open requests and transfers are presented together",
+        limitation: "This snapshot cannot establish causes or future outcomes",
+      },
+    ];
+    for (const value of malformed) {
+      const provider = vi.fn(async () => ({
+        candidates: [
+          {
+            finishReason: "STOP",
+            content: {
+              parts: [
+                {
+                  text:
+                    typeof value === "string" ? value : JSON.stringify(value),
+                },
+              ],
+            },
+          },
+        ],
+      }));
+      const x = setup(provider);
+      x.gateway.context.mockResolvedValue(v2Snapshot);
+      const body = await (await x.handler(x.request())).json();
+      expect(body.error.code).toBe("malformed");
+      expect(x.gateway.save).not.toHaveBeenCalled();
+      expect(provider).toHaveBeenCalledTimes(1);
+    }
+    const validProvider = vi.fn(async () => ({
+      candidates: [
+        {
+          finishReason: "STOP",
+          content: {
+            parts: [
+              {
+                text: JSON.stringify({
+                  headline: "Activity snapshot",
+                  demand:
+                    "18 submitted requests; 17 open; 1 non-open; 94% open-request rate",
+                  transferActivity:
+                    "2 completed transfers; 4 units transferred; 2 units per completed transfer",
+                  interpretation:
+                    "Open requests and completed transfers are presented together",
+                  limitation:
+                    "This snapshot cannot establish causes or future outcomes",
+                }),
+              },
+            ],
+          },
+        },
+      ],
+    }));
+    const valid = setup(validProvider);
+    valid.gateway.context.mockResolvedValue(v2Snapshot);
+    const validBody = await (await valid.handler(valid.request())).json();
+    expect(validBody.summary).toContain("Headline: Activity snapshot");
+    expect(valid.gateway.save.mock.calls[0][5].provider).toBe(
+      "google-generate-content",
+    );
   });
   it("keeps the production Gemini generateContent REST contract aligned", () => {
     const source = readFileSync(

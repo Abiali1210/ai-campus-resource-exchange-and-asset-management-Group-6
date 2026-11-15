@@ -118,59 +118,29 @@ export function compileV2Narrative(
   ];
   const output = sections.join("\n");
   if (output.length > 600) return null;
-  const demand = input.demand as string;
-  const transfer = input.transferActivity as string;
-  const expected = [
-    facts.requests_submitted,
-    facts.open_requests,
-    facts.non_open_requests,
-    facts.open_request_rate_percent,
-  ];
-  const transferExpected = [
-    facts.completed_transfers,
-    facts.units_successfully_transferred,
-    facts.units_per_completed_transfer,
-  ];
-  const numericTokens = (text: string) =>
-    [...text.matchAll(/\d+(?:\.\d+)?%?/g)].map((match) => match[0]);
-  const exactNumbers = (text: string, values: unknown[]) => {
-    const tokens = numericTokens(text).sort();
-    const permitted = values.map(String);
-    if (text === demand) permitted[permitted.length - 1] += "%";
-    return (
-      tokens.length === permitted.length &&
-      tokens.join("|") === permitted.sort().join("|")
-    );
-  };
+  if (/[$€£]/.test(output)) return null;
   if (
-    !exactNumbers(demand, expected) ||
-    !exactNumbers(transfer, transferExpected)
-  )
-    return null;
-  if (
-    demand.match(/\d+(?:\.\d+)?%?/g)?.filter((x) => x.endsWith("%")).length !==
-      1 ||
-    !demand.includes(`${facts.open_request_rate_percent}%`)
-  )
-    return null;
-  const remainder = [
-    input.headline,
-    input.interpretation,
-    input.limitation,
-  ].join(" ");
-  if (/\d|%|[$€£]/i.test(remainder)) return null;
-  const safeText = output.replace(/[0-9]+(?:\.[0-9]+)?%?/g, "");
-  if (
-    safeText.length > 600 ||
-    /[%$€£]|\b(?:percent|percentage|date|rank|ranking|ordinal|savings?|saved|impact|emissions?|waste|utilization|maintenance|estimate|estimated|aed|usd|eur|gbp|dollars?|euros?|pounds?|reduced|avoided|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth|thirtieth|fortieth|fiftieth|sixtieth|seventieth|eightieth|ninetieth|hundredth|thousandth)\b|[+*/=<>^]/i.test(
-      safeText,
+    /\b(?:sustainability|emissions?|savings?|waste|cost|maintenance|forecast|recommendation)\b/i.test(
+      output,
     )
   )
     return null;
-  if (
-    /[+$€£]|[%]|\b(?:percent|percentage|date|rank|ranking|ordinal|savings?|saved|impact|emissions?|waste|utilization|maintenance|estimate|estimated|aed|usd|eur|gbp|dollars?|euros?|pounds?|reduced|avoided|zero|one|two|three|four|five|six|seven|eight|nine|ten|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|minus|plus|divided|times)\b|[+*/=<>^]/i.test(
-      safeText,
+  const tokens = output.match(/\d+(?:\.\d+)?%?/g) ?? [];
+  for (const token of tokens) {
+    if (token.includes(".")) {
+      if (token !== String(facts.units_per_completed_transfer)) return null;
+    } else if (token.endsWith("%")) {
+      if (token !== `${facts.open_request_rate_percent}%`) return null;
+    } else if (
+      !V2_FACT_KEYS.some(
+        (key) => Number.isInteger(facts[key]) && token === String(facts[key]),
+      )
     )
+      return null;
+  }
+  if (
+    (output.match(/%/g) ?? []).length !==
+    tokens.filter((token) => token.endsWith("%")).length
   )
     return null;
   return output;
@@ -250,9 +220,11 @@ export function createAi5GenerateHandler(config: {
       return json({ error: { code: "validation" }, snapshot: null }, 400);
     }
     const responseBase = { snapshot };
+    let validatedFacts: Record<string, unknown> | null = null;
+    const isV2 = snapshot.calculation_version === "ai5-operational-v2";
     try {
       const facts: Record<string, unknown> = {};
-      const v2 = snapshot.calculation_version === "ai5-operational-v2";
+      const v2 = isV2;
       for (const k of v2 ? V2_FACT_KEYS : FACT_KEYS) {
         const n = snapshot.facts?.[k];
         const ratio = k === "units_per_completed_transfer";
@@ -265,6 +237,7 @@ export function createAi5GenerateHandler(config: {
           throw Error("validation");
         facts[k] = n;
       }
+      validatedFacts = facts;
       const metadata = {
         period_start: snapshot.period_start,
         period_end: snapshot.period_end,
@@ -273,7 +246,7 @@ export function createAi5GenerateHandler(config: {
         calculation_version: snapshot.calculation_version,
       };
       const prompt = v2
-        ? `Write a concise university-administrator briefing, preferably under 700 characters, using only these supplied snapshot facts: ${JSON.stringify(facts)}. Return JSON with exactly five string fields: headline, demand, transferActivity, interpretation, limitation. Headline: neutral and useful, with no figures. Demand: explain requests_submitted, open_requests, non_open_requests, and open_request_rate_percent. Transfer activity: explain completed_transfers, units_successfully_transferred, and units_per_completed_transfer. Include each supplied value exactly in digits; do not derive, substitute, omit, or duplicate values. Use no number words or ordinals. Numeric fact order may be natural and need not match the listed order. Interpretation: compare only supplied facts and add operational meaning rather than repeating labels. Limitation: explicitly state that this snapshot cannot establish causes or future outcomes. Use direct, natural university-administrator language. No dates, currency, trends, forecasts, impact claims, recommendations, sustainability, emissions, savings, waste, cost, or maintenance claims, or invented figures. Metadata for context only: ${JSON.stringify(metadata)}.`
+        ? `Write concise, natural operational prose using only these supplied facts: ${JSON.stringify(facts)}. Return JSON with exactly five nonempty string fields: headline, demand, transferActivity, interpretation, limitation. Keep every field under 180 characters and the compiled response under 600 characters. Do not invent numeric values. Metadata for context only: ${JSON.stringify(metadata)}.`
         : `Write a concise factual summary from these four facts only: ${JSON.stringify(facts)}. Snapshot metadata (context only): ${JSON.stringify(metadata)}. Do not add numeric values, dates, percentages, ranges, arithmetic, impact/savings/emissions claims, or number words (including ordinals).`;
       const payload = {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
