@@ -89,6 +89,16 @@ describe("AI5 generation", () => {
       compileV2Narrative(
         {
           ...structured,
+          demand:
+            "8 open requests, 20 submitted, 12 non-open, and a 40% open-request rate",
+        },
+        v2Facts,
+      ),
+    ).not.toBeNull();
+    expect(
+      compileV2Narrative(
+        {
+          ...structured,
           demand: structured.demand.replace("12 non-open", "8 non-open"),
         },
         v2Facts,
@@ -109,6 +119,59 @@ describe("AI5 generation", () => {
         v2Facts,
       ),
     ).toBeNull();
+  });
+  it("accepts reordered facts but rejects number words in v2", () => {
+    const v2Facts = {
+      ...facts,
+      non_open_requests: 12,
+      open_request_rate_percent: 40,
+      units_per_completed_transfer: 0.7,
+    };
+    const structured = {
+      headline: "Requests remain active",
+      demand: "20 submitted, 8 open, 12 non-open, and a 40% open-request rate",
+      transferActivity:
+        "7 completed transfers, 5 units transferred, averaging 0.7 units per transfer",
+      interpretation: "Demand remains visible in the recorded activity",
+      limitation:
+        "This is one snapshot and cannot establish causes or future outcomes",
+    };
+    expect(compileV2Narrative(structured, v2Facts)).toBeNull();
+    expect(
+      compileV2Narrative(
+        {
+          ...structured,
+          limitation: "This is two snapshots and cannot establish causes",
+        },
+        v2Facts,
+      ),
+    ).toBeNull();
+  });
+  it("accepts the hosted fact set in natural order with equal values", () => {
+    const hostedFacts = {
+      requests_submitted: 18,
+      open_requests: 17,
+      non_open_requests: 1,
+      open_request_rate_percent: 94,
+      completed_transfers: 2,
+      units_successfully_transferred: 4,
+      units_per_completed_transfer: 2,
+    };
+    expect(
+      compileV2Narrative(
+        {
+          headline: "Most submitted requests remain open",
+          demand:
+            "17 of 18 submitted requests remain open; 1 is non-open, for a 94% open-request rate",
+          transferActivity:
+            "4 units were transferred across 2 completed transfers, averaging 2 units per completed transfer",
+          interpretation: "Open demand exceeds the recorded transfer activity",
+          limitation:
+            "This snapshot cannot establish causes or future outcomes",
+        },
+        hostedFacts,
+      ),
+    ).not.toBeNull();
   });
   it("keeps the production Gemini generateContent REST contract aligned", () => {
     const source = readFileSync(

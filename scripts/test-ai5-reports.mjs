@@ -32,7 +32,7 @@ const capture = (user, key) =>
     (r) => r.rows[0].result,
   );
 const v2Text = (facts, headline = "Recorded activity") =>
-  `Headline: ${headline}\nDemand: ${facts.requests_submitted} submitted requests, ${facts.open_requests} open requests, ${facts.non_open_requests} non-open requests, a ${facts.open_request_rate_percent}% open-request rate\nTransfer activity: ${facts.completed_transfers} completed transfers, ${facts.units_successfully_transferred} units successfully transferred, ${facts.units_per_completed_transfer} units per completed transfer\nInterpretation: Demand remains visible across the reporting snapshot\nLimitation: These figures describe recorded activity only`;
+  `Headline: ${headline}\nDemand: ${facts.open_requests} of ${facts.requests_submitted} submitted requests remain open; ${facts.non_open_requests} is non-open, for a ${facts.open_request_rate_percent}% open-request rate\nTransfer activity: ${facts.units_successfully_transferred} units were transferred across ${facts.completed_transfers} completed transfers, averaging ${facts.units_per_completed_transfer} units per completed transfer\nInterpretation: Demand remains visible across the reporting snapshot\nLimitation: These figures describe recorded activity only`;
 const workspace = (user, limit = 20) =>
   as(
     user,

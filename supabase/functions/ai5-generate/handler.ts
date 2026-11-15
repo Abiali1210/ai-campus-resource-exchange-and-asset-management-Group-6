@@ -134,17 +134,12 @@ export function compileV2Narrative(
   const numericTokens = (text: string) =>
     [...text.matchAll(/\d+(?:\.\d+)?%?/g)].map((match) => match[0]);
   const exactNumbers = (text: string, values: unknown[]) => {
-    const tokens = numericTokens(text);
-    const permitted = values.map((value) => String(value));
+    const tokens = numericTokens(text).sort();
+    const permitted = values.map(String);
+    if (text === demand) permitted[permitted.length - 1] += "%";
     return (
       tokens.length === permitted.length &&
-      tokens.every(
-        (token, i) =>
-          token === permitted[i] ||
-          (text === demand &&
-            i === permitted.length - 1 &&
-            token === `${permitted[i]}%`),
-      )
+      tokens.join("|") === permitted.sort().join("|")
     );
   };
   if (
@@ -163,14 +158,15 @@ export function compileV2Narrative(
     input.interpretation,
     input.limitation,
   ].join(" ");
+  if (/\d|%|[$€£]/i.test(remainder)) return null;
+  const safeText = output.replace(/[0-9]+(?:\.[0-9]+)?%?/g, "");
   if (
-    /\d|%|[$€£]|\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b/i.test(
-      remainder,
+    safeText.length > 600 ||
+    /[%$€£]|\b(?:percent|percentage|date|rank|ranking|ordinal|savings?|saved|impact|emissions?|waste|utilization|maintenance|estimate|estimated|aed|usd|eur|gbp|dollars?|euros?|pounds?|reduced|avoided|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth|thirtieth|fortieth|fiftieth|sixtieth|seventieth|eightieth|ninetieth|hundredth|thousandth)\b|[+*/=<>^]/i.test(
+      safeText,
     )
   )
     return null;
-  const safeText = output.replace(/[0-9]+(?:\.[0-9]+)?%?/g, "");
-  if (!validateSummary({ summary: safeText }, facts)) return null;
   if (
     /[+$€£]|[%]|\b(?:percent|percentage|date|rank|ranking|ordinal|savings?|saved|impact|emissions?|waste|utilization|maintenance|estimate|estimated|aed|usd|eur|gbp|dollars?|euros?|pounds?|reduced|avoided|zero|one|two|three|four|five|six|seven|eight|nine|ten|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|minus|plus|divided|times)\b|[+*/=<>^]/i.test(
       safeText,
@@ -277,7 +273,7 @@ export function createAi5GenerateHandler(config: {
         calculation_version: snapshot.calculation_version,
       };
       const prompt = v2
-        ? `Write a concise university-administrator briefing, preferably under 700 characters, using only these supplied snapshot facts: ${JSON.stringify(facts)}. Return JSON with exactly five string fields: headline, demand, transferActivity, interpretation, limitation. Headline: neutral and useful, with no figures. Demand: explain requests_submitted, open_requests, non_open_requests, and open_request_rate_percent. Transfer activity: explain completed_transfers, units_successfully_transferred, and units_per_completed_transfer. Include each supplied value exactly; do not derive, substitute, omit, or duplicate values. Interpretation: compare only supplied facts and add operational meaning rather than repeating labels. Limitation: explicitly state that this snapshot cannot establish causes or future outcomes. Use direct, natural university-administrator language. No dates, currency, trends, forecasts, impact claims, recommendations, sustainability, emissions, savings, waste, cost, or maintenance claims, or invented figures. Metadata for context only: ${JSON.stringify(metadata)}.`
+        ? `Write a concise university-administrator briefing, preferably under 700 characters, using only these supplied snapshot facts: ${JSON.stringify(facts)}. Return JSON with exactly five string fields: headline, demand, transferActivity, interpretation, limitation. Headline: neutral and useful, with no figures. Demand: explain requests_submitted, open_requests, non_open_requests, and open_request_rate_percent. Transfer activity: explain completed_transfers, units_successfully_transferred, and units_per_completed_transfer. Include each supplied value exactly in digits; do not derive, substitute, omit, or duplicate values. Use no number words or ordinals. Numeric fact order may be natural and need not match the listed order. Interpretation: compare only supplied facts and add operational meaning rather than repeating labels. Limitation: explicitly state that this snapshot cannot establish causes or future outcomes. Use direct, natural university-administrator language. No dates, currency, trends, forecasts, impact claims, recommendations, sustainability, emissions, savings, waste, cost, or maintenance claims, or invented figures. Metadata for context only: ${JSON.stringify(metadata)}.`
         : `Write a concise factual summary from these four facts only: ${JSON.stringify(facts)}. Snapshot metadata (context only): ${JSON.stringify(metadata)}. Do not add numeric values, dates, percentages, ranges, arithmetic, impact/savings/emissions claims, or number words (including ordinals).`;
       const payload = {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
