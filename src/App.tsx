@@ -30,6 +30,9 @@ const WorkflowPanel = lazy(() =>
     default: module.WorkflowPanel,
   })),
 );
+const Ai5ReportPanel = lazy(() =>
+  import("./Ai5ReportPanel").then((m) => ({ default: m.Ai5ReportPanel })),
+);
 
 const ROLE_NAMES: Record<Role, string> = {
   requester: "Requester",
@@ -1204,9 +1207,9 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null),
     [metadata, setMetadata] = useState<Bootstrap>(emptyMetadata),
     [assets, setAssets] = useState<AssetView[]>([]),
-    [view, setView] = useState<"catalogue" | "own" | "admin" | "workflows">(
-      "catalogue",
-    ),
+    [view, setView] = useState<
+      "catalogue" | "own" | "admin" | "workflows" | "reports"
+    >("catalogue"),
     [filters, setFilters] = useState<Filters>({}),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
@@ -1278,7 +1281,12 @@ export default function App() {
     };
   }, []);
   useEffect(() => {
-    if (view === "admin" || view === "workflows" || (!preview && !profile))
+    if (
+      view === "admin" ||
+      view === "workflows" ||
+      view === "reports" ||
+      (!preview && !profile)
+    )
       return;
     let active = true;
     setLoading(true);
@@ -1365,13 +1373,15 @@ export default function App() {
     setModal("edit");
   }
   const title =
-    view === "workflows"
-      ? "Follow each request through to receipt."
-      : view === "own"
-        ? "Keep your department’s resources in circulation."
-        : view === "admin"
-          ? "The right access, for the right people."
-          : "A better home for campus resources.";
+    view === "reports"
+      ? "Campus asset reports."
+      : view === "workflows"
+        ? "Follow each request through to receipt."
+        : view === "own"
+          ? "Keep your department’s resources in circulation."
+          : view === "admin"
+            ? "The right access, for the right people."
+            : "A better home for campus resources.";
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -1450,6 +1460,17 @@ export default function App() {
               Administration
             </button>
           )}
+          {profile && (
+            <button
+              className={`nav-item ${view === "reports" ? "active" : ""}`}
+              onClick={() => {
+                setView("reports");
+                setError("");
+              }}
+            >
+              Deterministic reports
+            </button>
+          )}
         </nav>
         <div className="sidebar-bottom">
           <div className="sidebar-note">
@@ -1497,13 +1518,15 @@ export default function App() {
           <div className="topbar-path">
             Workspace <span aria-hidden="true"> / </span>
             <strong>
-              {view === "admin"
-                ? "Administration"
-                : view === "workflows"
-                  ? "Requests and transfers"
-                  : view === "own"
-                    ? "Department inventory"
-                    : "Resource catalogue"}
+              {view === "reports"
+                ? "Deterministic reports"
+                : view === "admin"
+                  ? "Administration"
+                  : view === "workflows"
+                    ? "Requests and transfers"
+                    : view === "own"
+                      ? "Department inventory"
+                      : "Resource catalogue"}
             </strong>
           </div>
           <div className="topbar-right">
@@ -1532,26 +1555,31 @@ export default function App() {
             <div>
               {view !== "workflows" && (
                 <p className="eyebrow">
-                  {view === "admin"
-                    ? "Access & departments"
-                    : "Less waste. More possibility."}
+                  {view === "reports"
+                    ? "Deterministic reporting"
+                    : view === "admin"
+                      ? "Access & departments"
+                      : "Less waste. More possibility."}
                 </p>
               )}
               <h1 className="hero-title">{title}</h1>
               <p className="hero-subtitle">
-                {view === "admin"
-                  ? "Manage departmental membership and explicit role assignments. Every change remains traceable."
-                  : view === "workflows"
-                    ? "Create requests, review interests and track transfers to receipt."
-                    : view === "own"
-                      ? "Maintain accurate records, review condition and make surplus resources discoverable across campus."
-                      : "Discover useful equipment and furniture already on campus. Explore what’s available before buying something new."}
+                {view === "reports"
+                  ? "Four snapshot facts are calculated and immutable; the narrative is AI-drafted and admin-reviewed before publication."
+                  : view === "admin"
+                    ? "Manage departmental membership and explicit role assignments. Every change remains traceable."
+                    : view === "workflows"
+                      ? "Create requests, review interests and track transfers to receipt."
+                      : view === "own"
+                        ? "Maintain accurate records, review condition and make surplus resources discoverable across campus."
+                        : "Discover useful equipment and furniture already on campus. Explore what’s available before buying something new."}
               </p>
             </div>
             <div className="hero-actions">
               {isRepresentative(profile) &&
                 view !== "admin" &&
-                view !== "workflows" && (
+                view !== "workflows" &&
+                view !== "reports" && (
                   <button
                     className="button"
                     onClick={() => {
@@ -1634,6 +1662,12 @@ export default function App() {
                 Sign in to continue
               </button>
             </div>
+          ) : view === "reports" && profile ? (
+            <Suspense fallback={<p role="status">Opening reports…</p>}>
+              <Ai5ReportPanel
+                isAdmin={profile.roles.includes("business_administrator")}
+              />
+            </Suspense>
           ) : view === "workflows" && profile ? (
             <Suspense fallback={<p role="status">Opening workflows…</p>}>
               <WorkflowPanel

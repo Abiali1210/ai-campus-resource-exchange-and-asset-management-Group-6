@@ -149,3 +149,46 @@ export interface Bootstrap {
   departments: Department[];
   profiles: Profile[];
 }
+export interface Ai5Snapshot {
+  snapshot_id: string;
+  schema_version: number;
+  calculation_version: string;
+  period_start: string;
+  period_end: string;
+  captured_at: string;
+  facts: {
+    requests_submitted: number;
+    open_requests: number;
+    completed_transfers: number;
+    units_successfully_transferred: number;
+  };
+  idempotency_key: string;
+  created_by: string;
+  creator_name?: string | null;
+}
+export interface Ai5Narrative {
+  narrative_id: string;
+  snapshot_id: string;
+  status: "Draft" | "Ready" | "Published";
+  generated_text: string;
+  current_text: string;
+  model_id: string;
+  request_metadata: Record<string, unknown>;
+  idempotency_key: string;
+  created_by: string | null;
+  created_at: string | null;
+  edited_by: string | null;
+  edited_at: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  published_by: string | null;
+  published_at: string | null;
+  creator_name?: string | null;
+  editor_name?: string | null;
+  reviewer_name?: string | null;
+  publisher_name?: string | null;
+}
+export interface Ai5WorkspaceItem {
+  snapshot: Ai5Snapshot;
+  narrative: Ai5Narrative | null;
+}

@@ -10,6 +10,9 @@ import type {
   Department,
   Filters,
   Profile,
+  Ai5Snapshot,
+  Ai5Narrative,
+  Ai5WorkspaceItem,
 } from "./types";
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim();
@@ -67,6 +70,73 @@ export class FoundationService {
     const { data, error } = await this.db.rpc(name, args);
     if (error) throw new ServiceError(error.message, error.code);
     return data as T;
+  }
+  async ai5Snapshots(): Promise<Ai5Snapshot[]> {
+    return this.rpc<Ai5Snapshot[]>("ai5_report_workspace", { p_limit: 20 });
+  }
+  async captureAi5Snapshot(key: string): Promise<Ai5Snapshot> {
+    return this.rpc<Ai5Snapshot>("ai5_capture_report", {
+      p_idempotency_key: key,
+    });
+  }
+  async ai5Workspace(): Promise<Ai5WorkspaceItem[]> {
+    return this.rpc("ai5_narrative_workspace");
+  }
+  async ai5PublishedNarratives(): Promise<Ai5WorkspaceItem[]> {
+    return this.rpc("ai5_published_narratives");
+  }
+  async editAi5Narrative(id: string, text: string): Promise<Ai5Narrative> {
+    return this.rpc("ai5_edit_narrative", { p_id: id, p_text: text });
+  }
+  async markAi5Ready(id: string): Promise<Ai5Narrative> {
+    return this.rpc("ai5_mark_ready", { p_id: id });
+  }
+  async publishAi5Narrative(id: string): Promise<Ai5Narrative> {
+    return this.rpc("ai5_publish_narrative", { p_id: id });
+  }
+  async generateAi5(
+    snapshotId: string,
+    idempotencyKey: string,
+  ): Promise<Ai5Narrative> {
+    const { data, error } = await this.db.functions.invoke("ai5-generate", {
+      body: { snapshotId, idempotencyKey },
+    });
+    if (error)
+      throw new ServiceError(
+        "Summary generation failed; snapshot facts remain authoritative and available.",
+        "provider",
+      );
+    if (data?.error?.code) {
+      const messages: Record<string, string> = {
+        timeout:
+          "Summary generation timed out; snapshot facts remain available and authoritative.",
+        quota:
+          "Summary generation is temporarily unavailable due to quota; snapshot facts remain available and authoritative.",
+        provider:
+          "Summary generation is temporarily unavailable; snapshot facts remain available and authoritative.",
+        malformed:
+          "Summary response was invalid; snapshot facts remain available and authoritative.",
+        validation:
+          "Summary could not be validated; snapshot facts remain available and authoritative.",
+      };
+      const code = String(data.error.code);
+      throw new ServiceError(
+        messages[code] ??
+          "Summary generation failed; snapshot facts remain available and authoritative.",
+        code,
+      );
+    }
+    if (
+      !data ||
+      !data.report ||
+      typeof data.report.narrative_id !== "string" ||
+      data.report.snapshot_id !== snapshotId
+    )
+      throw new ServiceError(
+        "Summary response was invalid; no generated summary was saved.",
+        "InvalidResponse",
+      );
+    return data.report as Ai5Narrative;
   }
   private remember(rows: AssetView[]): AssetView[] {
     for (const r of rows) {

@@ -1535,6 +1535,48 @@ small {
   margin: 0.25rem 0 0;
   overflow-wrap: anywhere;
 }
+.ai5-card > .workflow-card-header {
+  align-items: center;
+}
+.ai5-facts {
+  margin: 0.75rem 0 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.55rem;
+}
+.ai5-facts > div {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--surface, #fff);
+}
+.ai5-narrative {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+.ai5-narrative h4 {
+  margin: 0 0 0.6rem;
+}
+.ai5-narrative p {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  margin-bottom: 0.5rem;
+}
+.ai5-narrative .workflow-field textarea {
+  min-height: 12rem;
+  resize: vertical;
+}
+.ai5-attribution,
+.ai5-technical {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.ai5-technical {
+  margin-top: 0.65rem;
+}
+.ai5-technical summary {
+  cursor: pointer;
+}
 .workflow-history pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
