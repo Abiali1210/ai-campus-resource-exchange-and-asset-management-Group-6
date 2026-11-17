@@ -11,6 +11,7 @@ import type {
   Filters,
   Profile,
   Ai5Outcomes,
+  C9ActivityReport,
   Ai5Snapshot,
   Ai5Narrative,
   Ai5WorkspaceItem,
@@ -71,6 +72,17 @@ export class FoundationService {
     const { data, error } = await this.db.rpc(name, args);
     if (error) throw new ServiceError(error.message, error.code);
     return data as T;
+  }
+  async activityReport(
+    start: string,
+    end: string,
+    departmentId: string | null,
+  ): Promise<C9ActivityReport> {
+    return this.rpc<C9ActivityReport>("c9_activity_report", {
+      p_start: start,
+      p_end: end,
+      p_department: departmentId,
+    });
   }
   async ai5Outcomes(
     start: string,

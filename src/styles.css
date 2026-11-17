@@ -1640,3 +1640,31 @@ small {
   padding: 6px 10px;
   border-bottom: 1px solid #ddd;
 }
+
+/* C9 activity report */
+.activity-report {
+  display: grid;
+  gap: 16px;
+}
+.activity-table-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.activity-table-scroll {
+  overflow-x: auto;
+}
+.activity-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+.activity-table th,
+.activity-table td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid #ddd;
+  white-space: nowrap;
+}

@@ -201,3 +201,45 @@ export interface Ai5Outcomes {
   allocations: Record<string, number>;
   transfers: Record<string, number>;
 }
+
+export interface C9RequestRow {
+  requestId: string;
+  submittedAt: string;
+  requesterName: string;
+  departmentName: string;
+  categoryName: string;
+  purpose: string;
+  urgency: string;
+  requiredDate: string;
+  requestedQty: number;
+  allocatedQty: number;
+  acceptedQty: number;
+  remainingQty: number;
+  status: string;
+}
+
+export interface C9TransferRow {
+  transferId: string;
+  requestId: string;
+  assetName: string;
+  qty: number;
+  supplierDepartmentName: string;
+  receiverDepartmentName: string;
+  state: string;
+  scheduledAt: string | null;
+  dispatchedAt: string | null;
+  receivedAt: string | null;
+  lastActivityAt: string | null;
+}
+
+export interface C9ActivityReport {
+  period: { start: string; end: string };
+  scope: {
+    departmentId: string | null;
+    departmentName: string;
+    visibility: "institution" | "permitted";
+  };
+  basis: string;
+  requests: C9RequestRow[];
+  transfers: C9TransferRow[];
+}

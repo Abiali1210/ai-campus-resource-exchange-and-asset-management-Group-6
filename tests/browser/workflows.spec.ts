@@ -77,6 +77,14 @@ async function project(page: Page) {
           ])
         ).rows[0].result;
       else if (name === "workflow_workspace") result = await h.workspace(user);
+      else if (name === "c9_activity_report")
+        result = (
+          await h.as(
+            user,
+            "select public.c9_activity_report($1,$2,$3) result",
+            [body.p_start, body.p_end, body.p_department],
+          )
+        ).rows[0].result;
       else if (name === "workflow_command") {
         calls.push(body.p_input);
         result = await h.command(user, body.p_input);
@@ -433,6 +441,50 @@ test("stale request selection preserves entered note; mobile tracking has no ove
     });
   } finally {
     await page.unrouteAll({ behavior: "wait" });
+    await p.h.db.close();
+  }
+});
+
+test("C9 activity report lists permitted requests/transfers and exports CSV", async ({
+  page,
+}) => {
+  const p = await project(page);
+  try {
+    const { t } = await p.h.dispatched(2);
+    await p.login("requester");
+    await page
+      .getByRole("button", { name: "Activity report", exact: true })
+      .click();
+    const requests = page.getByRole("region", {
+      name: "Requests",
+      exact: true,
+    });
+    const transfers = page.getByRole("region", {
+      name: "Transfers",
+      exact: true,
+    });
+    await expect(requests.getByRole("row")).toHaveCount(2);
+    await expect(transfers).toContainText("In Transit");
+    await expect(transfers).toContainText(t.transferId.slice(0, 8));
+    await expect(
+      page.getByText("Showing only records you can access."),
+    ).toBeVisible();
+    const download = page.waitForEvent("download");
+    await transfers
+      .getByRole("button", { name: "Export CSV", exact: true })
+      .click();
+    const file = await download;
+    expect(file.suggestedFilename()).toMatch(/^campus-transfers-.*\.csv$/);
+    const csv = (await import("node:fs")).readFileSync(
+      await file.path(),
+      "utf8",
+    );
+    expect(csv.split("\r\n")[0]).toBe(
+      "\uFEFFTransfer,Request,Asset,Qty,From,To,State,Scheduled,Dispatched,Received",
+    );
+    expect(csv).toContain(`${t.transferId.slice(0, 8)},`);
+    expect(csv).toContain("In Transit");
+  } finally {
     await p.h.db.close();
   }
 });
