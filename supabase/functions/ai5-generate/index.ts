@@ -67,6 +67,7 @@ Deno.serve(
             "Content-Type": "application/json",
             "x-goog-api-key": apiKey,
           },
+          signal: AbortSignal.timeout(20000),
           body: JSON.stringify(payload),
         },
       );

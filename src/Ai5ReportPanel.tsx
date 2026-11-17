@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import { normalizeAi5NumberWords } from "./ai5NumberWords";
 import { formatAi5PeriodDate, formatAi5Timestamp } from "./ai5Dates";
-import type { Ai5WorkspaceItem } from "./types";
+import type { Ai5WorkspaceItem, Department } from "./types";
+import { Ai5Outcomes } from "./Ai5Outcomes";
 import { parseAi5Narrative } from "./ai5Narrative";
 
 const actor = (name?: string | null, id?: string | null) => name || id || "—";
@@ -15,7 +16,13 @@ const validationMessage = (error: unknown) => {
     : message || "Could not save the narrative.";
 };
 
-export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
+export function Ai5ReportPanel({
+  isAdmin,
+  departments = [],
+}: {
+  isAdmin: boolean;
+  departments?: Department[];
+}) {
   const [rows, setRows] = useState<Ai5WorkspaceItem[]>([]),
     [busy, setBusy] = useState(true),
     [working, setWorking] = useState(""),
@@ -89,6 +96,7 @@ export function Ai5ReportPanel({ isAdmin }: { isAdmin: boolean }) {
           {notice}
         </p>
       )}
+      {isAdmin && <Ai5Outcomes departments={departments} />}
       {isAdmin && (
         <>
           <button className="button" disabled={!!working} onClick={capture}>
