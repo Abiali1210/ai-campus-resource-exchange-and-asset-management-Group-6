@@ -1617,3 +1617,26 @@ small {
     flex-wrap: wrap;
   }
 }
+
+.report-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+.report-figures {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 560px;
+}
+.report-figures caption {
+  text-align: left;
+  margin-bottom: 8px;
+}
+.report-figures th,
+.report-figures td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid #ddd;
+}

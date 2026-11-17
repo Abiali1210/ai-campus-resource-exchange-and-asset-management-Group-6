@@ -1665,6 +1665,7 @@ export default function App() {
           ) : view === "reports" && profile ? (
             <Suspense fallback={<p role="status">Opening reports…</p>}>
               <Ai5ReportPanel
+                departments={metadata.departments}
                 isAdmin={profile.roles.includes("business_administrator")}
               />
             </Suspense>

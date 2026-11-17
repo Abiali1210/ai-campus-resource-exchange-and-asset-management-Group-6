@@ -10,6 +10,7 @@ import type {
   Department,
   Filters,
   Profile,
+  Ai5Outcomes,
   Ai5Snapshot,
   Ai5Narrative,
   Ai5WorkspaceItem,
@@ -70,6 +71,17 @@ export class FoundationService {
     const { data, error } = await this.db.rpc(name, args);
     if (error) throw new ServiceError(error.message, error.code);
     return data as T;
+  }
+  async ai5Outcomes(
+    start: string,
+    end: string,
+    departmentId: string | null,
+  ): Promise<Ai5Outcomes> {
+    return this.rpc<Ai5Outcomes>("ai5_outcome_breakdown", {
+      p_start: start,
+      p_end: end,
+      p_department: departmentId,
+    });
   }
   async ai5Snapshots(): Promise<Ai5Snapshot[]> {
     return this.rpc<Ai5Snapshot[]>("ai5_report_workspace", { p_limit: 20 });

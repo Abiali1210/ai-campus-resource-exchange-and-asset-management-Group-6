@@ -192,3 +192,12 @@ export interface Ai5WorkspaceItem {
   snapshot: Ai5Snapshot;
   narrative: Ai5Narrative | null;
 }
+
+export interface Ai5Outcomes {
+  period: { start: string; end: string };
+  scope: { departmentId: string | null; departmentName: string };
+  basis: string;
+  requests: Record<string, number>;
+  allocations: Record<string, number>;
+  transfers: Record<string, number>;
+}
