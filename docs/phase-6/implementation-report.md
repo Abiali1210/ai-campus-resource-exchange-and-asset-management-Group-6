@@ -89,6 +89,22 @@ Pending AI #2 implementation, human selection and fallback evidence.
 Pending AI #5, authoritative calculated snapshot, edited publication and integrated
 demonstration. Keep the report short and distinguish recorded outcomes from estimates.
 
+## 5 Basic report (C9) — Ahmed
+
+Added after the lab minimum. The **Activity report** screen shows a table of requests
+and a table of their linked transfers for a chosen period and department, and each
+table exports to CSV. One read-only database function, `c9_activity_report`, returns
+the rows. It reuses the Part 2 visibility rules, so a user only sees records they can
+already open in Requests and transfers. Business administrators see every department.
+Handling and transport costs are left out entirely. The CSV is built in the browser and
+guards against spreadsheet formula injection.
+
+Checks run locally on 17 November 2026: 179 unit tests (6 new for CSV), all PGlite
+database suites including 4 new C9 checks (fields, per-role visibility, filters,
+validation and anonymous denial), type check, build and format. A Playwright flow for
+the screen and CSV download was added but not run, because no Chrome is installed on
+the machine used. Not yet applied to the hosted project.
+
 ## Status
 
 | Required feature                                       | Owner          | Status                                                                   |
@@ -98,7 +114,8 @@ demonstration. Keep the report short and distinguish recorded outcomes from esti
 | C4 requests; C5 approval/transfer; C6 workflow/history | Ahmed          | Implemented and locally verified; hosted acceptance/human review pending |
 | AI #2 matching/ranking                                 | Abi Ali        | Planned                                                                  |
 | AI #5 generated report                                 | Muhammad Awais | Planned                                                                  |
+| C9 requests/transfers table with CSV export            | Ahmed          | Implemented and locally verified; browser flow not run; hosted pending   |
 
-Deferred now: C7–C9 as standalone modules, AI #1/#3/#4, maintenance and end-of-life.
+Deferred now: C7 and C8, AI #1/#3/#4, maintenance and end-of-life.
 No synthetic data establishes actual campus savings/adoption or general AI accuracy.
 Each member records their actual AI assistance, human review and executed checks.

@@ -33,6 +33,11 @@ const WorkflowPanel = lazy(() =>
 const Ai5ReportPanel = lazy(() =>
   import("./Ai5ReportPanel").then((m) => ({ default: m.Ai5ReportPanel })),
 );
+const ActivityReportPanel = lazy(() =>
+  import("./ActivityReportPanel").then((m) => ({
+    default: m.ActivityReportPanel,
+  })),
+);
 
 const ROLE_NAMES: Record<Role, string> = {
   requester: "Requester",
@@ -1208,7 +1213,7 @@ export default function App() {
     [metadata, setMetadata] = useState<Bootstrap>(emptyMetadata),
     [assets, setAssets] = useState<AssetView[]>([]),
     [view, setView] = useState<
-      "catalogue" | "own" | "admin" | "workflows" | "reports"
+      "catalogue" | "own" | "admin" | "workflows" | "reports" | "activity"
     >("catalogue"),
     [filters, setFilters] = useState<Filters>({}),
     [loading, setLoading] = useState(true),
@@ -1285,6 +1290,7 @@ export default function App() {
       view === "admin" ||
       view === "workflows" ||
       view === "reports" ||
+      view === "activity" ||
       (!preview && !profile)
     )
       return;
@@ -1373,15 +1379,17 @@ export default function App() {
     setModal("edit");
   }
   const title =
-    view === "reports"
-      ? "Campus asset reports."
-      : view === "workflows"
-        ? "Follow each request through to receipt."
-        : view === "own"
-          ? "Keep your department’s resources in circulation."
-          : view === "admin"
-            ? "The right access, for the right people."
-            : "A better home for campus resources.";
+    view === "activity"
+      ? "Requests and transfers at a glance."
+      : view === "reports"
+        ? "Campus asset reports."
+        : view === "workflows"
+          ? "Follow each request through to receipt."
+          : view === "own"
+            ? "Keep your department’s resources in circulation."
+            : view === "admin"
+              ? "The right access, for the right people."
+              : "A better home for campus resources.";
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -1471,6 +1479,17 @@ export default function App() {
               Deterministic reports
             </button>
           )}
+          {profile && (
+            <button
+              className={`nav-item ${view === "activity" ? "active" : ""}`}
+              onClick={() => {
+                setView("activity");
+                setError("");
+              }}
+            >
+              Activity report
+            </button>
+          )}
         </nav>
         <div className="sidebar-bottom">
           <div className="sidebar-note">
@@ -1518,15 +1537,17 @@ export default function App() {
           <div className="topbar-path">
             Workspace <span aria-hidden="true"> / </span>
             <strong>
-              {view === "reports"
-                ? "Deterministic reports"
-                : view === "admin"
-                  ? "Administration"
-                  : view === "workflows"
-                    ? "Requests and transfers"
-                    : view === "own"
-                      ? "Department inventory"
-                      : "Resource catalogue"}
+              {view === "activity"
+                ? "Activity report"
+                : view === "reports"
+                  ? "Deterministic reports"
+                  : view === "admin"
+                    ? "Administration"
+                    : view === "workflows"
+                      ? "Requests and transfers"
+                      : view === "own"
+                        ? "Department inventory"
+                        : "Resource catalogue"}
             </strong>
           </div>
           <div className="topbar-right">
@@ -1555,31 +1576,36 @@ export default function App() {
             <div>
               {view !== "workflows" && (
                 <p className="eyebrow">
-                  {view === "reports"
-                    ? "Deterministic reporting"
-                    : view === "admin"
-                      ? "Access & departments"
-                      : "Less waste. More possibility."}
+                  {view === "activity"
+                    ? "Operational reporting"
+                    : view === "reports"
+                      ? "Deterministic reporting"
+                      : view === "admin"
+                        ? "Access & departments"
+                        : "Less waste. More possibility."}
                 </p>
               )}
               <h1 className="hero-title">{title}</h1>
               <p className="hero-subtitle">
-                {view === "reports"
-                  ? "Four snapshot facts are calculated and immutable; the narrative is AI-drafted and admin-reviewed before publication."
-                  : view === "admin"
-                    ? "Manage departmental membership and explicit role assignments. Every change remains traceable."
-                    : view === "workflows"
-                      ? "Create requests, review interests and track transfers to receipt."
-                      : view === "own"
-                        ? "Maintain accurate records, review condition and make surplus resources discoverable across campus."
-                        : "Discover useful equipment and furniture already on campus. Explore what’s available before buying something new."}
+                {view === "activity"
+                  ? "A table of requests and their transfers for a period, exportable as CSV. You only see records you already have access to."
+                  : view === "reports"
+                    ? "Four snapshot facts are calculated and immutable; the narrative is AI-drafted and admin-reviewed before publication."
+                    : view === "admin"
+                      ? "Manage departmental membership and explicit role assignments. Every change remains traceable."
+                      : view === "workflows"
+                        ? "Create requests, review interests and track transfers to receipt."
+                        : view === "own"
+                          ? "Maintain accurate records, review condition and make surplus resources discoverable across campus."
+                          : "Discover useful equipment and furniture already on campus. Explore what’s available before buying something new."}
               </p>
             </div>
             <div className="hero-actions">
               {isRepresentative(profile) &&
                 view !== "admin" &&
                 view !== "workflows" &&
-                view !== "reports" && (
+                view !== "reports" &&
+                view !== "activity" && (
                   <button
                     className="button"
                     onClick={() => {
@@ -1662,6 +1688,10 @@ export default function App() {
                 Sign in to continue
               </button>
             </div>
+          ) : view === "activity" && profile ? (
+            <Suspense fallback={<p role="status">Opening report…</p>}>
+              <ActivityReportPanel departments={metadata.departments} />
+            </Suspense>
           ) : view === "reports" && profile ? (
             <Suspense fallback={<p role="status">Opening reports…</p>}>
               <Ai5ReportPanel
