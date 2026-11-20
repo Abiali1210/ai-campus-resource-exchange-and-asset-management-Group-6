@@ -35,7 +35,7 @@ const gateway: Ai4Gateway = {
   },
   async requests(token) {
     const { data, error } = await caller(token).rpc("workflow_workspace");
-    if (error || !Array.isArray(data?.requests)) return [];
+    if (error || !Array.isArray(data?.requests)) throw Error("context");
     return data.requests;
   },
   async categories(token) {

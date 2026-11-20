@@ -98,6 +98,67 @@ function setup(provider: any = vi.fn()) {
 }
 
 describe("AI #4 grounding", () => {
+  it("does not repeat a model status that contradicts a submitted request", () => {
+    const submitted = {
+      ...requestRows[0],
+      status: "Submitted",
+      remainingQty: 6,
+    };
+    const reply = groundReply(
+      {
+        intent: "request_status",
+        answer: "Your request is fully fulfilled and approved.",
+        itemIds: [],
+        requestIds: [REQUEST],
+      },
+      { ...ctx, requests: [submitted] },
+      "What is my request status?",
+    );
+    expect(reply?.answer).not.toMatch(/approved|fully fulfilled/i);
+    expect(reply?.requests).toEqual([submitted]);
+    expect(reply?.answer).toMatch(/status|statuses/i);
+  });
+
+  it("does not call an omitted request selection an empty account", () => {
+    expect(
+      groundReply(
+        {
+          intent: "request_status",
+          answer: "You have 0 requests.",
+          itemIds: [],
+          requestIds: [],
+        },
+        ctx,
+        "What is my request status?",
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps multiple request statuses and quantities attached to their own records", () => {
+    const rows = [
+      requestRows[0],
+      {
+        ...requestRows[0],
+        requestId: "other-request",
+        status: "Fulfilled",
+        remainingQty: 0,
+      },
+    ];
+    const reply = groundReply(
+      {
+        intent: "request_status",
+        answer: "Both requests are fulfilled.",
+        itemIds: [],
+        requestIds: rows.map((r) => r.requestId),
+      },
+      { ...ctx, requests: rows },
+      "What is the status of my requests?",
+    );
+    expect(reply?.answer).not.toContain("Both requests are fulfilled");
+    expect(reply?.requests).toEqual(rows);
+    expect(reply?.items).toEqual([]);
+  });
+
   it("accepts an answer that only references supplied records and their numbers", () => {
     const reply = groundReply(
       {
@@ -223,6 +284,59 @@ describe("AI #4 grounding", () => {
 });
 
 describe("AI #4 handler", () => {
+  it("reports a failed request lookup without asking the model to infer absence", async () => {
+    const { handler, request, gateway, provider } = setup(
+      vi.fn(async () =>
+        geminiReply({
+          intent: "request_status",
+          answer: "You have 0 requests.",
+          itemIds: [],
+          requestIds: [],
+        }),
+      ),
+    );
+    gateway.requests.mockRejectedValueOnce(Error("database unavailable"));
+    const body = await (
+      await handler(request({ question: "What is my request status?" }))
+    ).json();
+    expect(body).toEqual({ error: { code: "context" } });
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it("reports malformed request context as unavailable rather than empty", async () => {
+    const { handler, request, gateway, provider } = setup();
+    gateway.requests.mockResolvedValueOnce(null as any);
+    expect(
+      await (
+        await handler(request({ question: "What is my request status?" }))
+      ).json(),
+    ).toEqual({ error: { code: "context" } });
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it("reports a genuinely empty permitted request list without inventing a status", async () => {
+    const { handler, request, gateway } = setup(
+      vi.fn(async () =>
+        geminiReply({
+          intent: "request_status",
+          answer: "Your request is approved.",
+          itemIds: [],
+          requestIds: [],
+        }),
+      ),
+    );
+    gateway.requests.mockResolvedValueOnce([]);
+    const body = await (
+      await handler(request({ question: "What is my request status?" }))
+    ).json();
+    expect(body).toMatchObject({
+      intent: "request_status",
+      answer: "No requests are visible to your account.",
+      grounded: true,
+      requests: [],
+    });
+  });
+
   it("answers from caller-scoped records", async () => {
     const provider = vi.fn(async () =>
       geminiReply({

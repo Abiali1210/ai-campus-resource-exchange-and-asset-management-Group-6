@@ -73,7 +73,7 @@ export interface Ai4Gateway {
   authenticate(token: string, apiKey: string): Promise<unknown>;
   /** Caller-scoped published catalogue (search_assets). */
   catalogue(token: string): Promise<Record<string, unknown>[]>;
-  /** Caller-scoped requests (workflow_workspace); empty when not permitted. */
+  /** Caller-scoped requests (workflow_workspace); failed reads must throw. */
   requests(token: string): Promise<Record<string, unknown>[]>;
   categories(token: string): Promise<Category[]>;
 }
@@ -169,6 +169,23 @@ export function groundReply(
   if (items.some((i) => !i) || requests.some((r) => !r)) return null;
   const okItems = items as ContextItem[],
     okRequests = requests as ContextRequest[];
+
+  // IDs and allowed numbers cannot verify a prose claim such as "approved".
+  // Let the model select records, then display their actual status/quantities
+  // in the existing request cards with a deterministic introduction.
+  if (intent === "request_status") {
+    if (okRequests.length === 0 && ctx.requests.length > 0) return null;
+    return {
+      intent,
+      answer: okRequests.length
+        ? "Here are the current statuses of the selected requests. See each record below."
+        : "No requests are visible to your account.",
+      grounded: true,
+      items: [],
+      requests: okRequests,
+      draft: null,
+    };
+  }
 
   // Numbers in the answer must come from the question or referenced records.
   // Digits inside names/locations/dates (e.g. "Room 12") only count when the
@@ -391,7 +408,7 @@ export function createAi4AssistantHandler(config: {
     try {
       const [catalogue, requests, categories] = await Promise.all([
         config.gateway.catalogue(token),
-        config.gateway.requests(token).catch(() => []),
+        config.gateway.requests(token),
         config.gateway.categories(token),
       ]);
       ctx = {

@@ -24,6 +24,11 @@ already see. It never changes data.
   supplied context. The answer text may not contain identifiers, and its numbers
   must come from the question or the referenced records. Otherwise the reply
   becomes "I don't know" (`grounded: false`).
+- **Request status.** Gemini selects permitted request references, but its status
+  prose is replaced with a neutral introduction. The request cards display the
+  database status and quantities. An empty selection cannot claim there are no
+  requests when the supplied context contains requests. Failed or malformed
+  workspace reads return the existing context error instead of an empty list.
 - **No actions.** Imperative commands (approve, reserve, transfer, dispose, …)
   are refused deterministically. Drafts are only pre-filled into the normal form;
   the user reviews and clicks Submit, so normal validation and approval apply.
@@ -40,11 +45,15 @@ Response: `{ intent, answer, grounded, items[], requests[], draft, model }` or
 
 ## Deploy
 
-Deployed to the shared hosted project on 19 November 2026 (currently version 4,
+Deployed to the shared hosted project on 19 November 2026 (recorded version 4,
 `verify_jwt` on). The function logs Gemini's HTTP status, latency and, on failure,
 Google's error code (such as `RESOURCE_EXHAUSTED`); it never logs the key, the
 prompt or the answer. Uses the same `GEMINI_API_KEY` secret as `ai5-generate`; no new
 secret is needed. To redeploy after changes:
+
+The 20 November request-status and lookup-failure fixes have passed local mocked
+regression checks; they still need a function redeployment and hosted verification.
+Merging the frontend PR does not update the hosted Edge Function.
 
 ```bash
 npx supabase functions deploy ai4-assistant --project-ref <project-ref>
