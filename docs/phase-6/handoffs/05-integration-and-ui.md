@@ -18,6 +18,11 @@ Branch: `codex/phase6-integration-polish`. Based on main after PR #22
   account controls remain reachable. Avatars no longer shrink beside long names.
   Report navigation icons, the assistant breadcrumb and report introduction are
   consistent with their screens. Card animation respects reduced-motion settings.
+- The selected **University plaque** treatment wraps the unchanged official logo in
+  a white panel with a subtle double frame and separate `COSC 336 · GROUP 6`
+  caption. The screenshot selection supersedes the earlier masthead recommendation.
+  The plaque is 5% narrower at Abdulrahman's request; the logo keeps its aspect ratio.
+  Mobile spacing reserves room for account controls at 320, 390 and 760 px widths.
 - Browser tests now use workflow sections, the New request button and requirement
   rows instead of old controls. Assertions for custody, approval, privacy, retries
   and stock remain in place. Test repair exposed a real sidebar overflow problem;
@@ -66,7 +71,7 @@ The preview itself can be launched with `npm run dev` without credentials; it st
 explicitly read-only. Follow setup for an authorized connection to a real project.
 
 Browser screenshots are written under ignored `test-results/`, including the
-illustration gallery, extinguisher record, compact desktop/mobile record,
+illustration gallery, extinguisher record, university plaque, compact desktop/mobile record,
 accepted transfer, mobile workflow and reviewed report. The committed evidence
 directory contains selected synthetic screenshots for review. The gallery's extra
 item types are test fixtures, not new records on the shared project.

@@ -348,6 +348,29 @@ test("desktop account controls remain reachable with a full menu and long profil
   await mockedProject(page);
   await login(page);
   const signOut = page.getByRole("button", { name: "Sign out", exact: true });
+  await expect(
+    page.getByText("COSC 336 · GROUP 6", { exact: true }),
+  ).toBeVisible();
+  const logo = page.getByRole("img", {
+    name: "Khalifa University",
+    exact: true,
+  });
+  await expect
+    .poll(() =>
+      logo.evaluate(
+        (image: HTMLImageElement) =>
+          image.complete &&
+          image.naturalWidth === 5286 &&
+          image.naturalHeight === 1913,
+      ),
+    )
+    .toBe(true);
+  await page.screenshot({ path: "test-results/university-plaque-desktop.png" });
+  await expect(
+    page
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("button", { name: "Resource catalogue", exact: true }),
+  ).toBeInViewport({ ratio: 1 });
   await expect(signOut).toBeInViewport();
   const dimensions = await page.locator(".avatar").evaluate((el) => ({
     width: el.getBoundingClientRect().width,
@@ -372,6 +395,23 @@ test("mobile catalogue has no horizontal overflow", async ({ page }) => {
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+  for (const width of [320, 390, 760]) {
+    await page.setViewportSize({ width, height: 844 });
+    const plaque = await page.locator(".university-plaque").boundingBox();
+    const account = await page.locator(".sidebar-bottom").boundingBox();
+    expect(plaque).not.toBeNull();
+    expect(account).not.toBeNull();
+    expect(plaque!.x + plaque!.width + 6).toBeLessThanOrEqual(account!.x);
+    await expect(
+      page.getByRole("button", { name: "Sign out", exact: true }),
+    ).toBeInViewport();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({
     path: "test-results/catalogue-mobile.png",
     fullPage: true,

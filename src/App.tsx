@@ -1379,13 +1379,18 @@ export default function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <img
-          className="university-logo"
-          src={universityLogo}
-          alt="Khalifa University"
-          width="5286"
-          height="1913"
-        />
+        <div className="university-plaque">
+          <img
+            className="university-logo"
+            src={universityLogo}
+            alt="Khalifa University"
+            width="5286"
+            height="1913"
+          />
+          <p className="university-course">
+            COSC 336 <span aria-hidden="true">·</span> GROUP 6
+          </p>
+        </div>
         <div className="brand">
           <span className="brand-mark">
             <Icon name="leaf" size={21} />

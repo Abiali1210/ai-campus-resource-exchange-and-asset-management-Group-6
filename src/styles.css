@@ -100,14 +100,38 @@ small {
   min-height: 0;
   overflow-y: auto;
   margin-bottom: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #708a6e transparent;
+}
+.university-plaque {
+  width: 95%;
+  max-width: 178.6px;
+  margin: 5px auto 26px;
+  padding: 12px 9px 0;
+  background: #fff;
+  border: 1px solid #d4ddc3;
+  border-radius: 2px;
+  outline: 1px solid #708a6e;
+  outline-offset: 5px;
 }
 .university-logo {
   display: block;
   background: #fff;
   width: 100%;
-  max-width: 188px;
   height: auto;
-  margin-bottom: 24px;
+}
+.university-course {
+  margin: 10px 0 0;
+  padding: 9px 0;
+  border-top: 1px solid #e2e6db;
+  color: #65775d;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+.university-course span {
+  padding: 0 4px;
+  color: #96a08c;
 }
 .brand {
   display: flex;
@@ -1134,10 +1158,28 @@ small {
     font-size: 2.35rem;
   }
 }
+@media (min-width: 761px) and (max-height: 740px) {
+  .sidebar {
+    padding-top: 24px;
+  }
+  .nav-caption {
+    margin-top: 28px;
+  }
+  .sidebar-note {
+    display: none;
+  }
+  .profile-mini {
+    margin-top: 0;
+  }
+  .sidebar-bottom {
+    padding-top: 12px;
+  }
+}
 @media (max-width: 760px) {
-  .university-logo {
-    max-width: 176px;
-    margin-bottom: 16px;
+  .university-plaque {
+    /* 95% of the original mobile size, with account-control space reserved. */
+    width: min(167.2px, calc(95% - 121.6px));
+    margin: 5px 0 20px;
   }
   .app-shell {
     display: block;
