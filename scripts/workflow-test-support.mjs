@@ -105,11 +105,15 @@ export async function testDatabase() {
     receiver = person("representative", fixture.departments[1].departmentId),
     requester = person("requester", receiver.departmentId),
     facilities = person("facilities");
+  // Use the campus (Asia/Dubai) date, as the workflow and report functions do.
+  // current_date is UTC, which is a day behind between 20:00 and 24:00 UTC and
+  // made date-filtered checks find no rows when CI ran in that window.
+  const campusDate = "(now() at time zone 'Asia/Dubai')::date";
   const today = (
-    await db.query("select to_char(current_date,'YYYY-MM-DD') as date_text")
+    await db.query(`select to_char(${campusDate},'YYYY-MM-DD') as date_text`)
   ).rows[0].date_text;
   const requiredDate = (
-    await db.query("select to_char(current_date+30,'YYYY-MM-DD') as date_text")
+    await db.query(`select to_char(${campusDate}+30,'YYYY-MM-DD') as date_text`)
   ).rows[0].date_text;
   async function asset(qty = 1, extras = {}) {
     const result = (
