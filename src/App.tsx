@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { api } from "./api";
+import { AssetArt } from "./AssetArt";
 import { resolveExactAvailableResource } from "./resourceHandoff";
 import universityLogo from "./assets/branding/khalifa-university-colour-white-background.jpg";
 import {
@@ -123,6 +124,17 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
       </>
     ),
     arrow: <path d="M4 12h16m-6-6 6 6-6 6" />,
+    report: (
+      <>
+        <path d="M4 20V4M4 20h16M8 16v-4M13 16V7M18 16v-7" />
+      </>
+    ),
+    list: (
+      <>
+        <rect x="4" y="3" width="16" height="18" rx="2" />
+        <path d="M8 8h8M8 12h8M8 16h5" />
+      </>
+    ),
     chat: (
       <>
         <path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12Z" />
@@ -150,88 +162,6 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
     >
       {paths[name] ?? paths.box}
     </svg>
-  );
-}
-
-function AssetArt({ asset }: { asset: AssetView }) {
-  const chair = /chair/i.test(asset.categoryName + " " + asset.name),
-    projector = /projector/i.test(asset.categoryName + " " + asset.name);
-  return (
-    <div
-      className={`asset-art ${chair ? "chairs" : projector ? "projector" : ""}`}
-    >
-      <div className="art-grid" />
-      <span className="category-label">
-        {asset.categoryName || "Uncategorized"}
-      </span>
-      <svg viewBox="0 0 180 130" aria-hidden="true">
-        {chair ? (
-          <>
-            <path
-              d="M61 50V17q0-8 8-8h40q8 0 8 8v33"
-              fill="#bcae91"
-              stroke="#6d725b"
-              strokeWidth="2"
-            />
-            <path
-              d="M56 58h67l5 15H51Z"
-              fill="#c7bca0"
-              stroke="#6d725b"
-              strokeWidth="2"
-            />
-            <path
-              d="m59 74-8 44m69-44 9 44M65 73l2 40m46-40-2 40"
-              stroke="#6d725b"
-              strokeWidth="4"
-            />
-            <path d="M70 23h37M70 34h37" stroke="#d8d1ba" strokeWidth="2" />
-          </>
-        ) : projector ? (
-          <>
-            <path
-              d="m39 52 94-9 18 20-4 36-111 2Z"
-              fill="#d4dcd1"
-              stroke="#6c7c69"
-              strokeWidth="2"
-            />
-            <path
-              d="m38 53 109 10M39 81h38M44 88h31"
-              stroke="#92a28a"
-              strokeWidth="2"
-            />
-            <ellipse cx="119" cy="79" rx="19" ry="16" fill="#55735b" />
-            <ellipse cx="119" cy="79" rx="11" ry="9" fill="#aec8bb" />
-            <path d="M48 103v6m86-9v7" stroke="#6c7c69" strokeWidth="4" />
-          </>
-        ) : (
-          <>
-            <rect
-              x="31"
-              y="11"
-              width="118"
-              height="79"
-              rx="4"
-              fill="#466550"
-              stroke="#36543e"
-              strokeWidth="2"
-            />
-            <rect x="37" y="17" width="106" height="65" rx="1" fill="#cfddc6" />
-            <path d="m38 69 40-33 33 24 32-22v44H38Z" fill="#b6c9a9" />
-            <path
-              d="M80 91v19m19-19v19M66 114h48"
-              stroke="#55734e"
-              strokeWidth="5"
-              strokeLinecap="round"
-            />
-            <circle cx="132" cy="28" r="6" fill="#e8eecb" />
-          </>
-        )}
-      </svg>
-      <span className="qty-label">
-        {asset.qty} {asset.qty === 1 ? "unit" : "units"} ·{" "}
-        {asset.trackingMode === "batch" ? "batch" : "individual"}
-      </span>
-    </div>
   );
 }
 
@@ -1546,6 +1476,9 @@ export default function App() {
                 setError("");
               }}
             >
+              <span className="nav-symbol">
+                <Icon name="report" />
+              </span>
               Deterministic reports
             </button>
           )}
@@ -1557,6 +1490,9 @@ export default function App() {
                 setError("");
               }}
             >
+              <span className="nav-symbol">
+                <Icon name="list" />
+              </span>
               Activity report
             </button>
           )}
@@ -1607,17 +1543,19 @@ export default function App() {
           <div className="topbar-path">
             Workspace <span aria-hidden="true"> / </span>
             <strong>
-              {view === "activity"
-                ? "Activity report"
-                : view === "reports"
-                  ? "Deterministic reports"
-                  : view === "admin"
-                    ? "Administration"
-                    : view === "workflows"
-                      ? "Requests and transfers"
-                      : view === "own"
-                        ? "Department inventory"
-                        : "Resource catalogue"}
+              {view === "assistant"
+                ? "Campus assistant"
+                : view === "activity"
+                  ? "Activity report"
+                  : view === "reports"
+                    ? "Deterministic reports"
+                    : view === "admin"
+                      ? "Administration"
+                      : view === "workflows"
+                        ? "Requests and transfers"
+                        : view === "own"
+                          ? "Department inventory"
+                          : "Resource catalogue"}
             </strong>
           </div>
           <div className="topbar-right">
@@ -1660,7 +1598,7 @@ export default function App() {
                 {view === "activity"
                   ? "A table of requests and their transfers for a period, exportable as CSV. You only see records you already have access to."
                   : view === "reports"
-                    ? "Four snapshot facts are calculated and immutable; the narrative is AI-drafted and admin-reviewed before publication."
+                    ? "Report totals come from recorded activity. Review and edit the AI draft before publishing."
                     : view === "admin"
                       ? "Manage departmental membership and explicit role assignments. Every change remains traceable."
                       : view === "workflows"

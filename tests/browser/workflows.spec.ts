@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 // @ts-expect-error The isolated database harness is a Node-only JavaScript module.
 import { testDatabase } from "../../scripts/workflow-test-support.mjs";
+import { createAi5GenerateHandler } from "../../supabase/functions/ai5-generate/handler";
 
 // These flows run the real SQL migration through PGlite, with synthetic Auth and
 // HTTP adapters. They establish UI-to-database behavior, not live Supabase Auth.
@@ -8,6 +9,7 @@ async function project(page: Page) {
   const h = await testDatabase();
   let user = h.requester;
   let failAfterCommit = false;
+  let reportProviderUnavailable = false;
   const calls: Record<string, unknown>[] = [];
   const stock = await h.asset(4);
   const users: Record<string, any> = {
@@ -15,7 +17,51 @@ async function project(page: Page) {
     supplier: h.rep,
     facilities: h.facilities,
     receiver: h.receiver,
+    admin: h.person("business_administrator"),
   };
+  const query = async (sql: string, args: unknown[] = []) =>
+    (await h.as(user, sql, args)).rows[0].result;
+  // Real report handler and database contracts; only Auth and Gemini are synthetic.
+  const reports = createAi5GenerateHandler({
+    allowedOrigins: [],
+    gateway: {
+      authenticate: async () => user.userId,
+      context: async (_token, id) =>
+        query("select public.ai5_generation_context($1) result", [id]),
+      replay: async (_token, id, key) =>
+        query("select public.ai5_generation_replay($1,$2) result", [id, key]),
+      save: async (_token, id, key, model, summary, metadata) =>
+        query(
+          "select public.ai5_save_generation($1,$2,$3,$4,$5::jsonb) result",
+          [id, key, model, summary, JSON.stringify(metadata)],
+        ),
+    },
+    provider: async () => {
+      if (reportProviderUnavailable) throw Error("provider unavailable");
+      return {
+        candidates: [
+          {
+            finishReason: "STOP",
+            content: {
+              parts: [
+                {
+                  text: JSON.stringify({
+                    headline: "Recorded campus activity",
+                    demand: "Request activity is recorded in the snapshot",
+                    transferActivity:
+                      "Completed transfers follow accepted receipt",
+                    interpretation:
+                      "Review the displayed facts alongside this summary",
+                    limitation: "Synthetic coursework records only",
+                  }),
+                },
+              ],
+            },
+          },
+        ],
+      };
+    },
+  });
   await page.route("http://127.0.0.1:54321/**", async (route) => {
     const request = route.request(),
       path = new URL(request.url()).pathname;
@@ -59,7 +105,47 @@ async function project(page: Page) {
       body = request.postDataJSON();
     try {
       let result;
-      if (name === "foundation_bootstrap")
+      if (name === "ai2-match") {
+        return send({ error: { code: "provider_unavailable" } }, 503);
+      } else if (name === "ai5-generate") {
+        const response = await reports(
+          new Request("http://test/functions/v1/ai5-generate", {
+            method: "POST",
+            headers: {
+              authorization: "Bearer synthetic",
+              apikey: "sb_publishable_test",
+            },
+            body: JSON.stringify(body),
+          }),
+        );
+        return send(await response.json(), response.status);
+      } else if (name === "ai5_capture_report")
+        result = await query("select public.ai5_capture_report($1) result", [
+          body.p_idempotency_key,
+        ]);
+      else if (
+        name === "ai5_narrative_workspace" ||
+        name === "ai5_published_narratives"
+      )
+        result = await query(
+          name === "ai5_narrative_workspace"
+            ? "select coalesce(jsonb_agg(x),'[]'::jsonb) result from public.ai5_narrative_workspace() x"
+            : "select coalesce(jsonb_agg(x),'[]'::jsonb) result from public.ai5_published_narratives() x",
+        );
+      else if (name === "ai5_edit_narrative")
+        result = await query("select public.ai5_edit_narrative($1,$2) result", [
+          body.p_id,
+          body.p_text,
+        ]);
+      else if (name === "ai5_mark_ready")
+        result = await query("select public.ai5_mark_ready($1) result", [
+          body.p_id,
+        ]);
+      else if (name === "ai5_publish_narrative")
+        result = await query("select public.ai5_publish_narrative($1) result", [
+          body.p_id,
+        ]);
+      else if (name === "foundation_bootstrap")
         result = (
           await h.as(user, "select public.foundation_bootstrap() result")
         ).rows[0].result;
@@ -98,7 +184,7 @@ async function project(page: Page) {
       return send({ code: "P0001", message: (e as Error).message }, 400);
     }
   });
-  async function login(role: string) {
+  async function login(role: string, openWorkflows = true) {
     if (
       await page.getByRole("button", { name: "Sign out", exact: true }).count()
     )
@@ -113,6 +199,7 @@ async function project(page: Page) {
       .getByRole("dialog")
       .getByRole("button", { name: "Sign in", exact: true })
       .click();
+    if (!openWorkflows) return;
     await page
       .getByRole("button", { name: "Requests and transfers", exact: true })
       .click();
@@ -121,7 +208,9 @@ async function project(page: Page) {
     ).toBeVisible();
   }
   async function requestForm(purpose = "Synthetic UI teaching need") {
-    await page.getByText("Submit a resource request", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "New request", exact: true })
+      .click();
     await page.getByLabel("Purpose", { exact: true }).fill(purpose);
     await page
       .getByLabel("Request category")
@@ -132,8 +221,10 @@ async function project(page: Page) {
       .getByLabel("Receiving destination")
       .fill("Science / Teaching lab");
     await page
-      .getByLabel("Mandatory specifications (JSON object)")
-      .fill('{"connector":"HDMI"}');
+      .getByRole("button", { name: "Add requirement", exact: true })
+      .click();
+    await page.getByLabel("Requirement", { exact: true }).fill("connector");
+    await page.getByLabel("Required value", { exact: true }).fill("HDMI");
   }
   return {
     h,
@@ -141,6 +232,9 @@ async function project(page: Page) {
     calls,
     login,
     requestForm,
+    setReportUnavailable: (unavailable: boolean) => {
+      reportProviderUnavailable = unavailable;
+    },
     failNextResponse: () => {
       failAfterCommit = true;
     },
@@ -160,20 +254,39 @@ test("request through separate approval/release, assigned dispatch and accepted 
       name: "Request Synthetic UI teaching need",
       exact: true,
     });
-    await expect(requestCard).toContainText("Remaining 3");
+    await expect(
+      requestCard
+        .getByText("Remaining", { exact: true })
+        .locator("..")
+        .getByRole("definition"),
+    ).toHaveText("3");
     await page
-      .getByText("Select a published item for Interest", { exact: true })
+      .getByRole("navigation", { name: "Workflow sections" })
+      .getByRole("button", { name: "Interests", exact: true })
       .click();
     await page
-      .getByLabel("Open request")
+      .getByRole("combobox", { name: "Open request", exact: true })
       .selectOption({ label: "Synthetic UI teaching need (3 remaining)" });
     await page.getByLabel("Published item").selectOption(p.stock.portionId);
     await page.getByLabel("Selection note").fill("HDMI evidence reviewed");
     await page
       .getByRole("button", { name: "Record Interest", exact: true })
       .click();
-    await expect(requestCard).toContainText("Actively allocated 0");
+    await page
+      .getByRole("navigation", { name: "Workflow sections" })
+      .getByRole("button", { name: "Requests", exact: true })
+      .click();
+    await expect(
+      requestCard
+        .getByText("Allocated", { exact: true })
+        .locator("..")
+        .getByRole("definition"),
+    ).toHaveText("0");
     await p.login("supplier");
+    await page
+      .getByRole("navigation", { name: "Workflow sections" })
+      .getByRole("button", { name: "Interests", exact: true })
+      .click();
     const interest = page.getByRole("article", {
       name: "Interest " + p.stock.name,
       exact: true,
@@ -188,6 +301,10 @@ test("request through separate approval/release, assigned dispatch and accepted 
       .fill("Teaching lab timing and specifications reviewed");
     await interest
       .getByRole("button", { name: "Approve reservation", exact: true })
+      .click();
+    await page
+      .getByRole("navigation", { name: "Workflow sections" })
+      .getByRole("button", { name: "Transfers", exact: true })
       .click();
     const card = page.getByRole("article", {
       name: "Transfer " + p.stock.name,
@@ -204,8 +321,17 @@ test("request through separate approval/release, assigned dispatch and accepted 
     await card
       .getByRole("button", { name: "Approve release", exact: true })
       .click();
-    await expect(card).toContainText("Assigned Facilities: schedule pickup");
+    await expect(card.getByRole("heading", { level: 3 })).toContainText(
+      "Approved",
+    );
+    await expect(card).toContainText(
+      "Assigned Facilities staff: arrange pickup.",
+    );
     await p.login("facilities");
+    await page
+      .getByRole("navigation", { name: "Workflow sections" })
+      .getByRole("button", { name: "Transfers", exact: true })
+      .click();
     await card.getByLabel("Transfer action").selectOption("schedule");
     // datetime-local follows the browser's local timezone.
     const slot = await page.evaluate(() => {
@@ -236,6 +362,10 @@ test("request through separate approval/release, assigned dispatch and accepted 
     await expect(card).toContainText("In Transit");
     await expect(card).toContainText("Engineering / Store");
     await p.login("receiver");
+    await page
+      .getByRole("navigation", { name: "Workflow sections" })
+      .getByRole("button", { name: "Transfers", exact: true })
+      .click();
     await card.getByLabel("Transfer action").selectOption("receive");
     await card
       .getByLabel("Reason", { exact: true })
@@ -244,10 +374,20 @@ test("request through separate approval/release, assigned dispatch and accepted 
       .getByRole("button", { name: "Record receipt", exact: true })
       .click();
     await expect(card).toContainText("Completed");
-    await expect(requestCard).toContainText("Accepted 3");
+    await page
+      .getByRole("navigation", { name: "Workflow sections" })
+      .getByRole("button", { name: "Requests", exact: true })
+      .click();
+    await expect(
+      requestCard
+        .getByText("Accepted", { exact: true })
+        .locator("..")
+        .getByRole("definition"),
+    ).toHaveText("3");
     await expect(requestCard).toContainText("Fulfilled");
     await page
-      .getByText("Workflow history: who did what and when", { exact: true })
+      .getByRole("navigation", { name: "Workflow sections" })
+      .getByRole("button", { name: "History", exact: true })
       .click();
     await expect(
       page.getByText("Receipt recorded", { exact: true }),
@@ -257,7 +397,139 @@ test("request through separate approval/release, assigned dispatch and accepted 
       fullPage: true,
     });
   } finally {
-    await page.unrouteAll({ behavior: "wait" });
+    if (!page.isClosed()) await page.unrouteAll({ behavior: "wait" });
+    await p.h.db.close();
+  }
+});
+
+test("AI matching outage leaves manual interest selection usable and does not allocate stock", async ({
+  page,
+}) => {
+  const p = await project(page);
+  try {
+    const request = await p.h.request(3);
+    await p.login("requester");
+    await page
+      .getByRole("button", { name: "Get AI recommendations", exact: true })
+      .click();
+    const fallback = page
+      .getByRole("status")
+      .filter({ hasText: "Recommendations are temporarily unavailable" });
+    await expect(fallback).toBeVisible();
+    await fallback
+      .getByRole("button", { name: "Find catalogue items", exact: true })
+      .click();
+    await expect(
+      page.getByRole("combobox", { name: "Open request", exact: true }),
+    ).toHaveValue(request.requestId);
+    await page.getByLabel("Published item").selectOption(p.stock.portionId);
+    await page
+      .getByLabel("Selection note")
+      .fill("Conventional search after AI outage");
+    await page
+      .getByRole("button", { name: "Record Interest", exact: true })
+      .click();
+    const interest = page.getByRole("article", {
+      name: "Interest " + p.stock.name,
+      exact: true,
+    });
+    await expect(interest).toContainText("Pending");
+    const workspace = await p.h.workspace(p.h.requester);
+    expect(
+      workspace.requests.find((q: any) => q.requestId === request.requestId)
+        .allocatedQty,
+    ).toBe(0);
+    expect(workspace.transfers).toHaveLength(0);
+  } finally {
+    if (!page.isClosed()) await page.unrouteAll({ behavior: "wait" });
+    await p.h.db.close();
+  }
+});
+
+test("calculated report survives an AI outage and requires human editing and publication", async ({
+  page,
+}) => {
+  const p = await project(page);
+  try {
+    const { t } = await p.h.dispatched(2);
+    await p.h.transfer(p.h.receiver, t, "receive", {
+      qty: 2,
+      condition: "Good",
+      accept: true,
+      location: "Science / Lab",
+    });
+    await p.login("admin", false);
+    await page
+      .getByRole("button", { name: "Deterministic reports", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Capture snapshot", exact: true })
+      .click();
+    const reports = page.getByRole("region", { name: "Reports", exact: true });
+    await expect(
+      reports
+        .getByText("Units transferred", { exact: true })
+        .locator("..")
+        .getByRole("definition"),
+    ).toHaveText("2");
+    p.setReportUnavailable(true);
+    await page
+      .getByRole("button", { name: "Generate summary", exact: true })
+      .click();
+    await expect(reports.getByRole("alert")).toBeVisible();
+    await expect(
+      reports
+        .getByText("Units transferred", { exact: true })
+        .locator("..")
+        .getByRole("definition"),
+    ).toHaveText("2");
+    p.setReportUnavailable(false);
+    await page
+      .getByRole("button", { name: "Generate summary", exact: true })
+      .click();
+    const draft = page.getByRole("textbox", {
+      name: /^Draft narrative/,
+    });
+    await expect(draft).toHaveValue(/Recorded campus activity/);
+    const generated = await draft.inputValue();
+    await expect(
+      page.getByRole("button", { name: "Publish", exact: true }),
+    ).toHaveCount(0);
+    await draft.fill(
+      generated.replace("Recorded campus activity", "99999 units transferred"),
+    );
+    await page.getByRole("button", { name: "Save edit", exact: true }).click();
+    await expect(reports.getByRole("alert")).toContainText(
+      "Narrative numbers must match",
+    );
+    await draft.fill(
+      generated.replace("Recorded campus activity", "Reviewed campus activity"),
+    );
+    await expect(
+      page.getByRole("button", { name: "Mark ready", exact: true }),
+    ).toBeDisabled();
+    await page.getByRole("button", { name: "Save edit", exact: true }).click();
+    await expect(reports.getByRole("status")).toContainText("Draft saved");
+    await page.getByRole("button", { name: "Mark ready", exact: true }).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Publish", exact: true }).click();
+    await expect(reports.getByText("Published", { exact: true })).toBeVisible();
+    await page.screenshot({
+      path: "test-results/report-human-reviewed.png",
+      fullPage: true,
+    });
+    await p.login("requester");
+    await page
+      .getByRole("button", { name: "Deterministic reports", exact: true })
+      .click();
+    await expect(
+      page.getByRole("region", { name: "Reports", exact: true }),
+    ).toContainText("Reviewed campus activity");
+    await expect(
+      page.getByRole("button", { name: "Capture snapshot", exact: true }),
+    ).toHaveCount(0);
+  } finally {
+    if (!page.isClosed()) await page.unrouteAll({ behavior: "wait" });
     await p.h.db.close();
   }
 });
@@ -283,6 +555,10 @@ test("financial costs stay hidden from requester and Facilities tracking while r
     });
     for (const actor of ["requester", "facilities"]) {
       await p.login(actor);
+      await page
+        .getByRole("navigation", { name: "Workflow sections" })
+        .getByRole("button", { name: "Transfers", exact: true })
+        .click();
       await expect(card).toContainText(
         "Privacy regression pickup at east entrance",
       );
@@ -293,6 +569,10 @@ test("financial costs stay hidden from requester and Facilities tracking while r
     }
     for (const actor of ["supplier", "receiver"]) {
       await p.login(actor);
+      await page
+        .getByRole("navigation", { name: "Workflow sections" })
+        .getByRole("button", { name: "Transfers", exact: true })
+        .click();
       await expect(card).toContainText("Handling: 12.5 AED");
       await expect(card).toContainText("Transport: 45.5 AED");
     }
@@ -303,10 +583,14 @@ test("financial costs stay hidden from requester and Facilities tracking while r
       transportCost: null,
     });
     await p.login("supplier");
+    await page
+      .getByRole("navigation", { name: "Workflow sections" })
+      .getByRole("button", { name: "Transfers", exact: true })
+      .click();
     await expect(card).toContainText("Handling: 0 AED");
     await expect(card).toContainText("Transport: unrecorded AED");
   } finally {
-    await page.unrouteAll({ behavior: "wait" });
+    if (!page.isClosed()) await page.unrouteAll({ behavior: "wait" });
     await p.h.db.close();
   }
 });
@@ -362,7 +646,7 @@ test("split and mixed-owner stock hides catalogue actions that the database forb
     await p.login("supplier");
     await inspect(); // The accepted portion now has another owner.
   } finally {
-    await page.unrouteAll({ behavior: "wait" });
+    if (!page.isClosed()) await page.unrouteAll({ behavior: "wait" });
     await p.h.db.close();
   }
 });
@@ -399,7 +683,7 @@ test("uncertain committed response retains request entries and reuses operation 
       ),
     ).toHaveLength(1);
   } finally {
-    await page.unrouteAll({ behavior: "wait" });
+    if (!page.isClosed()) await page.unrouteAll({ behavior: "wait" });
     await p.h.db.close();
   }
 });
@@ -413,9 +697,12 @@ test("stale request selection preserves entered note; mobile tracking has no ove
     const req = await p.h.request(3);
     await page.getByRole("button", { name: "Reload workflows" }).click();
     await page
-      .getByText("Select a published item for Interest", { exact: true })
+      .getByRole("navigation", { name: "Workflow sections" })
+      .getByRole("button", { name: "Interests", exact: true })
       .click();
-    await page.getByLabel("Open request").selectOption(req.requestId);
+    await page
+      .getByRole("combobox", { name: "Open request", exact: true })
+      .selectOption(req.requestId);
     await page.getByLabel("Published item").selectOption(p.stock.portionId);
     await page
       .getByLabel("Selection note")
@@ -440,7 +727,7 @@ test("stale request selection preserves entered note; mobile tracking has no ove
       fullPage: true,
     });
   } finally {
-    await page.unrouteAll({ behavior: "wait" });
+    if (!page.isClosed()) await page.unrouteAll({ behavior: "wait" });
     await p.h.db.close();
   }
 });

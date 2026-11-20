@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import type { AssetView, Profile } from "../../src/types";
 const fixture = JSON.parse(
   readFileSync(new URL("../fixtures/foundation.json", import.meta.url), "utf8"),
@@ -33,6 +34,7 @@ async function mockedProject(
   page: Page,
   role = "representative",
   overrides: Partial<AssetView> = {},
+  otherRows: AssetView[] = [],
 ) {
   let row = { ...initial, ...overrides };
   const calls: string[] = [];
@@ -75,9 +77,16 @@ async function mockedProject(
         departments: fixture.departments,
         profiles: fixture.users,
       });
-    if (name === "search_assets") return send([row]);
-    if (name === "asset_detail")
-      return send({ asset: row, attachments: [], history: [] });
+    if (name === "search_assets") return send([row, ...otherRows]);
+    if (name === "asset_detail") {
+      const requested = request.postDataJSON().p_portion_id;
+      return send({
+        asset:
+          [row, ...otherRows].find((a) => a.portionId === requested) ?? row,
+        attachments: [],
+        history: [],
+      });
+    }
     if (name === "set_publication") {
       row = {
         ...row,
@@ -121,6 +130,80 @@ async function login(page: Page) {
     .getByRole("button", { name: "Sign in", exact: true })
     .click();
 }
+test("catalogue illustrations match item names and stay consistent in asset records", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const samples = [
+    ["CO2 fire extinguisher", "Safety equipment", "Fire extinguisher"],
+    ["Dell Latitude laptop", "Computers", "Laptop"],
+    ["HP laser printer", "Office equipment", "Printer"],
+    ["Teaching lab chair", "Furniture", "Chair"],
+    ["Epson projector", "AV equipment", "Projector"],
+    ["Oak study desk", "Furniture", "Desk or table"],
+    ["Filing cabinet", "Office furniture", "Storage cabinet"],
+    ["Library bookshelf", "Furniture", "Bookshelf"],
+    ["Engineering textbooks", "Library", "Book"],
+    ["Optical microscope", "Lab equipment", "Microscope"],
+    ["Maintenance tool kit", "Facilities", "Toolbox"],
+    ["Mobile whiteboard", "Teaching equipment", "Whiteboard"],
+    ["USB keyboard", "Peripherals", "Keyboard"],
+    ["Wireless mouse", "Peripherals", "Computer mouse"],
+    ["Desktop computer", "Computers", "Desktop computer"],
+    ["Delivery trolley", "Facilities", "Trolley"],
+    ["Research apparatus", "Lab equipment", "Resource box"],
+  ];
+  const rows = samples.map(([name, categoryName]) => ({
+    ...initial,
+    assetId: randomUUID(),
+    portionId: randomUUID(),
+    name,
+    categoryName,
+    description: `${name} — synthetic illustration review sample, not actual campus inventory.`,
+    specifications: name === "CO2 fire extinguisher" ? { agent: "CO2" } : {},
+    purchaseDate: null,
+    unitValue: null,
+  }));
+  await mockedProject(page, "representative", {}, rows);
+  await login(page);
+  for (const [name, , label] of samples) {
+    const card = page.getByRole("button", {
+      name: `View ${name}`,
+      exact: true,
+    });
+    await expect(
+      card.getByRole("img", { name: `${label} illustration`, exact: true }),
+    ).toBeVisible();
+  }
+  await page.screenshot({
+    path: "test-results/asset-illustrations-desktop.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "View CO2 fire extinguisher", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog").getByRole("img", {
+      name: "Fire extinguisher illustration",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "test-results/extinguisher-record-desktop.png",
+  });
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/asset-illustrations-mobile.png",
+    fullPage: true,
+  });
+});
+
 test("asset overview fits desktop and keeps history and mobile content accessible", async ({
   page,
 }) => {
@@ -258,6 +341,25 @@ test("requester UI does not expose registration or account administration", asyn
     page.getByRole("button", { name: "Suggest classification" }),
   ).toHaveCount(0);
 });
+test("desktop account controls remain reachable with a full menu and long profile name", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await mockedProject(page);
+  await login(page);
+  const signOut = page.getByRole("button", { name: "Sign out", exact: true });
+  await expect(signOut).toBeInViewport();
+  const dimensions = await page.locator(".avatar").evaluate((el) => ({
+    width: el.getBoundingClientRect().width,
+    height: el.getBoundingClientRect().height,
+  }));
+  expect(dimensions.width).toBe(dimensions.height);
+  await signOut.click();
+  await expect(
+    page.getByRole("button", { name: "Sign in to continue", exact: true }),
+  ).toBeVisible();
+});
+
 test("mobile catalogue has no horizontal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockedProject(page);
@@ -274,6 +376,10 @@ test("mobile catalogue has no horizontal overflow", async ({ page }) => {
     path: "test-results/catalogue-mobile.png",
     fullPage: true,
   });
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Sign in to continue", exact: true }),
+  ).toBeVisible();
 });
 
 test("technical administrator sees account management without implicit catalogue authority", async ({

@@ -92,6 +92,15 @@ small {
   flex-direction: column;
   padding: 34px 22px 22px;
 }
+.sidebar > :not(nav) {
+  flex-shrink: 0;
+}
+.sidebar > nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
 .university-logo {
   display: block;
   background: #fff;
@@ -180,6 +189,8 @@ small {
 .avatar {
   width: 34px;
   height: 34px;
+  flex: 0 0 34px;
+  aspect-ratio: 1;
   background: #c7dcb1;
   border-radius: 50%;
   display: grid;
@@ -191,6 +202,10 @@ small {
 .profile-mini strong {
   display: block;
   font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+.profile-mini > div:last-child {
+  min-width: 0;
 }
 .profile-mini small {
   display: block;
@@ -479,6 +494,21 @@ small {
   transform: translateY(-3px);
   box-shadow: 0 7px 23px #193b2710;
 }
+.asset-card:focus-visible,
+.nav-item:focus-visible,
+.sidebar-link:focus-visible,
+.asset-record summary:focus-visible {
+  outline: 2px solid #7b9b67;
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .asset-card {
+    transition: none;
+  }
+  .asset-card:hover {
+    transform: none;
+  }
+}
 .asset-art {
   height: 151px;
   background: #e9eee2;
@@ -487,11 +517,23 @@ small {
   display: grid;
   place-items: center;
 }
-.asset-art.chairs {
+.asset-art.chair,
+.asset-art.desk,
+.asset-art.bookshelf,
+.asset-art.tools {
   background: #eee9df;
 }
-.asset-art.projector {
+.asset-art.projector,
+.asset-art.printer,
+.asset-art.computer {
   background: #e5e9e5;
+}
+.asset-art.extinguisher {
+  background: #f0e7dd;
+}
+.asset-art.book,
+.asset-art.whiteboard {
+  background: #eeeedf;
 }
 .asset-art .art-grid {
   position: absolute;
@@ -1122,6 +1164,7 @@ small {
     margin-top: 17px;
     gap: 8px;
     overflow: auto;
+    margin-bottom: 0;
   }
   .nav-item {
     padding: 8px 11px;
