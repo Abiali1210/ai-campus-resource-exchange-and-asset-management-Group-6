@@ -53,6 +53,11 @@ remains partly deferred. Read the [integration/UI handoff](docs/phase-6/handoffs
 for current checks and the team's hosted verification checklist. Abdulrahman
 reported instructor stack approval on 8 November.
 
+The [20 November hosted walkthrough](docs/phase-6/reviews/2026-11-20/hosted-role-walkthrough.md)
+records actual checks across all nine roles, the completed synthetic transfer and
+live AI/report reader journey. The [exploratory audit](docs/phase-6/reviews/2026-11-20/exploratory-audit.md)
+lists unresolved bugs separately from successful checks and deferred features.
+
 ## Run the current prototype
 
 Use Node.js 22 (`npm ci`, then `npm run dev`) and open http://127.0.0.1:5173.

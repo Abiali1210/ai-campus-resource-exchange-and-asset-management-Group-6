@@ -3,6 +3,16 @@
 Branch: `codex/phase6-integration-polish`. Based on main after PR #22
 (`1e72ba2`). Requested by Abdulrahman. Human/team review remains pending.
 
+**Later verification, 20 November:** Abdulrahman explicitly authorized the hosted
+walkthrough, replacing the earlier team-only restriction below. All nine roles
+were exercised; a dedicated hosted transfer, real matching and the generated
+report/review/publication/reader journey completed. Read the
+[hosted role results](../reviews/2026-11-20/hosted-role-walkthrough.md) and
+[open audit findings](../reviews/2026-11-20/exploratory-audit.md). Existing bugs
+remain open; the audit does not claim exhaustive hosted concurrency, permission
+changes or deferred-module coverage. PR #24 and issue #23 carry current merge and
+deployment status; the original checklist below is historical context.
+
 ## What changed
 
 - `src/AssetArt.tsx` and `src/assetIllustrations.ts`: shared representative SVG
