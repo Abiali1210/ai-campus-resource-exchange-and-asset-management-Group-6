@@ -92,13 +92,46 @@ small {
   flex-direction: column;
   padding: 34px 22px 22px;
 }
+.sidebar > :not(nav) {
+  flex-shrink: 0;
+}
+.sidebar > nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #708a6e transparent;
+}
+.university-plaque {
+  width: 95%;
+  max-width: 178.6px;
+  margin: 5px auto 26px;
+  padding: 12px 9px 0;
+  background: #fff;
+  border: 1px solid #d4ddc3;
+  border-radius: 2px;
+  outline: 1px solid #708a6e;
+  outline-offset: 5px;
+}
 .university-logo {
   display: block;
   background: #fff;
   width: 100%;
-  max-width: 188px;
   height: auto;
-  margin-bottom: 24px;
+}
+.university-course {
+  margin: 10px 0 0;
+  padding: 9px 0;
+  border-top: 1px solid #e2e6db;
+  color: #65775d;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+.university-course span {
+  padding: 0 4px;
+  color: #96a08c;
 }
 .brand {
   display: flex;
@@ -180,6 +213,8 @@ small {
 .avatar {
   width: 34px;
   height: 34px;
+  flex: 0 0 34px;
+  aspect-ratio: 1;
   background: #c7dcb1;
   border-radius: 50%;
   display: grid;
@@ -191,6 +226,10 @@ small {
 .profile-mini strong {
   display: block;
   font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+.profile-mini > div:last-child {
+  min-width: 0;
 }
 .profile-mini small {
   display: block;
@@ -479,6 +518,21 @@ small {
   transform: translateY(-3px);
   box-shadow: 0 7px 23px #193b2710;
 }
+.asset-card:focus-visible,
+.nav-item:focus-visible,
+.sidebar-link:focus-visible,
+.asset-record summary:focus-visible {
+  outline: 2px solid #7b9b67;
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .asset-card {
+    transition: none;
+  }
+  .asset-card:hover {
+    transform: none;
+  }
+}
 .asset-art {
   height: 151px;
   background: #e9eee2;
@@ -487,11 +541,23 @@ small {
   display: grid;
   place-items: center;
 }
-.asset-art.chairs {
+.asset-art.chair,
+.asset-art.desk,
+.asset-art.bookshelf,
+.asset-art.tools {
   background: #eee9df;
 }
-.asset-art.projector {
+.asset-art.projector,
+.asset-art.printer,
+.asset-art.computer {
   background: #e5e9e5;
+}
+.asset-art.extinguisher {
+  background: #f0e7dd;
+}
+.asset-art.book,
+.asset-art.whiteboard {
+  background: #eeeedf;
 }
 .asset-art .art-grid {
   position: absolute;
@@ -812,6 +878,96 @@ small {
   font-size: 0.8rem;
   color: #7c896f;
 }
+.asset-record {
+  width: min(1180px, 100%);
+  max-height: calc(100dvh - 40px);
+}
+.asset-record .dialog-head {
+  padding: 20px 24px 16px;
+}
+.asset-record .dialog-body {
+  padding: 18px 24px 22px;
+}
+.asset-record .detail-layout {
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 24px;
+  align-items: start;
+}
+.asset-record .detail-layout > *,
+.asset-record .detail-facts > div {
+  min-width: 0;
+}
+.asset-record .detail-art .asset-art {
+  height: 150px;
+}
+.asset-record .detail-art .asset-art svg {
+  max-height: 100px;
+}
+.asset-record .detail-description {
+  margin: 12px 0 8px;
+  line-height: 1.5;
+}
+.asset-record .detail-facts {
+  gap: 14px;
+}
+.asset-record dd,
+.asset-record .detail-description,
+.asset-record h2 {
+  overflow-wrap: anywhere;
+}
+.detail-specifications {
+  border-left: 1px solid var(--line);
+  padding-left: 20px;
+}
+.detail-specifications h3 {
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+}
+.detail-specifications .detail-facts {
+  grid-template-columns: 1fr;
+}
+.asset-record .resource-request {
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+}
+.asset-record .resource-request h3 {
+  margin: 0 0 8px;
+}
+.asset-record .detail-section,
+.asset-record .detail-actions {
+  margin-top: 16px;
+  padding-top: 14px;
+}
+.asset-history > summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+@media (max-width: 900px) {
+  .asset-record .detail-layout {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.2fr);
+    gap: 18px;
+  }
+  .detail-specifications {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding: 16px 0 0;
+  }
+  .detail-specifications .detail-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .asset-record .detail-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .asset-record .dialog-head,
+  .asset-record .dialog-body {
+    padding: 16px;
+  }
+}
 .history-row {
   padding: 10px 0;
   border-bottom: 1px solid #e8ecdf;
@@ -1002,10 +1158,28 @@ small {
     font-size: 2.35rem;
   }
 }
+@media (min-width: 761px) and (max-height: 740px) {
+  .sidebar {
+    padding-top: 24px;
+  }
+  .nav-caption {
+    margin-top: 28px;
+  }
+  .sidebar-note {
+    display: none;
+  }
+  .profile-mini {
+    margin-top: 0;
+  }
+  .sidebar-bottom {
+    padding-top: 12px;
+  }
+}
 @media (max-width: 760px) {
-  .university-logo {
-    max-width: 176px;
-    margin-bottom: 16px;
+  .university-plaque {
+    /* 95% of the original mobile size, with account-control space reserved. */
+    width: min(167.2px, calc(95% - 121.6px));
+    margin: 5px 0 20px;
   }
   .app-shell {
     display: block;
@@ -1032,6 +1206,7 @@ small {
     margin-top: 17px;
     gap: 8px;
     overflow: auto;
+    margin-bottom: 0;
   }
   .nav-item {
     padding: 8px 11px;

@@ -1,5 +1,11 @@
 # Parts 1 and 2 Phase 6 setup
 
+> 20 November integration note: the foundation/workflow setup below contains
+> historical deployment records. It is not a current migration inventory. AI #2,
+> AI #5, C9 and AI #4 have since been merged. Read
+> [the integration handoff](handoffs/05-integration-and-ui.md) before hosted work;
+> inspect actual migration/function versions and preserve all existing data.
+
 Scope: Part 1 C1–C3 and Part 2 C4–C6 on `codex/phase6-02-workflows`.
 This guide distinguishes the existing shared hosted foundation, the pending Part 2
 database upgrade and isolated local tests. AI #2/#5 remain later-owner work.

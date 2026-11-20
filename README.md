@@ -47,23 +47,32 @@ Start with [the shared plan](docs/phase-6/README.md), then your assigned task:
 
 Each task includes prerequisites, acceptance checks, an AI-assistant starting prompt
 and a report/handoff responsibility. [The shared report](docs/phase-6/implementation-report.md)
-records the selected scope: C1–C6 and AI #2/#5 only. Other features are deferred.
-Part 1 is merged into main; live Supabase acceptance remains pending. Abdulrahman
+records the lab minimum: C1–C6 and AI #2/#5. All are implemented; C9 activity
+reports and AI #4 assistant were subsequently merged. The broader semester scope
+remains partly deferred. Read the [integration/UI handoff](docs/phase-6/handoffs/05-integration-and-ui.md)
+for current checks and the team's hosted verification checklist. Abdulrahman
 reported instructor stack approval on 8 November.
 
-## Run the local Parts 1 and 2 implementation
+The [20 November hosted walkthrough](docs/phase-6/reviews/2026-11-20/hosted-role-walkthrough.md)
+records actual checks across all nine roles, the completed synthetic transfer and
+live AI/report reader journey. The [exploratory audit](docs/phase-6/reviews/2026-11-20/exploratory-audit.md)
+lists unresolved bugs separately from successful checks and deferred features.
+
+## Run the current prototype
 
 Use Node.js 22 (`npm ci`, then `npm run dev`) and open http://127.0.0.1:5173.
 For local database development/testing, start Docker Desktop with WSL integration,
 then run `npm run supabase:start`; use `npm run supabase:status`,
 `npm run supabase:stop`, or `npm run supabase:reset` as needed. This project-local
 Supabase stack is for local development, not deployment. CI validates with GitHub
-Actions and does not deploy. The latest main setup records an already-provisioned
-shared hosted Part 1 project. Its account Edge Function and frontend deployment,
-and the Part 2 workflow migration/hosted acceptance, remain separate pending steps.
-See [setup and verification](docs/phase-6/setup.md) before any provisioning or writes;
-routine checkout must not reseed the shared project.
-No Gemini access is needed until the matching/report stages.
+Actions and does not deploy. Cloudflare builds the frontend from main; Supabase
+schema and function deployments are separate. The shared project already contains
+synthetic accounts/data. Check its actual migration/function history before any
+hosted work and read [setup and verification](docs/phase-6/setup.md); routine
+checkout must not reseed the shared project. With no environment configuration,
+`npm run dev` opens an explicitly read-only synthetic preview. AI services require
+the appropriate backend setup; ordinary catalogue/workflow operations do not
+require an AI provider call.
 
 Part 2 adds requests, separate reservation/release decisions, scheduling/dispatch,
 accepted receipt, disputes/returns and conserved partial quantities. Open **Requests
@@ -102,7 +111,7 @@ docs/
 
 Start with `src/App.tsx` and `src/api.ts` for Abdulrahman's foundation, then
 `src/WorkflowPanel.tsx` and `src/workflows.ts` for Part 2. Database authority lives
-in the two chronological SQL migrations, not in the screen controls. The submitted
+in the ordered SQL migrations, not in the screen controls. The submitted
 documents remain unchanged; earlier revisions remain available in Git history.
 
 `node_modules/`, `dist/`, `test-results/` and `.workflow-validation/` are ignored

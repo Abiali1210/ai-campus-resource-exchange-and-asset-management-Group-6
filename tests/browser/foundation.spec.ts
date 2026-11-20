@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import type { AssetView, Profile } from "../../src/types";
 const fixture = JSON.parse(
   readFileSync(new URL("../fixtures/foundation.json", import.meta.url), "utf8"),
@@ -29,8 +30,13 @@ const authUser = {
   user_metadata: {},
   created_at: "2026-11-08T00:00:00Z",
 };
-async function mockedProject(page: Page, role = "representative") {
-  let row = { ...initial };
+async function mockedProject(
+  page: Page,
+  role = "representative",
+  overrides: Partial<AssetView> = {},
+  otherRows: AssetView[] = [],
+) {
+  let row = { ...initial, ...overrides };
   const calls: string[] = [];
   await page.route("http://127.0.0.1:54321/**", async (route) => {
     const request = route.request(),
@@ -71,9 +77,16 @@ async function mockedProject(page: Page, role = "representative") {
         departments: fixture.departments,
         profiles: fixture.users,
       });
-    if (name === "search_assets") return send([row]);
-    if (name === "asset_detail")
-      return send({ asset: row, attachments: [], history: [] });
+    if (name === "search_assets") return send([row, ...otherRows]);
+    if (name === "asset_detail") {
+      const requested = request.postDataJSON().p_portion_id;
+      return send({
+        asset:
+          [row, ...otherRows].find((a) => a.portionId === requested) ?? row,
+        attachments: [],
+        history: [],
+      });
+    }
     if (name === "set_publication") {
       row = {
         ...row,
@@ -117,6 +130,153 @@ async function login(page: Page) {
     .getByRole("button", { name: "Sign in", exact: true })
     .click();
 }
+test("catalogue illustrations match item names and stay consistent in asset records", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const samples = [
+    ["CO2 fire extinguisher", "Safety equipment", "Fire extinguisher"],
+    ["Dell Latitude laptop", "Computers", "Laptop"],
+    ["HP laser printer", "Office equipment", "Printer"],
+    ["Teaching lab chair", "Furniture", "Chair"],
+    ["Epson projector", "AV equipment", "Projector"],
+    ["Oak study desk", "Furniture", "Desk or table"],
+    ["Filing cabinet", "Office furniture", "Storage cabinet"],
+    ["Library bookshelf", "Furniture", "Bookshelf"],
+    ["Engineering textbooks", "Library", "Book"],
+    ["Optical microscope", "Lab equipment", "Microscope"],
+    ["Maintenance tool kit", "Facilities", "Toolbox"],
+    ["Mobile whiteboard", "Teaching equipment", "Whiteboard"],
+    ["USB keyboard", "Peripherals", "Keyboard"],
+    ["Wireless mouse", "Peripherals", "Computer mouse"],
+    ["Desktop computer", "Computers", "Desktop computer"],
+    ["Delivery trolley", "Facilities", "Trolley"],
+    ["Research apparatus", "Lab equipment", "Resource box"],
+  ];
+  const rows = samples.map(([name, categoryName]) => ({
+    ...initial,
+    assetId: randomUUID(),
+    portionId: randomUUID(),
+    name,
+    categoryName,
+    description: `${name} — synthetic illustration review sample, not actual campus inventory.`,
+    specifications: name === "CO2 fire extinguisher" ? { agent: "CO2" } : {},
+    purchaseDate: null,
+    unitValue: null,
+  }));
+  await mockedProject(page, "representative", {}, rows);
+  await login(page);
+  for (const [name, , label] of samples) {
+    const card = page.getByRole("button", {
+      name: `View ${name}`,
+      exact: true,
+    });
+    await expect(
+      card.getByRole("img", { name: `${label} illustration`, exact: true }),
+    ).toBeVisible();
+  }
+  await page.screenshot({
+    path: "test-results/asset-illustrations-desktop.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "View CO2 fire extinguisher", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog").getByRole("img", {
+      name: "Fire extinguisher illustration",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "test-results/extinguisher-record-desktop.png",
+  });
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/asset-illustrations-mobile.png",
+    fullPage: true,
+  });
+});
+
+test("asset overview fits desktop and keeps history and mobile content accessible", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mockedProject(page, "requester");
+  await login(page);
+  await page.getByRole("button", { name: `View ${initial.name}` }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("button", { name: "Request this resource", exact: true }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("heading", { name: "Technical specifications" }),
+  ).toBeVisible();
+  await expect
+    .poll(() => dialog.evaluate((el) => el.scrollHeight - el.clientHeight))
+    .toBeLessThanOrEqual(1);
+  await page.screenshot({ path: "test-results/asset-record-desktop.png" });
+  const history = dialog
+    .locator("summary")
+    .filter({ hasText: "Asset history" });
+  await history.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    dialog.getByText("No history visible for this record."),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await dialog.evaluate((el) => el.scrollWidth - el.clientWidth),
+  ).toBeLessThanOrEqual(1);
+  await history.scrollIntoViewIfNeeded();
+  await expect(history).toBeInViewport();
+  await page.screenshot({ path: "test-results/asset-record-mobile.png" });
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: `View ${initial.name}` }),
+  ).toBeFocused();
+});
+
+test("long asset records wrap and remain scrollable without clipping", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 600 });
+  await mockedProject(page, "requester", {
+    description: "Extended description with full inspection notes. ".repeat(35),
+    specifications: Object.fromEntries(
+      Array.from({ length: 25 }, (_, i) => [
+        `Specification ${i}`,
+        "unbroken-value-".repeat(12),
+      ]),
+    ),
+  });
+  await login(page);
+  await page.getByRole("button", { name: `View ${initial.name}` }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByText("Specification 24", { exact: true }),
+  ).toBeAttached();
+  expect(await dialog.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
+    true,
+  );
+  expect(
+    await dialog.evaluate((el) => el.scrollWidth - el.clientWidth),
+  ).toBeLessThanOrEqual(1);
+  await dialog
+    .getByText("Specification 24", { exact: true })
+    .scrollIntoViewIfNeeded();
+  await expect(
+    dialog.getByText("Specification 24", { exact: true }),
+  ).toBeInViewport();
+});
+
 test("configured UI: sign in and publish/withdraw", async ({ page }) => {
   const calls = await mockedProject(page);
   await login(page);
@@ -181,6 +341,48 @@ test("requester UI does not expose registration or account administration", asyn
     page.getByRole("button", { name: "Suggest classification" }),
   ).toHaveCount(0);
 });
+test("desktop account controls remain reachable with a full menu and long profile name", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await mockedProject(page);
+  await login(page);
+  const signOut = page.getByRole("button", { name: "Sign out", exact: true });
+  await expect(
+    page.getByText("COSC 336 · GROUP 6", { exact: true }),
+  ).toBeVisible();
+  const logo = page.getByRole("img", {
+    name: "Khalifa University",
+    exact: true,
+  });
+  await expect
+    .poll(() =>
+      logo.evaluate(
+        (image: HTMLImageElement) =>
+          image.complete &&
+          image.naturalWidth === 5286 &&
+          image.naturalHeight === 1913,
+      ),
+    )
+    .toBe(true);
+  await page.screenshot({ path: "test-results/university-plaque-desktop.png" });
+  await expect(
+    page
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("button", { name: "Resource catalogue", exact: true }),
+  ).toBeInViewport({ ratio: 1 });
+  await expect(signOut).toBeInViewport();
+  const dimensions = await page.locator(".avatar").evaluate((el) => ({
+    width: el.getBoundingClientRect().width,
+    height: el.getBoundingClientRect().height,
+  }));
+  expect(dimensions.width).toBe(dimensions.height);
+  await signOut.click();
+  await expect(
+    page.getByRole("button", { name: "Sign in to continue", exact: true }),
+  ).toBeVisible();
+});
+
 test("mobile catalogue has no horizontal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockedProject(page);
@@ -193,10 +395,31 @@ test("mobile catalogue has no horizontal overflow", async ({ page }) => {
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+  for (const width of [320, 390, 760]) {
+    await page.setViewportSize({ width, height: 844 });
+    const plaque = await page.locator(".university-plaque").boundingBox();
+    const account = await page.locator(".sidebar-bottom").boundingBox();
+    expect(plaque).not.toBeNull();
+    expect(account).not.toBeNull();
+    expect(plaque!.x + plaque!.width + 6).toBeLessThanOrEqual(account!.x);
+    await expect(
+      page.getByRole("button", { name: "Sign out", exact: true }),
+    ).toBeInViewport();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({
     path: "test-results/catalogue-mobile.png",
     fullPage: true,
   });
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Sign in to continue", exact: true }),
+  ).toBeVisible();
 });
 
 test("technical administrator sees account management without implicit catalogue authority", async ({

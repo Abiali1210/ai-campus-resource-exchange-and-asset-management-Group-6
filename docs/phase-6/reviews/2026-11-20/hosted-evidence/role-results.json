@@ -1,0 +1,69 @@
+[
+  {
+    "role": "finance",
+    "search": "oscilloscope returned one item",
+    "value": "AED 400 visible",
+    "edit": false
+  },
+  {
+    "role": "procurement",
+    "login": true,
+    "valueVisible": false,
+    "edit": false,
+    "nav": ["catalogue", "assistant", "reports", "activity"]
+  },
+  {
+    "role": "procurement",
+    "assistant": "live response and five visible catalogue cards; no Request action"
+  },
+  {
+    "role": "maintenance",
+    "login": true,
+    "catalogueCount": 0,
+    "workflow": "no maintenance module in Phase 6 UI"
+  },
+  {
+    "role": "system_administrator",
+    "login": true,
+    "accounts": 13,
+    "departments": 2,
+    "editForm": "finance role and active status prefilled; cancelled unchanged",
+    "businessApprovalControls": false
+  },
+  {
+    "role": "inactive",
+    "result": "Unauthorized: active account required"
+  },
+  {
+    "role": "requester/representatives/facilities",
+    "request": "QA-2026-11-20-roles — two HDMI displays for role walkthrough",
+    "asset": "QA-2026-11-20-roles HDMI display batch",
+    "outcome": "short receipt Disputed then reconciled Completed; Science custody; accepted 2, allocated 0, remaining 0",
+    "costPrivacy": "Facilities transfer view hid recorded costs; receiver representative saw 10/15 AED"
+  },
+  {
+    "role": "business_administrator",
+    "report": "new snapshot captured; live generation; unsupported 999999 rejected; valid edit saved; marked Ready",
+    "facts": {
+      "submitted": 19,
+      "open": 17,
+      "completedTransfers": 3,
+      "units": 6
+    }
+  },
+  {
+    "role": "sustainability",
+    "login": true,
+    "reportControls": {
+      "capture": 0,
+      "publish": 0
+    },
+    "reportView": "published only; specialist sustainability dashboard deferred"
+  },
+  {
+    "role": "sustainability",
+    "publishedTestReportReadable": true,
+    "editControls": false,
+    "publishControls": false
+  }
+]

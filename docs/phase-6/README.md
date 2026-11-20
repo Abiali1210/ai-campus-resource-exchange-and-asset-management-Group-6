@@ -1,6 +1,6 @@
 # Phase 6 minimum implementation plan
 
-Updated 10 November 2026. **Current scope: C1–C6 and AI features #2 and #5 only.**
+Updated 20 November 2026. **Phase 6 minimum: C1–C6 and AI features #2 and #5.**
 Abdulrahman clarified that the team should implement only the highlighted lab
 minimum for now. This supersedes the broader Phase 6 task allocation previously
 published. The full SRS/design remain references for later phases; deferred
@@ -22,20 +22,20 @@ The [Phase 6 slides](sources/phase-6-draft-implementation.pptx), slides 3–5, r
 - AI #5: database-calculated report numbers, AI-written short summary and human
   admin editing before publication.
 
-**Deferred for now:** C7 sustainability dashboard, C8 in-app notifications, C9
-standalone operational reporting/CSV, AI #1 classification, AI #3 sustainable-action
-advice, AI #4 conversational assistant, maintenance/repair and end-of-life workflows.
-A small calculated report snapshot/page is necessary for AI #5; it is not a request
-to build the full dashboard or C9 report suite. Do not implement these deferred
-features opportunistically or add them to another member's checklist.
+**Additional features already merged:** C9 activity tables/CSV and AI #4 campus
+assistant. These are additions to the minimum. The current integration work repairs
+and verifies existing screens; it does not add another business module.
+
+**Still deferred:** C7 sustainability dashboard, C8 in-app notifications, AI #1
+classification, AI #3 sustainable-action advice, maintenance/repair and end-of-life.
+The semester SRS remains broader than this draft-implementation milestone.
 
 ## Sequential owners
 
-**Abi Ali's immediate priority:** resolve the live missing workflow/asset-detail
-functions and the squished profile avatar before starting AI #2. Abdulrahman assigned
-both existing-feature repairs on 10 November; see the first sections of
-[Abi's task file](tasks/03-abi-ali.md). The repairs have not been applied by this
-documentation update and do not expand the lab scope.
+The table retains the original sequential ownership. Implementation has since been
+merged for every minimum feature; the owner task files are historical assignment
+checklists, not current completion evidence. See the [integration handoff](handoffs/05-integration-and-ui.md)
+for verification results and remaining team checks.
 
 | Order | Owner          | Task                                                                         | Target dates              |
 | ----- | -------------- | ---------------------------------------------------------------------------- | ------------------------- |
@@ -96,10 +96,16 @@ template or separate upload format is specified. Use the short shared
 [implementation report](implementation-report.md); 2–4 pages is a recommendation,
 not an instructor rule. Each member writes their section during their turn.
 
-Part 1 is implemented, locally checked and merged into main. Part 2 extends it on
-`codex/phase6-02-workflows` with locally verified C4–C6 workflows and an independent
-review. Hosted Supabase acceptance remains pending for both parts. AI #2 and AI #5
-belong to the next two owners and have not been implemented.
+C1–C6, AI #2 and AI #5 are implemented in main; C9 and AI #4 were subsequently
+merged. Local verification and actual hosted acceptance are separate. The
+integration branch adds item-specific illustrations, a compact asset record and
+reachable account controls, repairs the workflow browser tests, and extends report
+and outage checks. Review its handoff for the tested revision and remaining work.
+
+Hosted deployment/acceptance is assigned to the team at Abdulrahman's request.
+Do not infer hosted function versions, migration status or AI relevance from a green
+local test or a frontend deployment. Owner explanations and the live demonstration
+remain part of the submission evidence.
 
 Follow [setup](setup.md), [Abdulrahman's handoff](handoffs/01-abdulrahman.md) and
 [Ahmed's handoff](handoffs/02-ahmed.md) for actual evidence and remaining setup.

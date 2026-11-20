@@ -71,20 +71,18 @@ provide ordinary inputs for the later matching/report owners; no AI or report mo
 was added. See [Part 2 handoff](handoffs/02-ahmed.md) for tested revision, commands,
 contracts, demonstration and resolved failures.
 
-Hosted Part 2 migration/seed execution and actual browser-to-Supabase workflow
-acceptance remain pending. Incoming main provides modern publishable/secret-key
-configuration and short demo aliases; the workflow seed shares its identity mapping
-with the foundation provisioner. Shared-project data and credentials were not touched.
-Human owner review/demo and hosted acceptance remain pending. PR #13 carries the
-feature branch for review; evaluate GitHub checks on its current head. No hosted
-deployment or feature-branch merge into main was performed. The latest main commit
-`2fcc41b` was integrated into the feature branch and retested locally.
+Part 2 was merged in PR #13. The paragraphs above record checks performed for that
+implementation; they are not a claim that the current hosted deployment has been
+independently rechecked. See the integration handoff for the newer browser results
+and the team's outstanding hosted walkthrough.
 
 ## 3 Matching and ranking — Abi Ali
 
 Merged into main in PR #17. For a request, the `ai2-match` Edge Function returns up
 to five eligible surplus items, each with a score and a one-line reason, ranked from
-pgvector embeddings. The requester accepts or rejects each suggestion, and accepting
+pgvector embeddings. Embeddings use the local `gte-small` model in the Supabase
+Edge Runtime (384 dimensions); Gemini is used for generated prose elsewhere. The
+requester accepts or rejects each suggestion, and accepting
 one still goes through the normal supplier approval. Abi Ali's write-up of checks,
 human selection and fallback evidence is still to come.
 
@@ -121,7 +119,7 @@ Merged into main in PR #20. On 17 November 2026 the migration was applied to the
 hosted project and recorded as `202611170002`. Signed-in users can call the function
 and anonymous users cannot. A read-only call as a hosted business administrator over
 the past year returned 18 requests and 7 transfers, with no cost fields. The screen has
-not yet been used against the hosted project in a browser.
+not independently rechecked against the hosted project in a browser by this integration review.
 
 ## 6 Campus assistant (AI #4) — Ahmed
 
@@ -148,20 +146,51 @@ Gemini, and "Who is the dean?" got "I don't know". Earlier the same day Gemini
 calls from the project failed for both AI #4 and AI #5 for a while and then
 recovered on their own; the function now logs Google's error code (never the key,
 prompt or answer) so a repeat can be diagnosed.
-See [the function README](../../supabase/functions/ai4-assistant/README.md).
+PR #22 was merged on 20 November after regression tests confirmed and corrected
+unchecked status prose and failed request lookups being presented as empty lists.
+The corrected function still needs redeployment and hosted verification. See
+[the function README](../../supabase/functions/ai4-assistant/README.md).
 
 ## Status
 
-| Required feature                                       | Owner          | Status                                                                    |
-| ------------------------------------------------------ | -------------- | ------------------------------------------------------------------------- |
-| C1 accounts/roles/departments                          | Abdulrahman    | Implemented and locally verified; hosted acceptance/human review pending  |
-| C2 assets/status; C3 publication/search                | Abdulrahman    | Implemented and locally verified; hosted acceptance/human review pending  |
-| C4 requests; C5 approval/transfer; C6 workflow/history | Ahmed          | Implemented and locally verified; hosted acceptance/human review pending  |
-| AI #2 matching/ranking                                 | Abi Ali        | Merged (PR #17); owner write-up and evidence pending                      |
-| AI #5 generated report                                 | Muhammad Awais | Merged (PR #18, #19); hosted migration applied; function redeploy pending |
-| C9 requests/transfers table with CSV export            | Ahmed          | Merged (PR #20); hosted migration applied; browser flow not run           |
-| AI #4 campus assistant                                 | Ahmed          | Function deployed; five live signed-in checks passed; PR open             |
+| Required feature                                       | Owner          | Status                                                                              |
+| ------------------------------------------------------ | -------------- | ----------------------------------------------------------------------------------- |
+| C1 accounts/roles/departments                          | Abdulrahman    | Implemented; latest hosted acceptance/human review pending                          |
+| C2 assets/status; C3 publication/search                | Abdulrahman    | Implemented; latest hosted acceptance/human review pending                          |
+| C4 requests; C5 approval/transfer; C6 workflow/history | Ahmed          | Implemented; latest hosted acceptance/human review pending                          |
+| AI #2 matching/ranking                                 | Abi Ali        | Merged (PR #17); owner write-up and live relevance evidence pending                 |
+| AI #5 generated report                                 | Muhammad Awais | Merged (PR #18, #19); hosted migration applied; function redeploy pending           |
+| C9 requests/transfers table with CSV export            | Ahmed          | Merged (PR #20); local SQL/browser CSV check passed; hosted browser check pending   |
+| AI #4 campus assistant                                 | Ahmed          | Merged (PR #22); earlier hosted trial recorded; corrected function redeploy pending |
 
 Deferred now: C7 and C8, AI #1/#3, maintenance and end-of-life.
 No synthetic data establishes actual campus savings/adoption or general AI accuracy.
 Each member records their actual AI assistance, human review and executed checks.
+
+## 7 Integration and UI review — 20 November 2026
+
+The integration branch adds representative vector illustrations for common campus
+items and a neutral resource-box fallback. It reuses the same illustration in cards
+and records. A compact desktop asset record shows artwork, key details and technical
+specifications together; history is expandable, and small screens/long records
+retain scrolling. The sidebar keeps account controls reachable on short screens,
+and avatar dimensions stay equal beside long names.
+
+The workflow browser tests now follow the current section navigation and editable
+requirement rows. Further browser checks exercise AI matching outage/manual
+selection and the report capture/generation/edit/review/publication path. The report
+check uses the real function handler and SQL with synthetic Auth and Gemini; it is
+not a trial of hosted Gemini. The screenshot catalogue contains synthetic test
+examples, not newly provisioned campus inventory.
+
+The final local checks passed: **224 unit tests, 56 PGlite integration checks,
+AI #2 SQL text-contract assertions, 18 Chrome browser journeys, typecheck and
+production build**. Inherited browser failures were reproduced and corrected by
+updating obsolete navigation/form selectors and repairing sidebar account-control
+reachability. Native pgvector inference and hosted Gemini were not exercised by
+these local checks.
+
+See [the integration handoff](handoffs/05-integration-and-ui.md) for exact results,
+reproduction commands and the owner checklist. Hosted verification was explicitly
+left to the team. These changes do not establish full semester completion, model
+accuracy, live performance or actual sustainability benefits.
