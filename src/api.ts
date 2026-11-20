@@ -162,6 +162,15 @@ export class FoundationService {
       );
     return data.report as Ai5Narrative;
   }
+  /** Calls a caller-authenticated Edge Function (used by the AI #4 assistant). */
+  invokeFunction = (
+    name: string,
+    options: { body: unknown },
+  ): Promise<{ data: any; error: any }> =>
+    this.db.functions.invoke(
+      name,
+      options as { body: Record<string, unknown> },
+    );
   private remember(rows: AssetView[]): AssetView[] {
     for (const r of rows) {
       // The permission-scoped SQL projection omits financial keys entirely when

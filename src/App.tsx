@@ -23,6 +23,8 @@ import {
   type Role,
   type SelectedResource,
 } from "./types";
+import type { AssistantMessage } from "./AssistantPanel";
+import type { AssistantItem, RequestDraft } from "./ai4";
 import "./styles.css";
 
 const WorkflowPanel = lazy(() =>
@@ -32,6 +34,9 @@ const WorkflowPanel = lazy(() =>
 );
 const Ai5ReportPanel = lazy(() =>
   import("./Ai5ReportPanel").then((m) => ({ default: m.Ai5ReportPanel })),
+);
+const AssistantPanel = lazy(() =>
+  import("./AssistantPanel").then((m) => ({ default: m.AssistantPanel })),
 );
 const ActivityReportPanel = lazy(() =>
   import("./ActivityReportPanel").then((m) => ({
@@ -118,6 +123,12 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
       </>
     ),
     arrow: <path d="M4 12h16m-6-6 6 6-6 6" />,
+    chat: (
+      <>
+        <path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12Z" />
+        <path d="M8.5 12h.01M12 12h.01M15.5 12h.01" />
+      </>
+    ),
     pin: (
       <>
         <path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z" />
@@ -1222,8 +1233,18 @@ export default function App() {
     [metadata, setMetadata] = useState<Bootstrap>(emptyMetadata),
     [assets, setAssets] = useState<AssetView[]>([]),
     [view, setView] = useState<
-      "catalogue" | "own" | "admin" | "workflows" | "reports" | "activity"
+      | "catalogue"
+      | "own"
+      | "admin"
+      | "workflows"
+      | "reports"
+      | "activity"
+      | "assistant"
     >("catalogue"),
+    [assistantMessages, setAssistantMessages] = useState<AssistantMessage[]>(
+      [],
+    ),
+    [requestDraft, setRequestDraft] = useState<RequestDraft | null>(null),
     [filters, setFilters] = useState<Filters>({}),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
@@ -1266,6 +1287,27 @@ export default function App() {
     setModal(null);
     setView("workflows");
   };
+  // Assistant results carry only display fields; re-read the live catalogue so
+  // the user acts on current, permitted data rather than the chat snapshot.
+  const openAssistantItem = async (
+    item: AssistantItem,
+    then: (asset: AssetView) => void,
+  ) => {
+    try {
+      const asset = resolveExactAvailableResource(
+        await api.catalogue(),
+        item.assetId,
+        item.portionId,
+      );
+      if (asset) then(asset);
+      else
+        setError(
+          "That resource is no longer available. Ask again or search the catalogue.",
+        );
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
   useEffect(() => {
     let live = true;
     async function init() {
@@ -1300,6 +1342,7 @@ export default function App() {
       view === "workflows" ||
       view === "reports" ||
       view === "activity" ||
+      view === "assistant" ||
       (!preview && !profile)
     )
       return;
@@ -1366,6 +1409,8 @@ export default function App() {
       await api.signOut();
       setProfile(null);
       setAssets([]);
+      setAssistantMessages([]);
+      setRequestDraft(null);
       setView("catalogue");
       setFilters({});
       setMetadata(emptyMetadata);
@@ -1388,17 +1433,19 @@ export default function App() {
     setModal("edit");
   }
   const title =
-    view === "activity"
-      ? "Requests and transfers at a glance."
-      : view === "reports"
-        ? "Campus asset reports."
-        : view === "workflows"
-          ? "Follow each request through to receipt."
-          : view === "own"
-            ? "Keep your department’s resources in circulation."
-            : view === "admin"
-              ? "The right access, for the right people."
-              : "A better home for campus resources.";
+    view === "assistant"
+      ? "Ask about campus resources in plain language."
+      : view === "activity"
+        ? "Requests and transfers at a glance."
+        : view === "reports"
+          ? "Campus asset reports."
+          : view === "workflows"
+            ? "Follow each request through to receipt."
+            : view === "own"
+              ? "Keep your department’s resources in circulation."
+              : view === "admin"
+                ? "The right access, for the right people."
+                : "A better home for campus resources.";
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -1447,6 +1494,20 @@ export default function App() {
                 <Icon name="grid" />
               </span>
               Resource catalogue
+            </button>
+          )}
+          {profile && hasReadRole && (
+            <button
+              className={`nav-item ${view === "assistant" ? "active" : ""}`}
+              onClick={() => {
+                setView("assistant");
+                setError("");
+              }}
+            >
+              <span className="nav-symbol">
+                <Icon name="chat" />
+              </span>
+              Campus assistant
             </button>
           )}
           {isRepresentative(profile) && (
@@ -1697,6 +1758,32 @@ export default function App() {
                 Sign in to continue
               </button>
             </div>
+          ) : view === "assistant" && profile ? (
+            <Suspense fallback={<p role="status">Opening assistant…</p>}>
+              <AssistantPanel
+                messages={assistantMessages}
+                setMessages={setAssistantMessages}
+                canRequest={profile.roles.some((r) =>
+                  ["requester", "representative"].includes(r),
+                )}
+                onViewItem={(item) =>
+                  void openAssistantItem(item, (asset) => {
+                    setSelected(asset);
+                    setModal("asset");
+                  })
+                }
+                onRequestItem={(item) =>
+                  void openAssistantItem(item, (asset) =>
+                    beginResourceRequest(asset),
+                  )
+                }
+                onOpenDraft={(draft) => {
+                  setRequestDraft(draft);
+                  setView("workflows");
+                }}
+                onOpenWorkflows={() => setView("workflows")}
+              />
+            </Suspense>
           ) : view === "activity" && profile ? (
             <Suspense fallback={<p role="status">Opening report…</p>}>
               <ActivityReportPanel departments={metadata.departments} />
@@ -1715,6 +1802,8 @@ export default function App() {
                 metadata={metadata}
                 selectedResource={resourceHandoff}
                 onClearResource={() => setResourceHandoff(null)}
+                requestDraft={requestDraft}
+                onDraftApplied={() => setRequestDraft(null)}
                 onViewResource={async (recommendation) => {
                   if (!recommendation) {
                     if (resourceHandoff) {

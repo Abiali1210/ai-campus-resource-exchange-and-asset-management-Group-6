@@ -123,6 +123,33 @@ and anonymous users cannot. A read-only call as a hosted business administrator 
 the past year returned 18 requests and 7 transfers, with no cost fields. The screen has
 not yet been used against the hosted project in a browser.
 
+## 6 Campus assistant (AI #4) — Ahmed
+
+Added after the lab minimum, on branch `feat/ai4-assistant`. A **Campus assistant**
+screen answers plain-language questions through a new `ai4-assistant` Edge Function
+that calls Gemini. It handles three kinds of question: finding catalogue items,
+checking your own requests, and drafting a new request. Reads run with the
+caller's own session, so the assistant only sees what the user can already open,
+and costs and values are never sent to Gemini. The function checks every answer:
+records it mentions must be ones it was given, and numbers must come from those
+records or the question. Anything else becomes "I don't know". Commands such as
+"approve" or "transfer" are refused without calling Gemini. A draft only pre-fills
+the normal request form, and the user submits it.
+
+Checks run locally on 19 November 2026: 193 unit tests (14 new for AI #4, using
+mocked Gemini responses), type check, build and format. The function was deployed
+to the shared hosted project the same day. Hosted calls without a signed-in user are
+refused with 401, and the browser preflight from the local frontend is allowed. On
+19 November 2026 five signed-in questions were tried against the hosted function
+with live Gemini (about 1.5–2.5 s each): an item search returned real listings, a
+request-status question matched the Requests page, "I need 4 chairs for a lab"
+produced an unsubmitted draft, "Approve my reservation" was refused without calling
+Gemini, and "Who is the dean?" got "I don't know". Earlier the same day Gemini
+calls from the project failed for both AI #4 and AI #5 for a while and then
+recovered on their own; the function now logs Google's error code (never the key,
+prompt or answer) so a repeat can be diagnosed.
+See [the function README](../../supabase/functions/ai4-assistant/README.md).
+
 ## Status
 
 | Required feature                                       | Owner          | Status                                                                    |
@@ -133,7 +160,8 @@ not yet been used against the hosted project in a browser.
 | AI #2 matching/ranking                                 | Abi Ali        | Merged (PR #17); owner write-up and evidence pending                      |
 | AI #5 generated report                                 | Muhammad Awais | Merged (PR #18, #19); hosted migration applied; function redeploy pending |
 | C9 requests/transfers table with CSV export            | Ahmed          | Merged (PR #20); hosted migration applied; browser flow not run           |
+| AI #4 campus assistant                                 | Ahmed          | Function deployed; five live signed-in checks passed; PR open             |
 
-Deferred now: C7 and C8, AI #1/#3/#4, maintenance and end-of-life.
+Deferred now: C7 and C8, AI #1/#3, maintenance and end-of-life.
 No synthetic data establishes actual campus savings/adoption or general AI accuracy.
 Each member records their actual AI assistance, human review and executed checks.

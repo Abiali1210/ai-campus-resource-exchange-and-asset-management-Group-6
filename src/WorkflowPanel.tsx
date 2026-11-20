@@ -7,6 +7,7 @@ import {
 } from "react";
 import { api } from "./api";
 import type { AssetView, Bootstrap, Profile, SelectedResource } from "./types";
+import type { RequestDraft } from "./ai4";
 import {
   clearHandoffPortion,
   compatibleRequests,
@@ -568,11 +569,16 @@ export function WorkflowPanel({
   selectedResource = null,
   onClearResource,
   onViewResource,
+  requestDraft = null,
+  onDraftApplied,
 }: {
   profile: Profile;
   metadata: Bootstrap;
   selectedResource?: SelectedResource | null;
   onClearResource?: () => void;
+  /** AI #4 draft: pre-fills the normal form; the user still reviews and submits. */
+  requestDraft?: RequestDraft | null;
+  onDraftApplied?: () => void;
   onViewResource?: (recommendation?: {
     assetId: string;
     portionId: string;
@@ -756,6 +762,20 @@ export function WorkflowPanel({
     selectedResource?.preferredRequestId,
     compatible.map((r) => r.requestId).join("|"),
   ]);
+  useEffect(() => {
+    if (!requestDraft || !canRequest) return;
+    setPurpose(requestDraft.purpose);
+    setCategory(requestDraft.categoryId ?? "");
+    setQty(requestDraft.qty);
+    setUrgency(requestDraft.urgency);
+    setActiveSection("requests");
+    setRequestFormOpen(true);
+    setSuccess(
+      "The assistant pre-filled this request. Check every field, add the required date and destination, then submit it yourself.",
+    );
+    onDraftApplied?.();
+    window.setTimeout(() => requestPurposeRef.current?.focus(), 0);
+  }, [requestDraft]);
   const transferGroups = groupTransfers(w.transfers, w, profile);
   const requestGroups = groupRequests(w.requests);
   return (
