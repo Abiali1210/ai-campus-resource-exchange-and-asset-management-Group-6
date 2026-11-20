@@ -230,12 +230,14 @@ function Dialog({
   children,
   onClose,
   narrow = false,
+  className = "",
 }: {
   title: string;
   eyebrow?: string;
   children: ReactNode;
   onClose: () => void;
   narrow?: boolean;
+  className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -244,9 +246,9 @@ function Dialog({
     const focusable = () =>
       Array.from(
         dialog?.querySelectorAll<HTMLElement>(
-          'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]',
+          'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],summary,[tabindex="0"]',
         ) ?? [],
-      );
+      ).filter((element) => element.getClientRects().length > 0);
     focusable()[0]?.focus();
     const key = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -280,7 +282,7 @@ function Dialog({
       }}
     >
       <div
-        className={`dialog ${narrow ? "narrow" : ""}`}
+        className={`dialog ${narrow ? "narrow" : ""} ${className}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
@@ -796,7 +798,12 @@ function AssetDetails({
     }
   }
   return (
-    <Dialog title={current.name} eyebrow="Asset record" onClose={onClose}>
+    <Dialog
+      title={current.name}
+      eyebrow="Asset record"
+      onClose={onClose}
+      className="asset-record"
+    >
       {error && (
         <div className="notice error" role="alert">
           {error}
@@ -947,28 +954,30 @@ function AssetDetails({
                 </div>
               </dl>
             </div>
+            {Object.keys(current.specifications).length > 0 && (
+              <div className="detail-specifications">
+                <h3>Technical specifications</h3>
+                <dl className="detail-facts">
+                  {Object.entries(current.specifications).map(
+                    ([key, value]) => (
+                      <div key={key}>
+                        <dt>{key}</dt>
+                        <dd>
+                          {typeof value === "object"
+                            ? JSON.stringify(value)
+                            : String(value)}
+                        </dd>
+                      </div>
+                    ),
+                  )}
+                </dl>
+              </div>
+            )}
           </div>
           <p className="form-description">
             Publication makes a resource discoverable. It does not approve its
             suitability, reservation or transfer.
           </p>
-          {Object.keys(current.specifications).length > 0 && (
-            <div className="detail-section">
-              <h3>Technical specifications</h3>
-              <dl className="detail-facts">
-                {Object.entries(current.specifications).map(([key, value]) => (
-                  <div key={key}>
-                    <dt>{key}</dt>
-                    <dd>
-                      {typeof value === "object"
-                        ? JSON.stringify(value)
-                        : String(value)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          )}
           {!canEdit &&
             !preview &&
             isRepresentative(profile) &&
@@ -1020,8 +1029,8 @@ function AssetDetails({
               )}
             </div>
           )}
-          <div className="detail-section">
-            <h3>Asset history</h3>
+          <details className="detail-section asset-history">
+            <summary>Asset history ({detail.history.length})</summary>
             {detail.history.length === 0 ? (
               <p>
                 {preview
@@ -1049,7 +1058,7 @@ function AssetDetails({
                 </div>
               ))
             )}
-          </div>
+          </details>
         </>
       )}
     </Dialog>

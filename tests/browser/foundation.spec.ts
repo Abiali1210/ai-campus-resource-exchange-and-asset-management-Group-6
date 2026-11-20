@@ -29,8 +29,12 @@ const authUser = {
   user_metadata: {},
   created_at: "2026-11-08T00:00:00Z",
 };
-async function mockedProject(page: Page, role = "representative") {
-  let row = { ...initial };
+async function mockedProject(
+  page: Page,
+  role = "representative",
+  overrides: Partial<AssetView> = {},
+) {
+  let row = { ...initial, ...overrides };
   const calls: string[] = [];
   await page.route("http://127.0.0.1:54321/**", async (route) => {
     const request = route.request(),
@@ -117,6 +121,79 @@ async function login(page: Page) {
     .getByRole("button", { name: "Sign in", exact: true })
     .click();
 }
+test("asset overview fits desktop and keeps history and mobile content accessible", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mockedProject(page, "requester");
+  await login(page);
+  await page.getByRole("button", { name: `View ${initial.name}` }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("button", { name: "Request this resource", exact: true }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("heading", { name: "Technical specifications" }),
+  ).toBeVisible();
+  await expect
+    .poll(() => dialog.evaluate((el) => el.scrollHeight - el.clientHeight))
+    .toBeLessThanOrEqual(1);
+  await page.screenshot({ path: "test-results/asset-record-desktop.png" });
+  const history = dialog
+    .locator("summary")
+    .filter({ hasText: "Asset history" });
+  await history.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    dialog.getByText("No history visible for this record."),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await dialog.evaluate((el) => el.scrollWidth - el.clientWidth),
+  ).toBeLessThanOrEqual(1);
+  await history.scrollIntoViewIfNeeded();
+  await expect(history).toBeInViewport();
+  await page.screenshot({ path: "test-results/asset-record-mobile.png" });
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: `View ${initial.name}` }),
+  ).toBeFocused();
+});
+
+test("long asset records wrap and remain scrollable without clipping", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 600 });
+  await mockedProject(page, "requester", {
+    description: "Extended description with full inspection notes. ".repeat(35),
+    specifications: Object.fromEntries(
+      Array.from({ length: 25 }, (_, i) => [
+        `Specification ${i}`,
+        "unbroken-value-".repeat(12),
+      ]),
+    ),
+  });
+  await login(page);
+  await page.getByRole("button", { name: `View ${initial.name}` }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByText("Specification 24", { exact: true }),
+  ).toBeAttached();
+  expect(await dialog.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
+    true,
+  );
+  expect(
+    await dialog.evaluate((el) => el.scrollWidth - el.clientWidth),
+  ).toBeLessThanOrEqual(1);
+  await dialog
+    .getByText("Specification 24", { exact: true })
+    .scrollIntoViewIfNeeded();
+  await expect(
+    dialog.getByText("Specification 24", { exact: true }),
+  ).toBeInViewport();
+});
+
 test("configured UI: sign in and publish/withdraw", async ({ page }) => {
   const calls = await mockedProject(page);
   await login(page);
