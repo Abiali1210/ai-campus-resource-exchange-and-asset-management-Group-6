@@ -22,6 +22,7 @@ export interface ResourceRequest {
   submittedAt: string;
 }
 export interface Interest {
+  selectionReason?: string | null;
   interestId: string;
   requestId: string;
   portionId: string;

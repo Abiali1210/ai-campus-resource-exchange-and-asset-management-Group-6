@@ -73,6 +73,13 @@ export class FoundationService {
     if (error) throw new ServiceError(error.message, error.code);
     return data as T;
   }
+  onIdentityChange(callback: (userId: string | null) => void): () => void {
+    if (!client) return () => {};
+    const { data } = client.auth.onAuthStateChange((_event, session) => {
+      callback(session?.user.id ?? null);
+    });
+    return () => data.subscription.unsubscribe();
+  }
   async activityReport(
     start: string,
     end: string,

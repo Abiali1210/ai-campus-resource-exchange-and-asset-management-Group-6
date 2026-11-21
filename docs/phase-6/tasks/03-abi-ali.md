@@ -1,5 +1,56 @@
 # Part 3 — Abi Ali — live-site repairs, then AI feature 2
 
+## Current handoff — 21 November: deploy the supplier selection-note fix
+
+Abdulrahman explicitly assigned this hosted database update to Abi. The tested
+fix is **[202611210001_selection_reasons.sql](../../../supabase/migrations/202611210001_selection_reasons.sql)**.
+The older repair checklist below is historical; do not rerun old migrations just
+because its boxes remain unchecked.
+
+The browser previously tried to read the requester's selection reason from private
+request audit history. Cross-department suppliers could review an Interest but
+could not see its reason. The migration retains the existing workspace permissions
+and financial redaction, projects only each permitted Interest's `selectionReason`,
+and denies direct API access to the internal records helper. It changes no stock,
+accounts, roles or stored audit entries. The frontend falls back safely until this
+migration is applied; the live supplier-note bug remains open until then.
+
+- [ ] Update your checkout to the reviewed fixes on main before deployment.
+- [ ] Sign into the existing project owner's Supabase access locally. Keep tokens
+      and database passwords out of chat, command history, screenshots and Git.
+- [ ] Confirm `campus-exchange-group6-dev` / `gcctwsxullabhkddbzgo`, inspect history,
+      then review the dry-run. The installed CLI v3.0.0 uses these commands:
+
+      ```sh
+      npx supabase migration list --remote=gcctwsxullabhkddbzgo
+      npx supabase db push --remote=gcctwsxullabhkddbzgo --dry-run --skip-vault
+      ```
+
+- [ ] Proceed only if the dry-run contains the reviewed outstanding migration(s).
+      If another change is outstanding, stop and review its source first. Do not
+      reset, reseed, use `--include-all`, or reapply an already recorded migration.
+- [ ] Apply the reviewed migration through the normal tracked migration path:
+
+      ```sh
+      npx supabase db push --remote=gcctwsxullabhkddbzgo --skip-vault
+      ```
+
+      `--skip-vault` avoids unrelated config/Vault synchronization. No provider
+      function redeployment is needed for this particular fix. The migration
+      notifies PostgREST to reload its schema cache.
+
+- [ ] On the hosted site, create or inspect an authorized synthetic Interest with a
+      nonempty selection reason. Verify requester and supplier see the same reason
+      before approval, an unrelated role cannot see it, and cost privacy is intact.
+- [ ] Record applied version `202611210001`, sanitized result and screenshot in
+      issue #23. Close that issue only after this remaining deployment check and
+      the recorded frontend checks pass. Local/browser/CI checks do not establish
+      that the shared database has been updated.
+
+The regression suite checks supplier/creator visibility, unrelated-role denial,
+private request-history exclusion and direct internal-helper denial. No hosted
+database changes were made by Abdulrahman's assistant for this fix.
+
 Read [the shared plan](../README.md) and the first two handoffs.
 **Priority: fix the two live-site issues below before AI #2 matching/ranking.**
 Abdulrahman assigned these repairs to Abi Ali on 10 November 2026. They repair the

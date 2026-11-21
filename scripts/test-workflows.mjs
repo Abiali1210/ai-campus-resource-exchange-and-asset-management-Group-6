@@ -45,6 +45,41 @@ function assertNoCosts(value) {
 let financial;
 try {
   await check(
+    "selection reasons follow permitted interests without exposing request history",
+    async () => {
+      const a = await asset(2),
+        q = await request(1),
+        i = await interest(q, a, 1);
+      const creator = await workspace(requester),
+        supplier = await workspace(rep),
+        outsider = await workspace(person("procurement"));
+      const created = creator.interests.find(
+        (x) => x.interestId === i.interestId,
+      );
+      assert.equal(typeof created.selectionReason, "string");
+      assert.ok(created.selectionReason.length > 0);
+      assert.equal(
+        supplier.interests.find((x) => x.interestId === i.interestId)
+          .selectionReason,
+        created.selectionReason,
+      );
+      assert.equal(
+        outsider.interests.some((x) => x.interestId === i.interestId),
+        false,
+      );
+      assert.equal(
+        supplier.history.some(
+          (x) =>
+            x.event === "interest.recorded" &&
+            x.after?.interest_id === i.interestId,
+        ),
+        false,
+      );
+      await denied(() => as(rep, "select public.workflow_workspace_records()"));
+      await denied(() => as(null, "select public.workflow_workspace()"));
+    },
+  );
+  await check(
     "direct table and helper access denied to all ordinary roles",
     async () => {
       for (const table of [
