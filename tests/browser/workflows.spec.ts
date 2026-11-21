@@ -291,6 +291,9 @@ test("request through separate approval/release, assigned dispatch and accepted 
       name: "Interest " + p.stock.name,
       exact: true,
     });
+    await expect(interest).toContainText(
+      "Requester selection note: HDMI evidence reviewed",
+    );
     await interest
       .locator("summary")
       .filter({ hasText: "Approve reservation" })
@@ -771,6 +774,61 @@ test("C9 activity report lists permitted requests/transfers and exports CSV", as
     );
     expect(csv).toContain(`${t.transferId.slice(0, 8)},`);
     expect(csv).toContain("In Transit");
+  } finally {
+    await p.h.db.close();
+  }
+});
+
+test("request draft survives navigation, clears on submit and never crosses logout", async ({
+  page,
+}) => {
+  const p = await project(page);
+  try {
+    await p.login("requester");
+    await p.requestForm("Private unsent draft");
+    await page
+      .getByRole("button", { name: "Resource catalogue", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Requests and transfers", exact: true })
+      .click();
+    await expect(page.getByLabel("Purpose", { exact: true })).toHaveValue(
+      "Private unsent draft",
+    );
+    await expect(page.getByLabel("Requested quantity")).toHaveValue("3");
+    await expect(
+      page.getByLabel("Required value", { exact: true }),
+    ).toHaveValue("HDMI");
+    await page
+      .getByRole("button", { name: "Submit request", exact: true })
+      .click();
+    await expect(
+      page.getByRole("article", {
+        name: "Request Private unsent draft",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Resource catalogue", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Requests and transfers", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "New request", exact: true })
+      .click();
+    await expect(page.getByLabel("Purpose", { exact: true })).toHaveValue("");
+    await page
+      .getByLabel("Purpose", { exact: true })
+      .fill("Private second draft");
+    await p.login("receiver");
+    await page
+      .getByRole("button", { name: "New request", exact: true })
+      .click();
+    await expect(page.getByLabel("Purpose", { exact: true })).toHaveValue("");
+    await expect(
+      page.getByText("Private second draft", { exact: true }),
+    ).toHaveCount(0);
   } finally {
     await p.h.db.close();
   }

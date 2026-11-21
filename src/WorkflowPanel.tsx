@@ -563,9 +563,23 @@ function RecommendationCard({
     </article>
   );
 }
+export interface RequestFormDraft {
+  open: boolean;
+  purpose: string;
+  category: string;
+  qty: number;
+  condition: string;
+  urgency: string;
+  required: string;
+  destination: string;
+  specs: RequirementRow[];
+}
+
 export function WorkflowPanel({
   profile,
   metadata,
+  savedForm = null,
+  onFormChange,
   selectedResource = null,
   onClearResource,
   onViewResource,
@@ -574,6 +588,8 @@ export function WorkflowPanel({
 }: {
   profile: Profile;
   metadata: Bootstrap;
+  savedForm?: RequestFormDraft | null;
+  onFormChange?: (draft: RequestFormDraft) => void;
   selectedResource?: SelectedResource | null;
   onClearResource?: () => void;
   /** AI #4 draft: pre-fills the normal form; the user still reviews and submits. */
@@ -601,18 +617,47 @@ export function WorkflowPanel({
     ai2Ref.current = next;
     setAi2(next);
   };
-  const [requestFormOpen, setRequestFormOpen] = useState(false);
-  const [purpose, setPurpose] = useState(""),
-    [category, setCategory] = useState(""),
-    [qty, setQty] = useState(1);
-  const [condition, setCondition] = useState("Good"),
-    [urgency, setUrgency] = useState("Normal"),
-    [required, setRequired] = useState("");
-  const [destination, setDestination] = useState(""),
-    [specs, setSpecs] = useState<RequirementRow[]>([]),
+  const [requestFormOpen, setRequestFormOpen] = useState(
+    savedForm?.open ?? false,
+  );
+  const [purpose, setPurpose] = useState(savedForm?.purpose ?? ""),
+    [category, setCategory] = useState(savedForm?.category ?? ""),
+    [qty, setQty] = useState(savedForm?.qty ?? 1);
+  const [condition, setCondition] = useState(savedForm?.condition ?? "Good"),
+    [urgency, setUrgency] = useState(savedForm?.urgency ?? "Normal"),
+    [required, setRequired] = useState(savedForm?.required ?? "");
+  const [destination, setDestination] = useState(savedForm?.destination ?? ""),
+    [specs, setSpecs] = useState<RequirementRow[]>(savedForm?.specs ?? []),
     [busy, setBusy] = useState(false);
   const [requestId, setRequestId] = useState(""),
     [portionId, setPortionId] = useState("");
+  // App retains this user-scoped draft while this panel is unmounted by navigation.
+  // Do not depend on the callback identity: App updates it on ordinary renders.
+  const saveFormRef = useRef(onFormChange);
+  saveFormRef.current = onFormChange;
+  useEffect(() => {
+    saveFormRef.current?.({
+      open: requestFormOpen,
+      purpose,
+      category,
+      qty,
+      condition,
+      urgency,
+      required,
+      destination,
+      specs,
+    });
+  }, [
+    requestFormOpen,
+    purpose,
+    category,
+    qty,
+    condition,
+    urgency,
+    required,
+    destination,
+    specs,
+  ]);
   const pending = useRef<WorkflowOperation | null>(null);
   const requestPurposeRef = useRef<HTMLInputElement>(null);
   const requestOpenRef = useRef<HTMLButtonElement>(null);
@@ -697,7 +742,14 @@ export function WorkflowPanel({
       const result = await workflows.execute(pending.current);
       pending.current = null;
       setPurpose("");
+      setCategory("");
+      setQty(1);
+      setCondition("Good");
+      setUrgency("Normal");
+      setRequired("");
+      setDestination("");
       setSpecs([]);
+      setRequestFormOpen(false);
       if (selectedResource) {
         setActiveSection("interests");
         setRequestFormOpen(false);
@@ -1459,18 +1511,17 @@ export function WorkflowPanel({
                 </dl>
                 <p>
                   <strong>Requester selection note:</strong>{" "}
-                  {(() => {
-                    const event = w.history.find(
-                      (h) =>
-                        h.event === "interest.recorded" &&
-                        record(h.after).interest_id === i.interestId &&
-                        typeof record(h.after).reason === "string" &&
-                        String(record(h.after).reason).trim(),
-                    );
-                    return event
-                      ? String(record(event.after).reason)
-                      : "Not available in this view";
-                  })()}
+                  {i.selectionReason ||
+                    (() => {
+                      const event = w.history.find(
+                        (h) =>
+                          h.event === "interest.recorded" &&
+                          record(h.after).interest_id === i.interestId,
+                      );
+                      return typeof record(event?.after).reason === "string"
+                        ? String(record(event?.after).reason)
+                        : "Not available in this view";
+                    })()}
                 </p>
                 {i.status === "Pending" && (
                   <p className="workflow-next-action">

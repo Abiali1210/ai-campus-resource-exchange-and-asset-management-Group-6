@@ -8,6 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import { api } from "./api";
+import {
+  specificationRows,
+  serializeSpecifications,
+  type SpecificationRow,
+} from "./specificationEditor";
+import type { RequestFormDraft } from "./WorkflowPanel";
 import { AssetArt } from "./AssetArt";
 import { resolveExactAvailableResource } from "./resourceHandoff";
 import universityLogo from "./assets/branding/khalifa-university-colour-white-background.jpg";
@@ -366,11 +372,8 @@ function AssetEditor({
           specifications: {},
         },
   );
-  const [specs, setSpecs] = useState<[string, string][]>(
-    Object.entries(form.specifications).map(([key, value]) => [
-      key,
-      typeof value === "string" ? value : String(value),
-    ]),
+  const [specs, setSpecs] = useState<SpecificationRow[]>(() =>
+    specificationRows(form.specifications),
   );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -381,19 +384,9 @@ function AssetEditor({
     setBusy(true);
     setError("");
     try {
-      const usable = specs.filter(([key, value]) => key.trim() || value.trim());
-      if (usable.some(([key, value]) => !key.trim() || !value.trim()))
-        throw new Error("Each specification needs both a name and a value.");
-      if (
-        new Set(usable.map(([key]) => key.trim().toLowerCase())).size !==
-        usable.length
-      )
-        throw new Error("Use each specification name only once.");
       const saved = await api.saveAsset({
         ...form,
-        specifications: Object.fromEntries(
-          usable.map(([key, value]) => [key.trim(), value.trim()]),
-        ),
+        specifications: serializeSpecifications(specs),
       });
       onSave(saved);
     } catch (e) {
@@ -579,7 +572,7 @@ function AssetEditor({
                   onChange={(e) =>
                     setSpecs((rows) =>
                       rows.map((row, i) =>
-                        i === index ? [e.target.value, row[1]] : row,
+                        i === index ? [e.target.value, row[1], row[2]] : row,
                       ),
                     )
                   }
@@ -591,7 +584,7 @@ function AssetEditor({
                   onChange={(e) =>
                     setSpecs((rows) =>
                       rows.map((row, i) =>
-                        i === index ? [row[0], e.target.value] : row,
+                        i === index ? [row[0], e.target.value, row[2]] : row,
                       ),
                     )
                   }
@@ -614,7 +607,10 @@ function AssetEditor({
             >
               + Add specification
             </button>
-            <small>Add a name and value for each relevant feature.</small>
+            <small>
+              Add a name and value for each relevant feature. Existing non-text
+              values use JSON; unchanged values keep their original type.
+            </small>
           </div>
         </div>
         <div className="form-footer">
@@ -1159,6 +1155,12 @@ function AccountEditor({
 }
 
 export default function App() {
+  const sessionGeneration = useRef(0);
+  const generation = sessionGeneration.current;
+  const sessionIsCurrent = () => sessionGeneration.current === generation;
+  const [requestFormDraft, setRequestFormDraft] =
+    useState<RequestFormDraft | null>(null);
+  const [catalogueError, setCatalogueError] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null),
     [metadata, setMetadata] = useState<Bootstrap>(emptyMetadata),
     [assets, setAssets] = useState<AssetView[]>([]),
@@ -1224,8 +1226,10 @@ export default function App() {
     then: (asset: AssetView) => void,
   ) => {
     try {
+      const rows = await api.catalogue();
+      if (!sessionIsCurrent()) return;
       const asset = resolveExactAvailableResource(
-        await api.catalogue(),
+        rows,
         item.assetId,
         item.portionId,
       );
@@ -1235,7 +1239,7 @@ export default function App() {
           "That resource is no longer available. Ask again or search the catalogue.",
         );
     } catch (e) {
-      setError(errorText(e));
+      if (sessionIsCurrent()) setError(errorText(e));
     }
   };
   useEffect(() => {
@@ -1243,7 +1247,7 @@ export default function App() {
     async function init() {
       try {
         const p = api.configured ? await api.session() : null;
-        if (live) {
+        if (live && sessionIsCurrent()) {
           setProfile(p);
           if (
             p?.roles.includes("system_administrator") &&
@@ -1253,12 +1257,12 @@ export default function App() {
         }
         if (p || !api.configured) {
           const m = await api.bootstrap();
-          if (live) setMetadata(m);
+          if (live && sessionIsCurrent()) setMetadata(m);
         }
       } catch (e) {
-        if (live) setError(errorText(e));
+        if (live && sessionIsCurrent()) setError(errorText(e));
       } finally {
-        if (live) setLoading(false);
+        if (live && sessionIsCurrent()) setLoading(false);
       }
     }
     void init();
@@ -1278,20 +1282,21 @@ export default function App() {
       return;
     let active = true;
     setLoading(true);
+    setCatalogueError("");
     const f = { ...filters, own: view === "own" };
     const request = preview ? api.previewCatalogue(f) : api.catalogue(f);
     request
       .then((rows) => {
-        if (active) setAssets(rows);
+        if (active && sessionIsCurrent()) setAssets(rows);
       })
       .catch((e) => {
-        if (active) {
+        if (active && sessionIsCurrent()) {
           setAssets([]);
-          setError(errorText(e));
+          setCatalogueError("The catalogue could not be loaded. Please retry.");
         }
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active && sessionIsCurrent()) setLoading(false);
       });
     return () => {
       active = false;
@@ -1317,7 +1322,77 @@ export default function App() {
   const technical = !!profile?.roles.includes("system_administrator");
   const hasReadRole =
     !profile || profile.roles.some((r) => r !== "system_administrator");
+  function resetAccountState() {
+    // Invalidate callbacks immediately, before awaiting sign-out or changing users.
+    sessionGeneration.current += 1;
+    setAssistantMessages([]);
+    setRequestDraft(null);
+    setRequestFormDraft(null);
+    setResourceHandoff(null);
+    setSelected(null);
+    setRecommendationPreview(null);
+    setEditAccount(undefined);
+    setEditDepartment(undefined);
+    setSuccess("");
+    setError("");
+    setCatalogueError("");
+    setFilters({});
+    setAssets([]);
+    setMetadata(emptyMetadata);
+    setModal(null);
+    setView("catalogue");
+  }
+  useEffect(() => {
+    let identity: string | null | undefined;
+    let live = true;
+    const unsubscribe = api.onIdentityChange((userId) => {
+      if (identity === undefined) {
+        identity = userId;
+        return;
+      }
+      if (identity === userId) return; // Token refresh is not an account switch.
+      identity = userId;
+      resetAccountState();
+      setProfile(null);
+      if (!userId) return;
+      const authGeneration = sessionGeneration.current;
+      // Supabase auth callbacks must finish before making further auth/RPC calls.
+      window.setTimeout(() => {
+        if (!live || sessionGeneration.current !== authGeneration) return;
+        void (async () => {
+          try {
+            const p = await api.session();
+            if (
+              !live ||
+              sessionGeneration.current !== authGeneration ||
+              !p ||
+              p.userId !== userId
+            )
+              return;
+            const m = await api.bootstrap();
+            if (!live || sessionGeneration.current !== authGeneration) return;
+            setProfile(p);
+            setMetadata(m);
+            setView(
+              p.roles.length === 1 && p.roles.includes("system_administrator")
+                ? "admin"
+                : "catalogue",
+            );
+          } catch (e) {
+            if (live && sessionGeneration.current === authGeneration)
+              setError(errorText(e));
+          }
+        })();
+      }, 0);
+    });
+    return () => {
+      live = false;
+      unsubscribe();
+    };
+  }, []);
   async function signedIn(p: Profile) {
+    resetAccountState();
+    const loginGeneration = sessionGeneration.current;
     setProfile(p);
     setModal(null);
     setError("");
@@ -1328,23 +1403,19 @@ export default function App() {
         : "catalogue",
     );
     try {
-      setMetadata(await api.bootstrap());
+      const nextMetadata = await api.bootstrap();
+      if (sessionGeneration.current !== loginGeneration) return;
+      setMetadata(nextMetadata);
       reload();
     } catch (e) {
-      setError(errorText(e));
+      if (sessionGeneration.current === loginGeneration) setError(errorText(e));
     }
   }
   async function signOut() {
+    resetAccountState();
     try {
       await api.signOut();
       setProfile(null);
-      setAssets([]);
-      setAssistantMessages([]);
-      setRequestDraft(null);
-      setView("catalogue");
-      setFilters({});
-      setMetadata(emptyMetadata);
-      setModal(null);
     } catch (e) {
       setError(errorText(e));
     }
@@ -1352,10 +1423,12 @@ export default function App() {
   async function afterAdminSave() {
     setModal(null);
     try {
-      setMetadata(await api.bootstrap());
+      const m = await api.bootstrap();
+      if (!sessionIsCurrent()) return;
+      setMetadata(m);
       setSuccess("Administration change saved and audited.");
     } catch (e) {
-      setError(errorText(e));
+      if (sessionIsCurrent()) setError(errorText(e));
     }
   }
   function openEdit(asset: AssetView) {
@@ -1705,7 +1778,12 @@ export default function App() {
             <Suspense fallback={<p role="status">Opening assistant…</p>}>
               <AssistantPanel
                 messages={assistantMessages}
-                setMessages={setAssistantMessages}
+                setMessages={(update) => {
+                  if (sessionIsCurrent())
+                    setAssistantMessages((messages) =>
+                      sessionIsCurrent() ? update(messages) : messages,
+                    );
+                }}
                 canRequest={profile.roles.some((r) =>
                   ["requester", "representative"].includes(r),
                 )}
@@ -1741,6 +1819,11 @@ export default function App() {
           ) : view === "workflows" && profile ? (
             <Suspense fallback={<p role="status">Opening workflows…</p>}>
               <WorkflowPanel
+                key={profile.userId}
+                savedForm={requestFormDraft}
+                onFormChange={(draft) => {
+                  if (sessionIsCurrent()) setRequestFormDraft(draft);
+                }}
                 profile={profile}
                 metadata={metadata}
                 selectedResource={resourceHandoff}
@@ -1752,6 +1835,7 @@ export default function App() {
                     if (resourceHandoff) {
                       try {
                         const rows = await api.catalogue();
+                        if (!sessionIsCurrent()) return;
                         const item = resolveExactAvailableResource(
                           rows,
                           resourceHandoff.assetId,
@@ -1766,6 +1850,7 @@ export default function App() {
                           );
                         }
                       } catch {
+                        if (!sessionIsCurrent()) return;
                         setError(
                           "This selected resource could not be verified. Try again before continuing.",
                         );
@@ -1775,6 +1860,7 @@ export default function App() {
                   }
                   try {
                     const rows = await api.catalogue();
+                    if (!sessionIsCurrent()) return;
                     const item = resolveExactAvailableResource(
                       rows,
                       recommendation.assetId,
@@ -1792,6 +1878,7 @@ export default function App() {
                       return;
                     }
                   } catch {
+                    if (!sessionIsCurrent()) return;
                     setRecommendationPreview(null);
                     setSelected(null);
                     setError(
@@ -1975,7 +2062,13 @@ export default function App() {
                   {view === "own"
                     ? "Department inventory"
                     : "Available resources"}{" "}
-                  <span className="muted">({assets.length})</span>
+                  <span className="muted">
+                    {catalogueError
+                      ? "(unavailable)"
+                      : loading
+                        ? ""
+                        : `(${assets.length})`}
+                  </span>
                 </h2>
                 <small>
                   {preview
@@ -1983,7 +2076,14 @@ export default function App() {
                     : "Results follow your access permissions"}
                 </small>
               </div>
-              {loading ? (
+              {catalogueError ? (
+                <div role="alert" className="notice error">
+                  <p>{catalogueError}</p>
+                  <button className="button secondary" onClick={reload}>
+                    Retry catalogue
+                  </button>
+                </div>
+              ) : loading ? (
                 <div className="loading" role="status">
                   Finding campus resources…
                 </div>
@@ -2112,6 +2212,7 @@ export default function App() {
           metadata={metadata}
           onClose={close}
           onSave={(saved) => {
+            if (!sessionIsCurrent()) return;
             setSelected(saved);
             setModal("asset");
             setSuccess(
