@@ -16,6 +16,7 @@ import {
 import type { RequestFormDraft } from "./WorkflowPanel";
 import { AssetArt } from "./AssetArt";
 import { resolveExactAvailableResource } from "./resourceHandoff";
+import { auditActorLabel, auditEventLabel } from "./workflowPresentation";
 import universityLogo from "./assets/branding/khalifa-university-colour-white-background.jpg";
 import {
   CONDITIONS,
@@ -978,8 +979,8 @@ function AssetDetails({
               detail.history.map((event) => (
                 <div className="history-row" key={event.auditId}>
                   <div>
-                    <strong>{event.event.replaceAll("_", " ")}</strong>
-                    <small>Actor: {event.actorId || "System"}</small>
+                    <strong>{auditEventLabel(event.event)}</strong>
+                    <small>By {auditActorLabel(event)}</small>
                     <details>
                       <summary>Change details</summary>
                       <pre className="setup-code">

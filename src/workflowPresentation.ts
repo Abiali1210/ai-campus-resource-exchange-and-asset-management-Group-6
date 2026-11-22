@@ -1,6 +1,51 @@
-import type { Profile } from "./types";
+import type { AuditEvent, Profile } from "./types";
 import type { Transfer, WorkflowWorkspace } from "./workflows";
 import type { ResourceRequest } from "./workflows";
+
+// Plain-language names for audit event codes, shared by the asset record
+// history and Requests and transfers → History. Never show the raw codes.
+export const AUDIT_EVENT_LABELS: Readonly<Record<string, string>> = {
+  "asset.saved": "Record saved",
+  "asset.published": "Listing published",
+  "asset.withdrawn": "Listing withdrawn",
+  "request.submitted": "Request submitted",
+  "interest.recorded": "Interest recorded",
+  "reservation.approved": "Reservation approved",
+  "reservation.rejected": "Reservation rejected",
+  "transfer.approveRelease": "Release approved",
+  "transfer.rejectRelease": "Release rejected",
+  "transfer.schedule": "Pickup scheduled",
+  "transfer.dispatch": "Dispatched",
+  "transfer.receive": "Receipt recorded",
+  "transfer.reconcile": "Dispute reconciled and accepted",
+  "transfer.confirmReturn": "Supplier confirmed return",
+  "transfer.cancelTransfer": "Transfer canceled before dispatch",
+  "request.closeRequest": "Unmet need closed",
+  "request.cancelRequest": "Request canceled",
+};
+
+// Known codes use the table above. An unknown code still reads as words,
+// e.g. "asset.condition_assessed" -> "Asset condition assessed".
+export function auditEventLabel(code: string | null | undefined): string {
+  if (code && Object.hasOwn(AUDIT_EVENT_LABELS, code))
+    return AUDIT_EVENT_LABELS[code];
+  const words = String(code ?? "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return words ? words[0].toUpperCase() + words.slice(1) : "Recorded change";
+}
+
+// Who made the change, by display name. Never shows a user ID.
+export function auditActorLabel(
+  event: Pick<AuditEvent, "actorId" | "actorName">,
+): string {
+  const name = event.actorName?.trim();
+  if (name) return name;
+  return event.actorId ? "Unknown user" : "System";
+}
 
 export function groupRequests(requests: ResourceRequest[]): {
   open: ResourceRequest[];

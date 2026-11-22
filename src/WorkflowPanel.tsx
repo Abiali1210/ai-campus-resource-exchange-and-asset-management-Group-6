@@ -16,6 +16,7 @@ import {
   preferredCompatibleRequest,
 } from "./resourceHandoff";
 import {
+  auditEventLabel,
   groupRequests,
   groupTransfers,
   transferActions,
@@ -61,22 +62,6 @@ const labelDay = (s: string) => new Date(`${s}T00:00:00`).toLocaleDateString();
 const terminal = ["Completed", "Canceled", "Returned"];
 const record = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-const eventLabels: Record<string, string> = {
-  "request.submitted": "Request submitted",
-  "interest.recorded": "Interest recorded",
-  "reservation.approved": "Reservation approved",
-  "reservation.rejected": "Reservation rejected",
-  "transfer.approveRelease": "Release approved",
-  "transfer.rejectRelease": "Release rejected",
-  "transfer.schedule": "Pickup scheduled",
-  "transfer.dispatch": "Dispatched",
-  "transfer.receive": "Receipt recorded",
-  "transfer.reconcile": "Dispute reconciled and accepted",
-  "transfer.confirmReturn": "Supplier confirmed return",
-  "transfer.cancelTransfer": "Transfer canceled before dispatch",
-  "request.closeRequest": "Unmet need closed",
-  "request.cancelRequest": "Request canceled",
-};
 const transferActionCopy: Record<string, string> = {
   "Pending Approval": "Supplier representative: approve or reject release.",
   Approved: "Assigned Facilities staff: arrange pickup.",
@@ -1677,7 +1662,7 @@ export function WorkflowPanel({
                   record(after.transfer).state ?? after.status ?? after.state;
                 return (
                   <li className="workflow-history" key={h.auditId}>
-                    <h3>{eventLabels[h.event] ?? h.event}</h3>
+                    <h3>{auditEventLabel(h.event)}</h3>
                     <p className="workflow-history-meta">
                       <span>{personName(h.actorId)}</span> ·{" "}
                       <time dateTime={h.occurredAt}>

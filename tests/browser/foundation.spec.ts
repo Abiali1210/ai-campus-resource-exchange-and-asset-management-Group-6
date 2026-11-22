@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import type { AssetView, Profile } from "../../src/types";
+import type { AssetView, AuditEvent, Profile } from "../../src/types";
 const fixture = JSON.parse(
   readFileSync(new URL("../fixtures/foundation.json", import.meta.url), "utf8"),
 );
@@ -35,6 +35,7 @@ async function mockedProject(
   role = "representative",
   overrides: Partial<AssetView> = {},
   otherRows: AssetView[] = [],
+  history: AuditEvent[] = [],
 ) {
   let row = { ...initial, ...overrides };
   const calls: string[] = [];
@@ -84,7 +85,7 @@ async function mockedProject(
         asset:
           [row, ...otherRows].find((a) => a.portionId === requested) ?? row,
         attachments: [],
-        history: [],
+        history,
       });
     }
     if (name === "set_publication") {
@@ -242,6 +243,101 @@ test("asset overview fits desktop and keeps history and mobile content accessibl
   await expect(
     page.getByRole("button", { name: `View ${initial.name}` }),
   ).toBeFocused();
+});
+
+test("asset history shows plain-language events and actor names, never codes or user IDs", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const event = (
+    code: string,
+    actorId: string | null,
+    actorName: string | null | undefined,
+    occurredAt: string,
+  ): AuditEvent => ({
+    auditId: randomUUID(),
+    event: code,
+    actorId,
+    actorName,
+    occurredAt,
+    before: null,
+    after: { reason: "Synthetic history entry" },
+  });
+  const history = [
+    event(
+      "transfer.receive",
+      randomUUID(),
+      "Synthetic representative-Science",
+      "2026-11-20T10:30:00Z",
+    ),
+    event(
+      "transfer.dispatch",
+      randomUUID(),
+      "Synthetic facilities-Engineering",
+      "2026-11-20T09:00:00Z",
+    ),
+    event(
+      "reservation.approved",
+      representative.userId,
+      representative.name,
+      "2026-11-19T12:00:00Z",
+    ),
+    event(
+      "asset.condition_assessed",
+      randomUUID(),
+      null,
+      "2026-11-18T08:00:00Z",
+    ),
+    event(
+      "asset.published",
+      representative.userId,
+      representative.name,
+      "2026-11-17T08:00:00Z",
+    ),
+    event(
+      "asset.saved",
+      representative.userId,
+      representative.name,
+      "2026-11-16T08:00:00Z",
+    ),
+    event("asset.saved", null, null, "2026-11-15T08:00:00Z"),
+  ];
+  await mockedProject(page, "representative", {}, [], history);
+  await login(page);
+  await page.getByRole("button", { name: `View ${initial.name}` }).click();
+  const dialog = page.getByRole("dialog");
+  const section = dialog.locator(".asset-history");
+  await section
+    .locator("summary")
+    .filter({ hasText: "Asset history (7)" })
+    .click();
+  const rows = section.locator(".history-row");
+  await expect(rows).toHaveCount(7);
+  await expect(rows.locator("strong")).toHaveText([
+    "Receipt recorded",
+    "Dispatched",
+    "Reservation approved",
+    "Asset condition assessed",
+    "Listing published",
+    "Record saved",
+    "Record saved",
+  ]);
+  await expect(rows.locator("small").filter({ hasText: /^By / })).toHaveText([
+    "By Synthetic representative-Science",
+    "By Synthetic facilities-Engineering",
+    `By ${representative.name}`,
+    "By Unknown user",
+    `By ${representative.name}`,
+    `By ${representative.name}`,
+    "By System",
+  ]);
+  const visible = await section.innerText();
+  expect(visible).not.toMatch(/\b(asset|transfer|reservation)\.[A-Za-z_]+/);
+  expect(visible).not.toMatch(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+  );
+  await section.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "test-results/asset-history-labels.png" });
 });
 
 test("long asset records wrap and remain scrollable without clipping", async ({

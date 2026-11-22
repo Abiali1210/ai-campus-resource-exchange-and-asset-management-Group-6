@@ -1552,6 +1552,208 @@ try {
       }
     },
   );
+  await check(
+    "asset history names actors and shows a split batch's permitted transfer trail without widening access",
+    async () => {
+      const names = new Map(
+        (await db.query("select user_id,name from public.profiles")).rows.map(
+          (r) => [r.user_id, r.name],
+        ),
+      );
+      const events = (history) => history.map((e) => e.event).sort();
+      const assertNames = (history) => {
+        for (const e of history) {
+          assert.equal(typeof e.actorName, "string", e.event);
+          assert.equal(e.actorName, names.get(e.actorId), e.event);
+        }
+      };
+      // An earlier check left the supplier representative with extra roles
+      // (requester, business administrator); test the plain role, then restore.
+      const extraRoles = (
+        await db.query(
+          "delete from public.user_roles where user_id=$1 and role<>'representative' returning role",
+          [rep.userId],
+        )
+      ).rows.map((r) => r.role);
+      try {
+        // Whole-asset owner: unchanged full audit, now with names.
+        const single = await asset();
+        const own = (
+          await as(rep, "select public.asset_detail($1,$2) result", [
+            single.assetId,
+            single.portionId,
+          ])
+        ).rows[0].result.history;
+        assert.deepEqual(events(own), ["asset.published", "asset.saved"]);
+        assert(own.every((e) => e.actorName === rep.name));
+        // Split a 5-unit batch: 2 units go to the receiver's department.
+        const stock = await asset(5),
+          req = await request(2),
+          i = await interest(req, stock, 2);
+        let t = await approve(i, 2);
+        t = await transfer(rep, t, "approveRelease", {
+          facilitiesId: facilities.userId,
+        });
+        t = await transfer(facilities, t, "schedule", {
+          scheduledAt: new Date(Date.now() + 3600000).toISOString(),
+          arrangements: "Asset history trolley",
+          handlingCost: 55.55,
+          transportCost: 66.66,
+        });
+        t = await transfer(facilities, t, "dispatch", {
+          qty: 2,
+          location: "Synthetic trolley",
+        });
+        await transfer(receiver, t, "receive", {
+          qty: 2,
+          condition: "Good",
+          accept: true,
+          location: "Science synthetic store",
+        });
+        const portions = (
+          await db.query(
+            "select portion_id,owner_department_id,state from public.stock_portions where asset_id=$1 and active",
+            [stock.assetId],
+          )
+        ).rows;
+        const received = portions.find(
+          (p) => p.owner_department_id === receiver.departmentId,
+        );
+        const remaining = portions.find(
+          (p) => p.owner_department_id === rep.departmentId,
+        );
+        assert.equal(received.state, "In Use");
+        assert.equal(remaining.state, "Available");
+        const detail = async (user, portion) =>
+          (
+            await as(user, "select public.asset_detail($1,$2) result", [
+              stock.assetId,
+              portion.portion_id,
+            ])
+          ).rows[0].result;
+        const trail = [
+          "reservation.approved",
+          "transfer.approveRelease",
+          "transfer.dispatch",
+          "transfer.receive",
+          "transfer.schedule",
+        ];
+        // Neither department can edit the whole asset, so the private audit
+        // (registration and publication records) stays closed to both.
+        for (const user of [rep, receiver])
+          await denied(() =>
+            as(user, "select public.list_asset_audit($1)", [stock.assetId]),
+          );
+        for (const [user, portion] of [
+          [receiver, received],
+          [rep, remaining],
+        ]) {
+          const history = (await detail(user, portion)).history;
+          assert.deepEqual(events(history), trail);
+          assertNames(history);
+          // Participant representatives keep exact costs, as in the workspace.
+          assert(
+            history.some(
+              (e) => Number(e.after?.transfer?.transport_cost) === 66.66,
+            ),
+          );
+        }
+        // The legacy one-argument overload uses the same history.
+        const legacy = (
+          await as(receiver, "select public.asset_detail($1) result", [
+            stock.assetId,
+          ])
+        ).rows[0].result.history;
+        assert.deepEqual(events(legacy), trail);
+        assertNames(legacy);
+        // The requester follows their own transfer on the listed remainder,
+        // with transfer costs still redacted.
+        const requesterHistory = (await detail(requester, remaining)).history;
+        assert.deepEqual(events(requesterHistory), trail);
+        assertNames(requesterHistory);
+        assertNoCosts(requesterHistory);
+        // Same trail as the requester's Requests and transfers -> History.
+        const workflowIds = new Set(
+          (await workspace(requester)).history.map((e) => e.auditId),
+        );
+        assert(requesterHistory.every((e) => workflowIds.has(e.auditId)));
+        // Business administrators keep the full audit, now with names.
+        const full = (await detail(person("business_administrator"), remaining))
+          .history;
+        assert.deepEqual(
+          events(full),
+          ["asset.published", "asset.saved", ...trail].sort(),
+        );
+        assertNames(full);
+        assert(
+          full.some(
+            (e) => e.event === "asset.saved" && e.actorName === rep.name,
+          ),
+        );
+        // Another department without access: no history on the listed
+        // remainder, no access to the received batch or the private audit.
+        const dep = randomUUID();
+        await db.query("insert into public.departments values($1,$2,true)", [
+          dep,
+          "Synthetic asset history outsider " + dep,
+        ]);
+        for (const role of ["representative", "requester"]) {
+          const outsider = { userId: randomUUID(), departmentId: dep };
+          await db.query("insert into auth.users values($1)", [
+            outsider.userId,
+          ]);
+          await db.query("insert into public.profiles values($1,$2,$3,true)", [
+            outsider.userId,
+            dep,
+            "Synthetic outsider " + role,
+          ]);
+          await db.query("insert into public.user_roles values($1,$2)", [
+            outsider.userId,
+            role,
+          ]);
+          const visible = await detail(outsider, remaining);
+          assert.equal(visible.asset.portionId, remaining.portion_id);
+          assert.deepEqual(visible.history, []);
+          await denied(() => detail(outsider, received));
+          await denied(() =>
+            as(outsider, "select public.list_asset_audit($1)", [stock.assetId]),
+          );
+        }
+        // The helper is private; anonymous callers cannot read details.
+        for (const user of [rep, requester])
+          await denied(() =>
+            as(user, "select public.asset_history($1)", [stock.assetId]),
+          );
+        await denied(() =>
+          as(null, "select public.asset_history($1)", [stock.assetId], "anon"),
+        );
+        await denied(() =>
+          as(
+            null,
+            "select public.asset_detail($1,$2)",
+            [stock.assetId, remaining.portion_id],
+            "anon",
+          ),
+        );
+        const definitions = (
+          await db.query(
+            "select prosecdef,proconfig from pg_proc where proname in ('asset_detail','asset_history')",
+          )
+        ).rows;
+        assert.equal(definitions.length, 3);
+        for (const d of definitions) {
+          assert.equal(d.prosecdef, true);
+          assert.deepEqual(d.proconfig, ["search_path=public, pg_temp"]);
+        }
+      } finally {
+        for (const role of extraRoles)
+          await db.query("insert into public.user_roles values($1,$2)", [
+            rep.userId,
+            role,
+          ]);
+      }
+    },
+  );
   console.log(
     `\n${count} workflow PostgreSQL integration checks passed (${h.pool ? "native PostgreSQL, synthetic Auth adapter" : "PGlite, synthetic Auth adapter"}).`,
   );
