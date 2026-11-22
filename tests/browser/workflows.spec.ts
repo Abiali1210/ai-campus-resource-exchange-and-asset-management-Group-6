@@ -536,9 +536,7 @@ test("calculated report survives an AI outage and requires human editing and pub
       location: "Science / Lab",
     });
     await p.login("admin", false);
-    await page
-      .getByRole("button", { name: "Deterministic reports", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Reports", exact: true }).click();
     await page
       .getByRole("button", { name: "Capture snapshot", exact: true })
       .click();
@@ -603,9 +601,7 @@ test("calculated report survives an AI outage and requires human editing and pub
       fullPage: true,
     });
     await p.login("requester");
-    await page
-      .getByRole("button", { name: "Deterministic reports", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Reports", exact: true }).click();
     await expect(
       page.getByRole("region", { name: "Reports", exact: true }),
     ).toContainText("Reviewed campus activity");

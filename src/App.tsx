@@ -482,7 +482,11 @@ function AssetEditor({
           </Field>
           <Field
             label="Total quantity *"
-            hint="Individual assets always contain one unit."
+            hint={
+              form.trackingMode === "individual"
+                ? "Individual assets always contain one unit."
+                : undefined
+            }
           >
             <input
               type="number"
@@ -1558,7 +1562,7 @@ export default function App() {
               <span className="nav-symbol">
                 <Icon name="report" />
               </span>
-              Deterministic reports
+              Reports
             </button>
           )}
           {profile && (
@@ -1627,7 +1631,7 @@ export default function App() {
                 : view === "activity"
                   ? "Activity report"
                   : view === "reports"
-                    ? "Deterministic reports"
+                    ? "Reports"
                     : view === "admin"
                       ? "Administration"
                       : view === "workflows"
@@ -1666,7 +1670,7 @@ export default function App() {
                   {view === "activity"
                     ? "Operational reporting"
                     : view === "reports"
-                      ? "Deterministic reporting"
+                      ? "Reporting"
                       : view === "admin"
                         ? "Access & departments"
                         : "Less waste. More possibility."}

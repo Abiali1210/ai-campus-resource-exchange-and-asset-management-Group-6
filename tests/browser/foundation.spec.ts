@@ -393,6 +393,17 @@ test("server form failure preserves entered data and editable specifications", a
   await mockedProject(page);
   await login(page);
   await page.getByRole("button", { name: /Register/ }).click();
+  const unitHint = page
+    .getByRole("dialog")
+    .getByText("Individual assets always contain one unit.");
+  await expect(unitHint).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Tracking mode", exact: true })
+    .selectOption("batch");
+  await expect(unitHint).toHaveCount(0);
+  await page
+    .getByRole("combobox", { name: "Tracking mode", exact: true })
+    .selectOption("individual");
   await page
     .getByLabel("Asset name *", { exact: true })
     .fill("New synthetic display");
