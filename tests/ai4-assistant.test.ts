@@ -5,10 +5,18 @@ import {
   buildPrompt,
   createAi4AssistantHandler,
   groundReply,
+  isTransientProviderError,
   isWorkflowCommand,
+  searchItems,
+  stemWord,
   toContextItems,
+  toSearchEntries,
 } from "../supabase/functions/ai4-assistant/handler.ts";
-import { askAssistant, assistantErrorMessage } from "../src/ai4";
+import {
+  askAssistant,
+  assistantErrorMessage,
+  isRetryableAssistantError,
+} from "../src/ai4";
 
 // Synthetic, caller-scoped rows as search_assets / workflow_workspace return them.
 const MONITOR = "00000000-0000-4000-8000-0000000000a1";
@@ -70,18 +78,21 @@ const geminiReply = (body: unknown) => ({
   ],
 });
 
-function setup(provider: any = vi.fn()) {
+function setup(provider: any = vi.fn(), rows: any[] = catalogueRows) {
   const gateway = {
     authenticate: vi.fn(async () => "user"),
-    catalogue: vi.fn(async () => catalogueRows),
+    catalogue: vi.fn(async () => rows),
     requests: vi.fn(async () => requestRows),
     categories: vi.fn(async () => categories),
   };
+  const log = vi.fn();
   const handler = createAi4AssistantHandler({
     gateway,
     provider,
     allowedOrigins: [],
     providerTimeoutMs: 50,
+    retryBackoffMs: 1,
+    log,
     now: () => new Date("2026-11-19T10:00:00Z"),
   });
   const request = (body: unknown, headers: Record<string, string> = {}) =>
@@ -94,8 +105,43 @@ function setup(provider: any = vi.fn()) {
       },
       body: JSON.stringify(body),
     });
-  return { handler, gateway, provider, request };
+  return { handler, gateway, provider, request, log };
 }
+
+// A larger synthetic catalogue for the live-testing examples of 22 November.
+const row = (
+  id: number,
+  name: string,
+  departmentName: string,
+  extra: Record<string, unknown> = {},
+) => ({
+  portionId: `00000000-0000-4000-8000-${String(id).padStart(12, "0")}`,
+  assetId: `asset-${id}`,
+  name,
+  description: "",
+  categoryName: "",
+  condition: "Good",
+  departmentName,
+  assignedLocation: `${departmentName} store`,
+  qty: 1,
+  ...extra,
+});
+const liveCatalogue = [
+  row(1, "Epson projector", "Engineering", { categoryName: "Projector" }),
+  row(2, "BenQ classroom projector", "Engineering"),
+  row(3, "Portable projector", "Engineering", { qty: 2 }),
+  row(4, "Ceiling projector kit", "Engineering"),
+  row(5, "Epson projector", "Science", { categoryName: "Projector" }),
+  row(6, "Stacking chairs", "Science", { qty: 10 }),
+  row(7, "Lab chair", "Science"),
+  row(8, "Armchair", "Science"),
+  row(9, "Ergonomic seat", "Science", { categoryName: "Chair" }),
+  row(10, "Office seating", "Science", { tags: ["chair", "office"] }),
+  row(11, "Lab chair", "Engineering"),
+  row(12, "Dell monitor", "Engineering", { categoryName: "Monitor" }),
+  row(13, "Lab stool", "Science", { description: "Not a seat with a back" }),
+];
+const idsOf = (items: { portionId: string }[]) => items.map((i) => i.portionId);
 
 describe("AI #4 grounding", () => {
   it("does not repeat a model status that contradicts a submitted request", () => {
@@ -418,6 +464,210 @@ describe("AI #4 handler", () => {
     ).toBe(400);
     gateway.authenticate.mockRejectedValueOnce(Error("bad"));
     expect((await handler(request({ question: "hi" }))).status).toBe(401);
+  });
+});
+
+describe("AI #4 deterministic item search (issue 2)", () => {
+  const projectorPick = (itemIds: string[], answer: string) =>
+    vi.fn(async () =>
+      geminiReply({
+        intent: "find_items",
+        answer,
+        itemIds,
+        requestIds: [],
+        search: { keywords: ["projector"], departmentName: "Engineering" },
+      }),
+    );
+  const ask = async (provider: any, question: string) => {
+    const { handler, request } = setup(provider, liveCatalogue);
+    return (await handler(request({ question }))).json();
+  };
+  const engineeringProjectors = idsOf(liveCatalogue.slice(0, 4)).sort();
+
+  it("lists every Engineering projector, whatever the model picked", async () => {
+    // Live testing: the same question listed 1 item once and 4 another time,
+    // and one reply said "a projector" while listing 4.
+    const once = await ask(
+      projectorPick([liveCatalogue[0].portionId], "There is a projector."),
+      "Any projectors in Engineering?",
+    );
+    const again = await ask(
+      projectorPick(engineeringProjectors, "Yes, a projector is available."),
+      "Any projectors in Engineering?",
+    );
+    for (const body of [once, again]) {
+      expect(body.grounded).toBe(true);
+      expect(idsOf(body.items).sort()).toEqual(engineeringProjectors);
+      expect(body.answer).toBe(
+        'I found 4 available catalogue items matching "projector" in Engineering. See each record below.',
+      );
+    }
+    expect(once.items).toEqual(again.items);
+  });
+
+  it("lists all five Science chairs, including category and tag matches", async () => {
+    // Live testing: "Any chairs in Science?" listed 3 of 5 chair items.
+    const body = await ask(
+      vi.fn(async () =>
+        geminiReply({
+          intent: "find_items",
+          answer: "Science has 3 chairs.",
+          itemIds: idsOf(liveCatalogue.slice(5, 8)),
+          requestIds: [],
+          search: { keywords: ["chairs"], departmentName: "Science" },
+        }),
+      ),
+      "Any chairs in Science?",
+    );
+    expect(body.items.map((i: any) => i.name).sort()).toEqual([
+      "Armchair",
+      "Ergonomic seat",
+      "Lab chair",
+      "Office seating",
+      "Stacking chairs",
+    ]);
+    expect(body.items.every((i: any) => i.departmentName === "Science")).toBe(
+      true,
+    );
+    expect(body.answer).toMatch(/^I found 5 available catalogue items/);
+  });
+
+  it("only applies a department the question itself names", () => {
+    const entries = toSearchEntries(liveCatalogue);
+    const search = { keywords: ["projector"], departmentName: "Engineering" };
+    expect(
+      searchItems(entries, search, "Any projectors?").matches,
+    ).toHaveLength(5);
+    const arts = searchItems(
+      entries,
+      { keywords: ["projector"], departmentName: "Arts" },
+      "Any projectors in Arts?",
+    );
+    expect(arts.matches).toEqual([]);
+    expect(
+      groundReply(
+        {
+          intent: "find_items",
+          answer: "x",
+          itemIds: [],
+          requestIds: [],
+          search: { keywords: ["projector"], departmentName: "Arts" },
+        },
+        { ...ctx, catalogue: entries },
+        "Any projectors in Arts?",
+      )?.answer,
+    ).toBe(
+      `I couldn't find any available catalogue items matching "projector" in Arts. Try the catalogue search with other words.`,
+    );
+  });
+
+  it("searches the whole catalogue, not only the sample sent to the model", () => {
+    const many = Array.from({ length: 70 }, (_, i) =>
+      row(100 + i, `Filler item ${i}`, "Science"),
+    );
+    const rows = [...many, row(500, "Late projector", "Engineering")];
+    expect(toContextItems(rows).some((i) => i.name === "Late projector")).toBe(
+      false,
+    );
+    const found = searchItems(
+      toSearchEntries(rows),
+      { keywords: ["projector"], departmentName: "" },
+      "projector?",
+    );
+    expect(found.matches.map((i) => i.name)).toEqual(["Late projector"]);
+  });
+
+  it("lists at most ten records and says how many there are", () => {
+    const rows = Array.from({ length: 12 }, (_, i) =>
+      row(200 + i, `Chair ${String(i).padStart(2, "0")}`, "Science"),
+    );
+    const reply = groundReply(
+      {
+        intent: "find_items",
+        answer: "x",
+        itemIds: [],
+        requestIds: [],
+        search: { keywords: ["chair"] },
+      },
+      { ...ctx, catalogue: toSearchEntries(rows) },
+      "chairs?",
+    );
+    expect(reply?.items).toHaveLength(10);
+    expect(reply?.answer).toBe(
+      'I found 12 available catalogue items matching "chair". Here are the first 10; use the catalogue search to see them all.',
+    );
+  });
+
+  it("matches singular and plural forms", () => {
+    expect(stemWord("projectors")).toBe("projector");
+    expect(stemWord("benches")).toBe("bench");
+    expect(stemWord("batteries")).toBe("battery");
+    expect(stemWord("glass")).toBe("glass");
+    expect(stemWord("glasses")).toBe("glass");
+  });
+
+  it("asks the model for a search description, not a list", () => {
+    const prompt = JSON.stringify(buildPrompt("chairs?", ctx, "2026-11-19"));
+    expect(prompt).toContain("search.keywords");
+    expect(prompt).toContain('"search":{"type":"object"');
+  });
+});
+
+describe("AI #4 provider retry (issue 1)", () => {
+  const ok = geminiReply({
+    intent: "request_status",
+    answer: "Statuses below.",
+    itemIds: [],
+    requestIds: [REQUEST],
+  });
+  it("retries a transient provider error once and answers", async () => {
+    const provider = vi
+      .fn()
+      .mockRejectedValueOnce(Error("provider_503"))
+      .mockResolvedValueOnce(ok);
+    const { handler, request, log } = setup(provider);
+    const body = await (
+      await handler(request({ question: "status of my requests?" }))
+    ).json();
+    expect(provider).toHaveBeenCalledTimes(2);
+    expect(body.grounded).toBe(true);
+    expect(body.requests[0].requestId).toBe(REQUEST);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining("ai4 provider retry cause=provider_503"),
+    );
+  });
+  it("retries only once and then reports the provider as unavailable", async () => {
+    const provider = vi.fn(async () => {
+      throw Error("provider_503");
+    });
+    const { handler, request, log } = setup(provider);
+    expect(
+      await (await handler(request({ question: "monitors?" }))).json(),
+    ).toEqual({ error: { code: "provider" } });
+    expect(provider).toHaveBeenCalledTimes(2);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining("outcome=error code=provider cause=provider_503"),
+    );
+  });
+  it("does not retry quota, configuration or timeout failures", async () => {
+    for (const message of ["provider_429", "provider_unconfigured"]) {
+      const provider = vi.fn(async () => {
+        throw Error(message);
+      });
+      const { handler, request } = setup(provider);
+      await handler(request({ question: "monitors?" }));
+      expect(provider).toHaveBeenCalledTimes(1);
+    }
+    expect(isTransientProviderError(Error("provider_500"))).toBe(true);
+    expect(isTransientProviderError(Error("provider_504"))).toBe(true);
+    expect(isTransientProviderError(Error("provider_400"))).toBe(false);
+    expect(isTransientProviderError(Error("TimeoutError"))).toBe(false);
+  });
+  it("offers Try again only where asking again can help", () => {
+    for (const code of ["provider", "timeout", "quota", "context"])
+      expect(isRetryableAssistantError(code)).toBe(true);
+    for (const code of ["validation", "unauthorized", "unconfigured"])
+      expect(isRetryableAssistantError(code)).toBe(false);
   });
 });
 
