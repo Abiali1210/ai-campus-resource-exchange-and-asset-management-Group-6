@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabaseClient as client } from "./api";
 
 export type Recommendation = {
   recommendationId: string;
@@ -35,9 +35,6 @@ export type ReviewInput = {
   note?: string;
   qty?: number;
 };
-const url = import.meta.env.VITE_SUPABASE_URL?.trim();
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
-const client = url && key ? createClient(url, key) : null;
 export async function getRecommendations(
   requestId: string,
   operationKey: string,
