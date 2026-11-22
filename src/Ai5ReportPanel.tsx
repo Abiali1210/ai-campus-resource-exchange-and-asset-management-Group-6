@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { normalizeAi5NumberWords } from "./ai5NumberWords";
 import { formatAi5PeriodDate, formatAi5Timestamp } from "./ai5Dates";
@@ -6,6 +6,11 @@ import type { Ai5WorkspaceItem, Department } from "./types";
 import { Ai5Outcomes } from "./Ai5Outcomes";
 import { parseAi5Narrative } from "./ai5Narrative";
 
+type CardFeedback = {
+  id: string;
+  kind: "error" | "success";
+  message: string;
+};
 const actor = (name?: string | null, id?: string | null) => name || id || "—";
 const validationMessage = (error: unknown) => {
   const message = error instanceof Error ? error.message : "";
@@ -29,7 +34,17 @@ export function Ai5ReportPanel({
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [keys, setKeys] = useState<Record<string, string>>({}),
-    [drafts, setDrafts] = useState<Record<string, string>>({});
+    [drafts, setDrafts] = useState<Record<string, string>>({}),
+    // Result of an action on one report card (generate, save, mark ready,
+    // publish). It is shown inside that card, beside the buttons that caused
+    // it, rather than at the top of the page where it is easy to miss.
+    [cardFeedback, setCardFeedback] = useState<CardFeedback | null>(null);
+  const feedbackRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (!cardFeedback) return;
+    feedbackRef.current?.scrollIntoView?.({ block: "nearest" });
+    if (cardFeedback.kind === "error") feedbackRef.current?.focus();
+  }, [cardFeedback]);
   async function load(): Promise<boolean> {
     setBusy(true);
     try {
@@ -49,18 +64,37 @@ export function Ai5ReportPanel({
     void load();
   }, [isAdmin]);
   async function act(id: string, fn: () => Promise<unknown>, message?: string) {
+    // "capture" belongs to the page-level button; every other id is a card.
+    const inCard = id !== "capture";
     setWorking(id);
     setError("");
     setNotice("");
+    setCardFeedback(null);
     try {
       await fn();
-      if ((await load()) && message) setNotice(message);
+      if ((await load()) && message) {
+        if (inCard) setCardFeedback({ id, kind: "success", message });
+        else setNotice(message);
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Report action failed");
+      const message = e instanceof Error ? e.message : "Report action failed";
+      if (inCard) setCardFeedback({ id, kind: "error", message });
+      else setError(message);
     } finally {
       setWorking("");
     }
   }
+  const feedbackFor = (id: string) =>
+    cardFeedback?.id === id ? (
+      <p
+        ref={feedbackRef}
+        tabIndex={-1}
+        role={cardFeedback.kind === "error" ? "alert" : "status"}
+        className={`notice ${cardFeedback.kind} ai5-card-feedback`}
+      >
+        {cardFeedback.message}
+      </p>
+    ) : null;
   const capture = () =>
     act(
       "capture",
@@ -151,6 +185,7 @@ export function Ai5ReportPanel({
                   </button>
                 ) : null}
               </header>
+              {feedbackFor(s.snapshot_id)}
               <dl className="workflow-facts ai5-facts">
                 {Object.entries(s.facts).map(([k, v]) => (
                   <div key={k}>
@@ -239,6 +274,7 @@ export function Ai5ReportPanel({
                             <small>Save edits before marking ready.</small>
                           )}
                         </div>
+                        {feedbackFor(n.narrative_id)}
                       </>
                     ) : (
                       <NarrativeDisplay
@@ -305,6 +341,9 @@ export function Ai5ReportPanel({
                       </button>
                     </div>
                   )}
+                  {isAdmin &&
+                    n.status === "Ready" &&
+                    feedbackFor(n.narrative_id)}
                 </>
               )}
               <details className="ai5-technical">

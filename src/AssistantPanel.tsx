@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { api } from "./api";
+import { api, ServiceError } from "./api";
 import {
   ASSISTANT_SUGGESTIONS,
   askAssistant,
+  isRetryableAssistantError,
   type AssistantItem,
   type AssistantReply,
   type RequestDraft,
@@ -14,6 +15,8 @@ export interface AssistantMessage {
   text: string;
   reply?: AssistantReply;
   failed?: boolean;
+  /** For a failed answer that may work on a second try: the question asked. */
+  retryQuestion?: string;
 }
 
 /**
@@ -39,40 +42,53 @@ export function AssistantPanel({
   onOpenWorkflows: () => void;
 }) {
   const [question, setQuestion] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    // Id of the failed answer being retried; it is replaced in place.
+    [retrying, setRetrying] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null),
     inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    endRef.current?.scrollIntoView?.({ block: "end" });
+    if (retrying === null) endRef.current?.scrollIntoView?.({ block: "end" });
   }, [messages.length, busy]);
 
+  /** Ask and store the answer under replyId (replacing a failed answer). */
+  async function ask(q: string, replyId: number) {
+    setBusy(true);
+    let answer: AssistantMessage;
+    try {
+      const reply = await askAssistant(api.invokeFunction, q);
+      answer = { id: replyId, role: "assistant", text: reply.answer, reply };
+    } catch (e) {
+      const code = e instanceof ServiceError ? e.code : "provider";
+      answer = {
+        id: replyId,
+        role: "assistant",
+        text: e instanceof Error ? e.message : String(e),
+        failed: true,
+        ...(isRetryableAssistantError(code) ? { retryQuestion: q } : {}),
+      };
+    }
+    setMessages((m) =>
+      m.some((x) => x.id === replyId)
+        ? m.map((x) => (x.id === replyId ? answer : x))
+        : [...m, answer],
+    );
+    setBusy(false);
+    setRetrying(null);
+    inputRef.current?.focus();
+  }
   async function send(text: string) {
     const q = text.trim();
     if (!q || busy) return;
     const id = Date.now();
     setMessages((m) => [...m, { id, role: "user", text: q }]);
     setQuestion("");
-    setBusy(true);
-    try {
-      const reply = await askAssistant(api.invokeFunction, q);
-      setMessages((m) => [
-        ...m,
-        { id: id + 1, role: "assistant", text: reply.answer, reply },
-      ]);
-    } catch (e) {
-      setMessages((m) => [
-        ...m,
-        {
-          id: id + 1,
-          role: "assistant",
-          text: e instanceof Error ? e.message : String(e),
-          failed: true,
-        },
-      ]);
-    } finally {
-      setBusy(false);
-      inputRef.current?.focus();
-    }
+    await ask(q, id + 1);
+  }
+  function retry(m: AssistantMessage) {
+    if (busy || !m.retryQuestion) return;
+    setRetrying(m.id);
+    void ask(m.retryQuestion, m.id);
   }
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -135,6 +151,16 @@ export function AssistantPanel({
             )}
             {m.failed && (
               <div className="workflow-card-actions">
+                {m.retryQuestion && (
+                  <button
+                    type="button"
+                    className="button small"
+                    onClick={() => retry(m)}
+                    disabled={busy}
+                  >
+                    {retrying === m.id ? "Trying again…" : "Try again"}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="button secondary small"
@@ -146,7 +172,7 @@ export function AssistantPanel({
             )}
           </div>
         ))}
-        {busy && (
+        {busy && retrying === null && (
           <div className="assistant-message assistant pending" role="status">
             <p>Checking your records…</p>
           </div>

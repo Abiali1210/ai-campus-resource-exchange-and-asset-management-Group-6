@@ -10,6 +10,8 @@ async function project(page: Page) {
   let user = h.requester;
   let failAfterCommit = false;
   let reportProviderUnavailable = false;
+  // Synthetic AI #2 output; null keeps the default outage response.
+  let matchRecommendations: Record<string, unknown>[] | null = null;
   const calls: Record<string, unknown>[] = [];
   const stock = await h.asset(4);
   const users: Record<string, any> = {
@@ -106,6 +108,13 @@ async function project(page: Page) {
     try {
       let result;
       if (name === "ai2-match") {
+        if (matchRecommendations)
+          return send({
+            outcome: "completed",
+            runId: "00000000-0000-4000-8000-00000000a201",
+            requestId: body.requestId,
+            recommendations: matchRecommendations,
+          });
         return send({ error: { code: "provider_unavailable" } }, 503);
       } else if (name === "ai5-generate") {
         const response = await reports(
@@ -235,6 +244,9 @@ async function project(page: Page) {
     setReportUnavailable: (unavailable: boolean) => {
       reportProviderUnavailable = unavailable;
     },
+    setMatchRecommendations: (rows: Record<string, unknown>[] | null) => {
+      matchRecommendations = rows;
+    },
     failNextResponse: () => {
       failAfterCommit = true;
     },
@@ -260,6 +272,18 @@ test("request through separate approval/release, assigned dispatch and accepted 
         .locator("..")
         .getByRole("definition"),
     ).toHaveText("3");
+    const toggle = requestCard.getByRole("button", { name: "Hide details" });
+    await toggle.click();
+    await expect(
+      requestCard.getByRole("button", { name: "Show details" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      requestCard.getByText("Remaining", { exact: true }),
+    ).toBeHidden();
+    await requestCard.getByRole("button", { name: "Show details" }).click();
+    await expect(
+      requestCard.getByText("Remaining", { exact: true }),
+    ).toBeVisible();
     await page
       .getByRole("navigation", { name: "Workflow sections" })
       .getByRole("button", { name: "Interests", exact: true })
@@ -268,6 +292,11 @@ test("request through separate approval/release, assigned dispatch and accepted 
       .getByRole("combobox", { name: "Open request", exact: true })
       .selectOption({ label: "Synthetic UI teaching need (3 remaining)" });
     await page.getByLabel("Published item").selectOption(p.stock.portionId);
+    await expect(
+      page.getByLabel("Published item").locator("option:checked"),
+    ).not.toContainText(p.stock.portionId.slice(0, 8));
+    await page.getByLabel("Search items").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "test-results/interest-picker.png" });
     await page.getByLabel("Selection note").fill("HDMI evidence reviewed");
     await page
       .getByRole("button", { name: "Record Interest", exact: true })
@@ -405,6 +434,68 @@ test("request through separate approval/release, assigned dispatch and accepted 
   }
 });
 
+test("AI match strength is judged against the evidence on record, not a fixed rank of 60", async ({
+  page,
+}) => {
+  const p = await project(page);
+  try {
+    await p.h.request(3);
+    // ai2-match records these warnings today, which caps the rank at 60.
+    const missingEvidence = [
+      "Delivery timing unavailable",
+      "Location evidence unavailable",
+      "Transfer and repair costs unavailable",
+      "Diverted fraction unavailable",
+      "Avoided-emissions evidence unavailable",
+    ];
+    const recommendation = (rank: number, name: string, compat: number) => ({
+      recommendationId: `00000000-0000-4000-8000-00000000a21${rank}`,
+      portionId: p.stock.portionId,
+      assetId: p.stock.assetId,
+      rank,
+      assetName: name,
+      condition: "Good",
+      availableQty: 4,
+      compatibilityScore: compat,
+      finalRankScore: 0.6 * compat,
+      reason: "Synthetic recommendation",
+      missingEvidence,
+      reviewState: "pending",
+    });
+    p.setMatchRecommendations([
+      recommendation(1, "Strong synthetic display", 81),
+      recommendation(2, "Loose synthetic display", 50),
+    ]);
+    await p.login("requester");
+    await page
+      .getByRole("button", { name: "Get AI recommendations", exact: true })
+      .click();
+    const strong = page.getByRole("article", {
+      name: "AI recommendation Strong synthetic display",
+      exact: true,
+    });
+    const loose = page.getByRole("article", {
+      name: "AI recommendation Loose synthetic display",
+      exact: true,
+    });
+    await expect(strong).toContainText("Compatibility: 81.0 / 100");
+    await expect(strong).toContainText("Ranking score: 48.6 of 60 possible");
+    await expect(strong.getByText("Good match", { exact: true })).toBeVisible();
+    await expect(strong.getByText("Weak match", { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(loose.getByText("Weak match", { exact: true })).toBeVisible();
+    await strong.scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: "test-results/ai2-match-strength.png",
+      fullPage: false,
+    });
+  } finally {
+    if (!page.isClosed()) await page.unrouteAll({ behavior: "wait" });
+    await p.h.db.close();
+  }
+});
+
 test("AI matching outage leaves manual interest selection usable and does not allocate stock", async ({
   page,
 }) => {
@@ -462,9 +553,7 @@ test("calculated report survives an AI outage and requires human editing and pub
       location: "Science / Lab",
     });
     await p.login("admin", false);
-    await page
-      .getByRole("button", { name: "Deterministic reports", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Reports", exact: true }).click();
     await page
       .getByRole("button", { name: "Capture snapshot", exact: true })
       .click();
@@ -502,9 +591,16 @@ test("calculated report survives an AI outage and requires human editing and pub
       generated.replace("Recorded campus activity", "99999 units transferred"),
     );
     await page.getByRole("button", { name: "Save edit", exact: true }).click();
-    await expect(reports.getByRole("alert")).toContainText(
-      "Narrative numbers must match",
-    );
+    // The validation error sits inside the report card beside the editor and
+    // takes focus, instead of appearing at the top of the page.
+    const cardAlert = reports.getByRole("article").getByRole("alert");
+    await expect(cardAlert).toContainText("Narrative numbers must match");
+    await expect(cardAlert).toBeFocused();
+    await expect(cardAlert).toBeInViewport();
+    await page.screenshot({
+      path: "test-results/report-validation-in-card.png",
+      fullPage: false,
+    });
     await draft.fill(
       generated.replace("Recorded campus activity", "Reviewed campus activity"),
     );
@@ -522,9 +618,7 @@ test("calculated report survives an AI outage and requires human editing and pub
       fullPage: true,
     });
     await p.login("requester");
-    await page
-      .getByRole("button", { name: "Deterministic reports", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Reports", exact: true }).click();
     await expect(
       page.getByRole("region", { name: "Reports", exact: true }),
     ).toContainText("Reviewed campus activity");

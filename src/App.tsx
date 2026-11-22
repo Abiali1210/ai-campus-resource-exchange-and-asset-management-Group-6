@@ -15,7 +15,13 @@ import {
 } from "./specificationEditor";
 import type { RequestFormDraft } from "./WorkflowPanel";
 import { AssetArt } from "./AssetArt";
-import { resolveExactAvailableResource } from "./resourceHandoff";
+import {
+  requestablePortions,
+  resolveExactAvailableResource,
+} from "./resourceHandoff";
+import { auditActorLabel, auditEventLabel } from "./workflowPresentation";
+import { loadShowTestData, saveShowTestData, visibleRecords } from "./testData";
+import { TestDataToggle } from "./TestDataToggle";
 import universityLogo from "./assets/branding/khalifa-university-colour-white-background.jpg";
 import {
   CONDITIONS,
@@ -481,7 +487,11 @@ function AssetEditor({
           </Field>
           <Field
             label="Total quantity *"
-            hint="Individual assets always contain one unit."
+            hint={
+              form.trackingMode === "individual"
+                ? "Individual assets always contain one unit."
+                : undefined
+            }
           >
             <input
               type="number"
@@ -701,12 +711,7 @@ function AssetDetails({
       .then((rows) => {
         if (active)
           setAvailablePortions(
-            rows.filter(
-              (row) =>
-                row.assetId === asset.assetId &&
-                row.state === "Available" &&
-                row.qty > 0,
-            ),
+            requestablePortions(rows, asset.assetId, profile?.departmentId),
           );
       })
       .catch(() => {
@@ -978,8 +983,8 @@ function AssetDetails({
               detail.history.map((event) => (
                 <div className="history-row" key={event.auditId}>
                   <div>
-                    <strong>{event.event.replaceAll("_", " ")}</strong>
-                    <small>Actor: {event.actorId || "System"}</small>
+                    <strong>{auditEventLabel(event.event)}</strong>
+                    <small>By {auditActorLabel(event)}</small>
                     <details>
                       <summary>Change details</summary>
                       <pre className="setup-code">
@@ -1199,6 +1204,11 @@ export default function App() {
     >(),
     [adminTab, setAdminTab] = useState<"accounts" | "departments">("accounts"),
     [refresh, setRefresh] = useState(0);
+  const [showTestData, setShowTestDataState] = useState(loadShowTestData);
+  const setShowTestData = (value: boolean) => {
+    setShowTestDataState(value);
+    saveShowTestData(value);
+  };
   const preview = !api.configured;
   const beginResourceRequest = (
     asset: AssetView,
@@ -1435,6 +1445,15 @@ export default function App() {
     setSelected(asset);
     setModal("edit");
   }
+  // UI-only: hide technical test records unless "Show test data" is ticked.
+  // The asset currently open in the pop-up is never hidden.
+  const catalogueView = visibleRecords(
+    assets,
+    showTestData,
+    (asset) => [asset.name],
+    (asset) => modal === "asset" && selected?.portionId === asset.portionId,
+  );
+  const shownAssets = catalogueView.rows;
   const title =
     view === "assistant"
       ? "Ask about campus resources in plain language."
@@ -1557,7 +1576,7 @@ export default function App() {
               <span className="nav-symbol">
                 <Icon name="report" />
               </span>
-              Deterministic reports
+              Reports
             </button>
           )}
           {profile && (
@@ -1626,7 +1645,7 @@ export default function App() {
                 : view === "activity"
                   ? "Activity report"
                   : view === "reports"
-                    ? "Deterministic reports"
+                    ? "Reports"
                     : view === "admin"
                       ? "Administration"
                       : view === "workflows"
@@ -1657,7 +1676,7 @@ export default function App() {
         </header>
         <main className="page-content">
           <section
-            className={`hero${view === "workflows" ? " workflow-hero" : ""}`}
+            className={`hero${view === "workflows" ? " workflow-hero" : profile ? " hero-compact" : ""}`}
           >
             <div>
               {view !== "workflows" && (
@@ -1665,7 +1684,7 @@ export default function App() {
                   {view === "activity"
                     ? "Operational reporting"
                     : view === "reports"
-                      ? "Deterministic reporting"
+                      ? "Reporting"
                       : view === "admin"
                         ? "Access & departments"
                         : "Less waste. More possibility."}
@@ -1795,7 +1814,15 @@ export default function App() {
                 }
                 onRequestItem={(item) =>
                   void openAssistantItem(item, (asset) =>
-                    beginResourceRequest(asset),
+                    requestablePortions(
+                      [asset],
+                      asset.assetId,
+                      profile.departmentId,
+                    ).length
+                      ? beginResourceRequest(asset)
+                      : setError(
+                          "This resource belongs to your department, so it cannot be requested.",
+                        ),
                   )
                 }
                 onOpenDraft={(draft) => {
@@ -1820,6 +1847,8 @@ export default function App() {
             <Suspense fallback={<p role="status">Opening workflows…</p>}>
               <WorkflowPanel
                 key={profile.userId}
+                showTestData={showTestData}
+                onShowTestDataChange={setShowTestData}
                 savedForm={requestFormDraft}
                 onFormChange={(draft) => {
                   if (sessionIsCurrent()) setRequestFormDraft(draft);
@@ -2067,14 +2096,21 @@ export default function App() {
                       ? "(unavailable)"
                       : loading
                         ? ""
-                        : `(${assets.length})`}
+                        : `(${shownAssets.length})`}
                   </span>
                 </h2>
-                <small>
-                  {preview
-                    ? "Demonstration records only"
-                    : "Results follow your access permissions"}
-                </small>
+                <div className="results-heading-side">
+                  <TestDataToggle
+                    checked={showTestData}
+                    onChange={setShowTestData}
+                    hidden={catalogueView.hidden}
+                  />
+                  <small>
+                    {preview
+                      ? "Demonstration records only"
+                      : "Results follow your access permissions"}
+                  </small>
+                </div>
               </div>
               {catalogueError ? (
                 <div role="alert" className="notice error">
@@ -2089,7 +2125,7 @@ export default function App() {
                 </div>
               ) : (
                 <div className="catalogue-grid">
-                  {assets.map((asset) => (
+                  {shownAssets.map((asset) => (
                     <button
                       className="asset-card"
                       key={asset.portionId}
@@ -2122,7 +2158,7 @@ export default function App() {
                       </div>
                     </button>
                   ))}
-                  {assets.length === 0 && (
+                  {shownAssets.length === 0 && (
                     <div className="empty-state">
                       <h3>No resources match these filters.</h3>
                       <p>

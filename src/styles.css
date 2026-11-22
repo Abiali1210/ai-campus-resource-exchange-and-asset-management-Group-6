@@ -409,6 +409,9 @@ small {
   background: #edf5e6;
   color: #41663c;
 }
+.ai5-card-feedback {
+  margin: 0.8rem 0 0;
+}
 .notice button {
   margin-left: auto;
   background: none;
@@ -492,6 +495,29 @@ small {
   margin: 0;
 }
 .results-heading small {
+  color: #85917e;
+}
+.results-heading-side {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.test-data-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #5d6a57;
+}
+.test-data-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.test-data-toggle small {
   color: #85917e;
 }
 .catalogue-grid {
@@ -1524,6 +1550,18 @@ small {
 .workflow-card p {
   line-height: 1.6;
 }
+.workflow-card .match-strength {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  margin-bottom: 0.2rem;
+}
+.workflow-card .match-note {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
 .workflow-field {
   display: flex;
   flex-direction: column;
@@ -1710,6 +1748,29 @@ small {
 }
 .workflow-hero .hero-subtitle {
   line-height: 1.5;
+}
+/* Signed-in pages: a shorter hero so catalogue results start on the first screen. */
+.hero.hero-compact {
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.hero-compact .eyebrow {
+  display: none;
+}
+.hero-compact .hero-title {
+  max-width: none;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  margin-bottom: 0.35rem;
+}
+.hero-compact .hero-subtitle {
+  max-width: 640px;
+  line-height: 1.5;
+}
+.hero-compact .hero-actions {
+  padding-top: 0;
+}
+.request-toggle {
+  flex-shrink: 0;
 }
 .workflow-facts dt {
   color: #5f6e62;
