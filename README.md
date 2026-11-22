@@ -41,9 +41,9 @@ PDFs are the reading copies; DOCX files are their editable counterparts.
 Start with [the shared plan](docs/phase-6/README.md), then your assigned task:
 
 1. [Abdulrahman — foundation and catalogue](docs/phase-6/tasks/01-abdulrahman.md)
-2. [Ahmed — requests, approval and transfer](docs/phase-6/tasks/02-ahmed.md)
+2. [Muhammad Awais — requests, approval and transfer](docs/phase-6/tasks/02-ahmed.md)
 3. [Abi Ali — AI #2 matching and ranking](docs/phase-6/tasks/03-abi-ali.md)
-4. [Muhammad Awais — AI #5 generated report and integration](docs/phase-6/tasks/04-muhammad-awais.md)
+4. [Ahmed — AI #5 generated report and integration](docs/phase-6/tasks/04-muhammad-awais.md)
 
 Each task includes prerequisites, acceptance checks, an AI-assistant starting prompt
 and a report/handoff responsibility. [The shared report](docs/phase-6/implementation-report.md)
