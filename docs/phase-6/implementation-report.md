@@ -1,196 +1,136 @@
-# Phase 6 implementation environment and selected features
+# Phase 6 Implementation Report
 
-Group 6 — COSC 336 — Fall 2026
+## Circular Campus Resource Exchange and Asset Management
 
-## Selected scope
+COSC 336 Introduction to Software Engineering | Group 6 | Fall 2026
 
-Per Abdulrahman's 8 November clarification, this draft implements only the lab
-minimum: **C1–C6, AI #2 matching/ranking and AI #5 generated reports**.
-The broader SRS remains the semester baseline; other capabilities are deferred,
-not claimed complete. Slide 5 requires this environment/selected-features report;
-it does not specify a page count or separate submission format.
+Version 1.0 | 22 November 2026 | Application baseline 514048c
 
-## 1 Environment and catalogue — Abdulrahman
+Abi Ali Murtaza Ghadiyali — 100066653
 
-Approved working stack: React/TypeScript/Vite and Supabase/PostgreSQL. Abdulrahman
-reported instructor approval on 8 November. Gemini/pgvector are introduced by the
-matching/report owners, not Part 1. Part 1 contains login/accounts/roles/departments,
-conventional catalogue registration/publication/search and audit groundwork.
-See [setup](setup.md) and [progress handoff](handoffs/01-abdulrahman.md).
+Ahmed Mohamed Moustafa Ghandour — 100066431
 
-Part 1 was rechecked after removing the broader AI and file-storage features.
-The production build, 20 unit tests, 16 PostgreSQL checks and 6 Chrome flows passed.
-These original checks were local. The newer main setup records a shared hosted
-PostgreSQL 17.11 foundation with 12 synthetic accounts and six assets provisioned.
-Account Edge Function deployment and full hosted acceptance remain pending; this
-merge does not reproduce or extend that hosted provisioning.
+Abdulrahman Feras Junaid — 100066011
 
-## 2 Requests and transfers — Ahmed
+Muhammad Awais Afzal Mirza — 100066617
 
-Implemented C4–C6 on `codex/phase6-02-workflows`, extending the existing
-React/TypeScript/Vite and Supabase/PostgreSQL application with an additive migration.
-Staff submit and track permitted requests with requested, accepted, actively
-allocated and remaining quantities. Published-item selection creates linked Interest;
-supplier reservation approval performs allocation. Release is a separate recorded
-decision. Both reject requester/Interest-creator self-approval across multiple roles.
+### 1 Purpose and selected implementation
 
-The implementation follows SRS UC-04/07/08 and design v1.4 Sections 5 and 9–11.
-Request/stock row locks serialize competing approvals, and partial allocation splits
-conserved leaf StockPortions. Assigned Facilities schedule and dispatch; physical
-holder/location change during movement, while formal department/custodian/location
-change only on full suitable accepted receipt. Disputes retain allocation until
-full reconciled acceptance or supplier-confirmed return. Unsafe/unknown stock remains
-unavailable. Current roles/department scope, expected versions, stable retry keys and
-transactional actor/time/reason audit are enforced in PostgreSQL.
+This report records the environment, selected features and verification of the Group 6 draft prototype. Phase 6 slide 5 requires at least the first six core features, AI features 2 and 5, and a report on the environment and selected features. That minimum is implemented in the repository. Section 5 distinguishes completed verification from remaining limits; full semester and production completion are not claimed.
 
-Local verification after the PR #13 privacy correction: **31 unit tests, 16 inherited plus 28 workflow PGlite checks,
-the same 28 workflow checks on native PostgreSQL, four genuinely overlapping native
-transaction races, eleven Chrome flows, production build, fixture integrity and formatting passed**.
-Browser evidence comprises five inherited HTTP-mocked foundation flows, a read-only
-preview, and five workflow/integration flows running actual SQL with synthetic Auth/HTTP
-adapters. These are local checks, not hosted Supabase acceptance. The initial run used
-Node 24.15.0. A follow-up review reran all suites, native concurrency and the build
-on the documented Node 22 runtime (22.23.4), including the split/mixed-owner catalogue
-action regression. The inherited foundation checks pass with all three migrations installed.
+The baseline is SRS v1.2 and Design v1.4. Selected scope is C1–C6, AI 2 matching and ranking, and AI 5 generated reports. C9 activity tables and CSV, and AI 4 conversational assistance, were subsequently added. C7 sustainability dashboard, C8 notifications, AI 1 classification, AI 3 action advice, maintenance and end of life remain deferred. Nine role classes are retained with milestone appropriate workflows. [R1–R3]
 
-PR review reproduced a financial privacy defect: Requesters and assigned Facilities
-could read handling/transport costs directly and inside raw audit snapshots. An
-additive migration now enforces design Section 6.1 on every read, using current
-explicit financial roles and immutable transfer departments. Workspace, asset audit
-and both detail paths omit restricted costs while retaining operational history.
-The UI distinguishes omitted fields from authorized null/zero values. Five database
-regression groups and a browser flow cover this correction. A populated-schema
-upgrade check preserved existing costs/audits while immediately redacting restricted
-reads. Sign-in and backend configuration behavior are unchanged.
+### 2 Implementation environment
 
-A read-only independent reviewer examined requirements, implementation and checks,
-independently reproduced defects, and verified fixes for unsafe cancellation,
-observer/holder separation, terminal tracking privacy and immutable Interest supplier
-authority. Regression checks cover those findings. Seven synthetic workflow recipes
-provide ordinary inputs for the later matching/report owners; no AI or report module
-was added. See [Part 2 handoff](handoffs/02-ahmed.md) for tested revision, commands,
-contracts, demonstration and resolved failures.
+| Area                   | Implemented choice and purpose                                             |
+| ---------------------- | -------------------------------------------------------------------------- |
+| User interface         | React 19, TypeScript and Vite 7 for reusable browser screens               |
+| Managed backend        | Supabase Auth, PostgreSQL, row level security and transaction functions    |
+| Matching               | pgvector and 384 dimensional gte-small embeddings in Supabase Edge Runtime |
+| Generated language     | Server side Gemini calls through Supabase Edge Functions                   |
+| Hosting                | Cloudflare Pages frontend; GitHub source control and CI                    |
+| Development and checks | Node.js 22 baseline, Vitest, PGlite, Playwright and native PostgreSQL CI   |
 
-Part 2 was merged in PR #13. The paragraphs above record checks performed for that
-implementation; they are not a claim that the current hosted deployment has been
-independently rechecked. See the integration handoff for the newer browser results
-and the team's outstanding hosted walkthrough.
+The managed backend architecture is retained. React screens call service classes; PostgreSQL enforces permissions and commits business mutations with audit records. Gemini credentials stay on the server. The browser uses public project configuration and the signed in user's session. Abdulrahman reported instructor stack approval on 8 November. All demonstration records are synthetic coursework data. [R2–R4]
 
-## 3 Matching and ranking — Abi Ali
+<!-- pagebreak -->
 
-Merged into main in PR #17. For a request, the `ai2-match` Edge Function returns up
-to five eligible surplus items, each with a score and a one-line reason, ranked from
-pgvector embeddings. Embeddings use the local `gte-small` model in the Supabase
-Edge Runtime (384 dimensions); Gemini is used for generated prose elsewhere. The
-requester accepts or rejects each suggestion, and accepting
-one still goes through the normal supplier approval. Abi Ali's write-up of checks,
-human selection and fallback evidence is still to come.
+### 3 Core functionality and approval rules
 
-## 4 Generated report and integration — Muhammad Awais
+| ID  | Implemented behavior                                                                                                                                                        |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | Login and active account checks, nine role keys and backend authorization. Technical account administration does not grant business approval.                               |
+| C2  | Department linked assets record category, condition, status and location. Tracked assets and batch StockPortions preserve quantity and custody.                             |
+| C3  | Representatives publish surplus separately from registration. Users search by keyword and filter by category, condition and department within their scope.                  |
+| C4  | Staff submit requests and track requested, accepted, allocated and remaining quantities. Request records remain permission scoped.                                          |
+| C5  | Selection creates an Interest. Supplier reservation and release are separate decisions; self approval is rejected. Facilities dispatches and the receiver confirms receipt. |
+| C6  | Guarded transitions reject invalid actions. History records actor, time and reason, subject to access and financial redaction rules.                                        |
 
-Merged into main in PR #18. The database captures a frozen snapshot of calculated
-facts. The `ai5-generate` Edge Function asks Gemini for a short narrative, and the
-database rejects any text that adds numbers of its own. A business administrator
-edits the draft, marks it ready and publishes it.
+Registration does not automatically publish an asset, and Interest does not reserve it. Reservation locks request and stock records in a database transaction to prevent double allocation. Partial allocation splits a homogeneous portion into conserved quantities. Expected versions and stable operation keys reject stale updates and prevent duplicate outcomes on retries. [R4]
 
-PR #19 added a period and department outcome breakdown calculated by the database,
-audit rows for each report step, and a 20-second timeout on the Gemini request. Its
-migration was applied to the shared hosted project on 17 November 2026. The
-`ai5-generate` function still has to be redeployed for the timeout to take effect.
-Muhammad Awais's write-up of checks and the integrated demonstration is still to come.
+Physical movement and formal custody are separate. Dispatch updates physical tracking; full suitable accepted receipt changes formal department, custodian and assigned location. A short or unsafe receipt remains Disputed and allocated. The receiver can reconcile and accept the full quantity, or the supplier can confirm physical return. Returned unsafe stock remains Unfit; cancellation cannot silently restore unsafe stock to circulation. [R4, R5]
 
-## 5 Basic report (C9) — Ahmed
+Backend checks enforce active roles, departmental boundaries, assigned Facilities authority and separation of requester and approver. Values and costs are redacted according to explicit permissions, including nested history. Ordinary users cannot call private database helpers or rewrite audit history. AI advice never grants authority to reserve, release or receive stock. [R4–R6]
 
-Added after the lab minimum. The **Activity report** screen shows a table of requests
-and a table of their linked transfers for a chosen period and department, and each
-table exports to CSV. One read-only database function, `c9_activity_report`, returns
-the rows. It reuses the Part 2 visibility rules, so a user only sees records they can
-already open in Requests and transfers. Business administrators see every department.
-Handling and transport costs are left out entirely. The CSV is built in the browser and
-guards against spreadsheet formula injection.
+The interface provides item appropriate illustrations, compact asset records, expandable history and reachable account controls. Long records and small screens retain scrolling for access. Request drafts survive navigation in memory for the current user; submission or account change clears them. Failed catalogue loads show an unavailable state and retry action. [R6]
 
-Checks run locally on 17 November 2026: 179 unit tests (6 new for CSV), all PGlite
-database suites including 4 new C9 checks (fields, per-role visibility, filters,
-validation and anonymous denial), type check, build and format. A Playwright flow for
-the screen and CSV download was added but not run, because no Chrome is installed on
-the machine used.
+<!-- pagebreak -->
 
-Merged into main in PR #20. On 17 November 2026 the migration was applied to the shared
-hosted project and recorded as `202611170002`. Signed-in users can call the function
-and anonymous users cannot. A read-only call as a hosted business administrator over
-the past year returned 18 requests and 7 transfers, with no cost fields. The screen has
-not independently rechecked against the hosted project in a browser by this integration review.
+### 4 AI functionality and human decisions
 
-## 6 Campus assistant (AI #4) — Ahmed
+#### AI 2 Matching and ranking
 
-Added after the lab minimum, on branch `feat/ai4-assistant`. A **Campus assistant**
-screen answers plain-language questions through a new `ai4-assistant` Edge Function
-that calls Gemini. It handles three kinds of question: finding catalogue items,
-checking your own requests, and drafting a new request. Reads run with the
-caller's own session, so the assistant only sees what the user can already open,
-and costs and values are never sent to Gemini. The function checks every answer:
-records it mentions must be ones it was given, and numbers must come from those
-records or the question. Anything else becomes "I don't know". Commands such as
-"approve" or "transfer" are refused without calling Gemini. A draft only pre-fills
-the normal request form, and the user submits it.
+The authenticated gateway checks a request, retrieves authorized candidates and returns up to five eligible surplus portions with scores, a reason and missing evidence warnings. Suitability gates run before ranking. Embeddings use gte-small with 384 dimensions; Gemini does not create these vectors. Requesters can accept or reject suggestions. Acceptance records selection through the Interest workflow and still requires supplier approval. [R7]
 
-Checks run locally on 19 November 2026: 193 unit tests (14 new for AI #4, using
-mocked Gemini responses), type check, build and format. The function was deployed
-to the shared hosted project the same day. Hosted calls without a signed-in user are
-refused with 401, and the browser preflight from the local frontend is allowed. On
-19 November 2026 five signed-in questions were tried against the hosted function
-with live Gemini (about 1.5–2.5 s each): an item search returned real listings, a
-request-status question matched the Requests page, "I need 4 chairs for a lab"
-produced an unsubmitted draft, "Approve my reservation" was refused without calling
-Gemini, and "Who is the dean?" got "I don't know". Earlier the same day Gemini
-calls from the project failed for both AI #4 and AI #5 for a while and then
-recovered on their own; the function now logs Google's error code (never the key,
-prompt or answer) so a repeat can be diagnosed.
-PR #22 was merged on 20 November after regression tests confirmed and corrected
-unchecked status prose and failed request lookups being presented as empty lists.
-The corrected function still needs redeployment and hosted verification. See
-[the function README](../../supabase/functions/ai4-assistant/README.md).
+Compatibility combines semantic similarity at 65%, condition at 15%, quantity at 10% and location at 10%. Final rank weights functional compatibility at 60%, timing at 15%, cost at 10%, diversion at 10% and carbon benefit at 5%. Eligible candidates already pass the minimum condition gate. Missing location, timing, cost, waste and emissions evidence contributes zero with explicit warnings; weights are not redistributed. Strong semantic fit can therefore produce a modest final score. Scores are ranking indicators, not probabilities or measured AI accuracy. [R7]
 
-## Status
+Conventional search and manual selection remain available during matching failure; local tests cover this fallback. The 20 November hosted walkthrough observed five real recommendations and explanations but did not submit Accept or Reject. Recommendation decisions and embedding freshness remain team rehearsal checks. [R5, R6]
 
-| Required feature                                       | Owner          | Status                                                                              |
-| ------------------------------------------------------ | -------------- | ----------------------------------------------------------------------------------- |
-| C1 accounts/roles/departments                          | Abdulrahman    | Implemented; latest hosted acceptance/human review pending                          |
-| C2 assets/status; C3 publication/search                | Abdulrahman    | Implemented; latest hosted acceptance/human review pending                          |
-| C4 requests; C5 approval/transfer; C6 workflow/history | Ahmed          | Implemented; latest hosted acceptance/human review pending                          |
-| AI #2 matching/ranking                                 | Abi Ali        | Merged (PR #17); owner write-up and live relevance evidence pending                 |
-| AI #5 generated report                                 | Muhammad Awais | Merged (PR #18, #19); hosted migration applied; function redeploy pending           |
-| C9 requests/transfers table with CSV export            | Ahmed          | Merged (PR #20); local SQL/browser CSV check passed; hosted browser check pending   |
-| AI #4 campus assistant                                 | Ahmed          | Merged (PR #22); earlier hosted trial recorded; corrected function redeploy pending |
+#### AI 5 Generated reports
 
-Deferred now: C7 and C8, AI #1/#3, maintenance and end-of-life.
-No synthetic data establishes actual campus savings/adoption or general AI accuracy.
-Each member records their actual AI assistance, human review and executed checks.
+PostgreSQL captures a frozen snapshot for a selected period and scope. The database calculates figures; Gemini writes a short narrative from those facts. Validation rejects unsupported numeric claims. A business administrator edits the draft, marks it Ready and explicitly publishes it. Ordinary readers see Published content without editing or publication controls. Facts remain available during narrative generation failure. Numeric validation supports human review of the wording. [R5, R8]
 
-## 7 Integration and UI review — 20 November 2026
+The hosted 10–20 November synthetic snapshot contained 19 submitted requests, 17 open, 2 non open, 3 completed transfers and 6 transferred units. An invented total of 999999 was rejected. A valid edit was reviewed, published with authorization and read through the Sustainability account. These are historical snapshot values, not current live totals or actual campus outcomes. [R5]
 
-The integration branch adds representative vector illustrations for common campus
-items and a neutral resource-box fallback. It reuses the same illustration in cards
-and records. A compact desktop asset record shows artwork, key details and technical
-specifications together; history is expandable, and small screens/long records
-retain scrolling. The sidebar keeps account controls reachable on short screens,
-and avatar dimensions stay equal beside long names.
+#### Additional implemented features
 
-The workflow browser tests now follow the current section navigation and editable
-requirement rows. Further browser checks exercise AI matching outage/manual
-selection and the report capture/generation/edit/review/publication path. The report
-check uses the real function handler and SQL with synthetic Auth and Gemini; it is
-not a trial of hosted Gemini. The screenshot catalogue contains synthetic test
-examples, not newly provisioned campus inventory.
+C9 provides scoped request and transfer tables and CSV export. Costs are omitted and spreadsheet formula injection is guarded. AI 4 answers scoped catalogue and own request questions or prepares an unsubmitted request draft. It refuses approval and transfer commands; the user confirms through normal forms. These additions do not implement deferred specialist workflows. [R4, R6]
 
-The final local checks passed: **224 unit tests, 56 PGlite integration checks,
-AI #2 SQL text-contract assertions, 18 Chrome browser journeys, typecheck and
-production build**. Inherited browser failures were reproduced and corrected by
-updating obsolete navigation/form selectors and repairing sidebar account-control
-reachability. Native pgvector inference and hosted Gemini were not exercised by
-these local checks.
+<!-- pagebreak -->
 
-See [the integration handoff](handoffs/05-integration-and-ui.md) for exact results,
-reproduction commands and the owner checklist. Hosted verification was explicitly
-left to the team. These changes do not establish full semester completion, model
-accuracy, live performance or actual sustainability benefits.
+### 5 Verification and remaining limits
+
+| Evidence                                    | Result and boundary                                                                                                                                                           |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Refreshed locally on 22 November            | 227 unit tests in 19 files; 57 PGlite SQL checks and AI 2 SQL contract assertions passed. Type check and build passed. Existing chunk size warning remains.                   |
+| Browser regressions recorded on 21 November | 24 journeys passed with synthetic Auth and HTTP or local SQL adapters, including custody, privacy, retry, outage, draft, report and CSV checks.                               |
+| Native PostgreSQL evidence                  | Repository CI separately covers workflow SQL, overlapping transaction races and AI 2 pgvector. This documentation run did not repeat that suite.                              |
+| Hosted walkthrough on 20 November           | All nine roles exercised; labelled transfer completed through dispute and reconciliation. Live matching and report generation, editing, publication and reader view observed. |
+| Abi's hosted closure confirmation           | Issue 23 is closed. Abi recorded migration 202611210001 applied, correct selection note visibility, outsider denial, restricted costs/history and normal workflow loading.    |
+
+PR 25 fixes stale assistant responses across account changes, typed specification corruption, misleading catalogue outage states, missing supplier selection notes and lost request drafts. Local regressions cover these fixes. Abi's issue comment supplies hosted selection note acceptance evidence; no hosted database changes were performed while preparing this report. [R6, R9]
+
+The dedicated hosted scenario published four synthetic HDMI displays in Engineering and requested two for Science. After approval and dispatch, receipt of only one caused a dispute while formal custody stayed in Engineering. Reconciled acceptance completed the transfer: requested 2, accepted 2, allocated 0, remaining 0. Two units remained in Engineering. A separate local return check kept Poor returned stock Unfit. [R5]
+
+Remaining checks are hosted CSV contents; recommendation accept and reject and fresh embeddings; precise deployed AI function versions and timeout behavior; and hosted replay of all PR 25 regressions. The CSV browser tool timed out after initiating export, while the local CSV journey passed. Current source contains the AI 5 timeout and corrected AI 4 handler, but frontend deployment does not establish hosted function versions. [R6, R8, R9]
+
+The team must review this report, explain contributions and rehearse. No general relevance benchmark, production certification, hosted restore exercise or real sustainability benefit is claimed. Test records remain synthetic. Closing issue 23 settles its migration defect, not all remaining acceptance checks. [R5, R9]
+
+<!-- pagebreak -->
+
+### 6 Selected hosted evidence
+
+These excerpts are from 20 November and show the earlier interface. They document observed behavior, not the exact appearance of the latest frontend. Full captures and role results remain in the repository. [R5]
+
+![AI matching recommendation](evidence/submission/01-matching.png)
+
+Figure 1. One of five recommendations with scores, missing evidence and human controls. Accept and Reject were observed but not submitted in this walkthrough.
+
+![Completed transfer and custody](evidence/submission/02-completed-receipt.png)
+
+Figure 2. Two unit transfer after reconciled acceptance. Science custody and synthetic costs appear in the authorized receiving representative's view.
+
+<!-- pagebreak -->
+
+### 7 Published report and team responsibilities
+
+![Published report reader excerpt](evidence/submission/03-published-report.png)
+
+Figure 3. Published reader excerpt with database facts and a human reviewed synthetic narrative. Publication is inside the app, not a coursework upload. [R5]
+
+| Team member    | Recorded implementation ownership                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------ |
+| Abdulrahman    | Foundation, accounts, catalogue and audit groundwork; subsequent integration and audit follow up |
+| Ahmed          | Requests, reservations, releases, transfers and history; C9 and AI 4 assistant                   |
+| Abi Ali        | AI 2 matching and ranking; hosted migration and acceptance in issue 23                           |
+| Muhammad Awais | AI 5 snapshot, narrative review and publication; reporting and integration                       |
+
+AI assistance was used during implementation, documentation and test preparation. Automated checks and assistant run walkthroughs are identified above. Each member must review the report, verify their contribution description and explain the code and design choices. Personal understanding and rehearsal are not claimed as completed by preparing this document.
+
+#### References
+
+[R1 Phase 6 slides 3 to 5](https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6/blob/main/docs/phase-6/sources/phase-6-draft-implementation.pptx) · [R2 SRS v1.2](https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6/blob/main/docs/phase-3/COSC336_Group6_Phase3_SRS_v1.2.docx) · [R3 Design v1.4](https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6/blob/main/docs/phase-4-5/COSC336_Group6_Phase4_5_Design_v1.4.docx)
+
+[R4 Workflow handoff](handoffs/02-ahmed.md) · [R5 Hosted walkthrough and full captures](reviews/2026-11-20/hosted-role-walkthrough.md) · [R6 Audit fixes and regressions](handoffs/06-audit-fixes.md)
+
+[R7 Matching contract](../../supabase/functions/ai2-match/README.md) · [R8 Report implementation and review](handoffs/04-ai5-review-and-additions.md) · [R9 Abi's hosted closure confirmation](https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6/issues/23#issuecomment-7070239791)

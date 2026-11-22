@@ -1,5 +1,27 @@
 # Phase 6 minimum implementation plan
 
+## Deliverables prepared on 22 November 2026
+
+- [Editable Word report](COSC336_Group6_Phase6_Implementation_Report_v1.0.docx)
+  and its [maintained source](implementation-report.md).
+- [Four person demonstration guide](demonstration-guide.md) and
+  [submission and review checklist](submission-checklist.md).
+- [Verification and screenshot provenance](evidence/submission/verification.md).
+
+The current application baseline is main `514048c`. Issue #23 is **closed**:
+[Abi recorded the applied selection-note migration and successful hosted checks](https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6/issues/23#issuecomment-7070239791).
+Older assignment boxes and handoffs below are historical. Do not reapply a recorded
+migration or infer that every other hosted check passed from issue closure.
+The report and checklist distinguish remaining evidence limits and team review.
+
+The Word file is generated from `implementation-report.md` by
+`scripts/build-phase6-report.py` using python-docx and Pillow in the bundled
+document runtime. Rebuild and render/inspect the pages after changing the source;
+do not edit the Word and Markdown copies independently. The full original hosted
+screenshots remain in `reviews/2026-11-20/hosted-evidence/`.
+
+## Historical scope and task allocation
+
 Updated 20 November 2026. **Phase 6 minimum: C1–C6 and AI features #2 and #5.**
 Abdulrahman clarified that the team should implement only the highlighted lab
 minimum for now. This supersedes the broader Phase 6 task allocation previously

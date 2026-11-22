@@ -2,6 +2,21 @@
 
 **COSC 336 — Introduction to Software Engineering · Group 6 · Fall 2026**
 
+## Phase 6 deliverables — start here
+
+**Prepared 22 November 2026 for team review.**
+
+| Open this                                                                                       | What it contains                                                              |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **[Word report — 6 pages](docs/phase-6/COSC336_Group6_Phase6_Implementation_Report_v1.0.docx)** | Environment, implemented features, test results and three screenshot excerpts |
+| **[Four-person demonstration guide](docs/phase-6/demonstration-guide.md)**                      | Each member's presentation steps, account roles and explanations              |
+| **[Submission checklist](docs/phase-6/submission-checklist.md)**                                | Required review, remaining checks and upload preparation                      |
+
+**Team action:** read the report, confirm your contribution and rehearse your part.
+Abi's hosted migration is recorded as complete in issue #23. Remaining verification
+limits are listed in the checklist. The report source and supporting evidence are
+under [Phase 6 documentation](docs/phase-6/README.md).
+
 Semester project: **Intelligent, AI-Powered Circular Campus Resource Exchange and
 Asset Life Cycle Management System**.
 
@@ -54,9 +69,10 @@ for current checks and the team's hosted verification checklist. Abdulrahman
 reported instructor stack approval on 8 November.
 
 The [20 November hosted walkthrough](docs/phase-6/reviews/2026-11-20/hosted-role-walkthrough.md)
-records actual checks across all nine roles, the completed synthetic transfer and
-live AI/report reader journey. The [exploratory audit](docs/phase-6/reviews/2026-11-20/exploratory-audit.md)
-lists unresolved bugs separately from successful checks and deferred features.
+records all nine roles, the completed synthetic transfer and live AI/report reader
+journey. Its historical findings were addressed in PR #25; issue #23 is closed with
+[Abi's hosted migration and acceptance confirmation](https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6/issues/23#issuecomment-7070239791).
+Read the new checklist rather than treating older pending statements as current.
 
 ## Run the current prototype
 
@@ -78,7 +94,8 @@ Part 2 adds requests, separate reservation/release decisions, scheduling/dispatc
 accepted receipt, disputes/returns and conserved partial quantities. Open **Requests
 and transfers** after sign-in. Read [Ahmed's handoff](docs/phase-6/handoffs/02-ahmed.md)
 for migrations, synthetic workflow fixtures, native concurrency checks and the
-demonstration. Hosted Supabase acceptance remains pending. `npm run test:db` runs
+demonstration. Hosted evidence and remaining limits are in the current Phase 6
+report and checklist. `npm run test:db` runs
 both foundation and workflow checks; `npm run test:db:native` requires a disposable
 PostgreSQL test cluster. No shared database reset is needed.
 
