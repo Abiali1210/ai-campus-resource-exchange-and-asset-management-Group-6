@@ -576,9 +576,16 @@ test("calculated report survives an AI outage and requires human editing and pub
       generated.replace("Recorded campus activity", "99999 units transferred"),
     );
     await page.getByRole("button", { name: "Save edit", exact: true }).click();
-    await expect(reports.getByRole("alert")).toContainText(
-      "Narrative numbers must match",
-    );
+    // The validation error sits inside the report card beside the editor and
+    // takes focus, instead of appearing at the top of the page.
+    const cardAlert = reports.getByRole("article").getByRole("alert");
+    await expect(cardAlert).toContainText("Narrative numbers must match");
+    await expect(cardAlert).toBeFocused();
+    await expect(cardAlert).toBeInViewport();
+    await page.screenshot({
+      path: "test-results/report-validation-in-card.png",
+      fullPage: false,
+    });
     await draft.fill(
       generated.replace("Recorded campus activity", "Reviewed campus activity"),
     );

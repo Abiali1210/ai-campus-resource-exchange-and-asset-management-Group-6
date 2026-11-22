@@ -409,6 +409,9 @@ small {
   background: #edf5e6;
   color: #41663c;
 }
+.ai5-card-feedback {
+  margin: 0.8rem 0 0;
+}
 .notice button {
   margin-left: auto;
   background: none;
