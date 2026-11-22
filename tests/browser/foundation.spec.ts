@@ -257,6 +257,44 @@ test("asset overview fits desktop and keeps history and mobile content accessibl
   ).toBeFocused();
 });
 
+test("test records are hidden by default and return with Show test data", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const fixtureRow = {
+    ...initial,
+    assetId: randomUUID(),
+    portionId: randomUUID(),
+    name: "[Part 2 fixture v1] Something",
+  };
+  await mockedProject(page, "representative", {}, [fixtureRow]);
+  await login(page);
+  const realCard = page.getByRole("button", { name: `View ${initial.name}` });
+  const testCard = page.getByRole("button", {
+    name: "View [Part 2 fixture v1] Something",
+  });
+  await expect(realCard).toBeVisible();
+  await expect(testCard).toHaveCount(0);
+  await expect(page.getByText("1 test record hidden")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Available resources (1)" }),
+  ).toBeVisible();
+  const toggle = page.getByRole("checkbox", { name: "Show test data" });
+  await expect(toggle).not.toBeChecked();
+  await toggle.check();
+  await expect(testCard).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Available resources (2)" }),
+  ).toBeVisible();
+  await expect(page.getByText("1 test record hidden")).toHaveCount(0);
+  await page.screenshot({ path: "test-results/test-data-toggle.png" });
+  // The preference persists across a reload.
+  await page.reload();
+  await expect(
+    page.getByRole("checkbox", { name: "Show test data" }),
+  ).toBeChecked();
+});
+
 test("the owning department is not offered its own resource to request", async ({
   page,
 }) => {

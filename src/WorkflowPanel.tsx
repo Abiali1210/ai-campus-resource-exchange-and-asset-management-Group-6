@@ -28,6 +28,8 @@ import {
   transferActions,
 } from "./workflowPresentation";
 import { formatSpecifications } from "./requestRequirements";
+import { isTestRecordName, visibleRecords } from "./testData";
+import { TestDataToggle } from "./TestDataToggle";
 import {
   beginRequestMatch,
   clampReviewQty,
@@ -588,6 +590,8 @@ export function WorkflowPanel({
   onViewResource,
   requestDraft = null,
   onDraftApplied,
+  showTestData = true,
+  onShowTestDataChange,
 }: {
   profile: Profile;
   metadata: Bootstrap;
@@ -598,6 +602,9 @@ export function WorkflowPanel({
   /** AI #4 draft: pre-fills the normal form; the user still reviews and submits. */
   requestDraft?: RequestDraft | null;
   onDraftApplied?: () => void;
+  /** UI-only: when false, records with technical test names are hidden. */
+  showTestData?: boolean;
+  onShowTestDataChange?: (value: boolean) => void;
   onViewResource?: (recommendation?: {
     assetId: string;
     portionId: string;
@@ -804,14 +811,21 @@ export function WorkflowPanel({
   );
   // Interest picker: only items the server could approve for the chosen request.
   const pickerCandidates = suitablePortions(
-    selectedResource
-      ? availableHandoffPortions
-      : catalogue.filter(
-          (a) =>
-            a.state === "Available" &&
-            a.qty > 0 &&
-            (!selected || selected.categoryId === a.categoryId),
-        ),
+    visibleRecords(
+      selectedResource
+        ? availableHandoffPortions
+        : catalogue.filter(
+            (a) =>
+              a.state === "Available" &&
+              a.qty > 0 &&
+              (!selected || selected.categoryId === a.categoryId),
+          ),
+      showTestData,
+      (a) => [a.name],
+      (a) =>
+        a.portionId === portionId ||
+        a.portionId === selectedResource?.portionId,
+    ).rows,
     selected ?? null,
   );
   const pickerLabels = portionOptionLabels(pickerCandidates.rows);
@@ -868,18 +882,52 @@ export function WorkflowPanel({
     onDraftApplied?.();
     window.setTimeout(() => requestPurposeRef.current?.focus(), 0);
   }, [requestDraft]);
-  const transferGroups = groupTransfers(w.transfers, w, profile);
-  const requestGroups = groupRequests(w.requests);
+  // UI-only test-data filter. The request chosen in the interest form is never
+  // hidden; History and reports keep every record.
+  const requestPurpose = (requestId: string) =>
+    w.requests.find((q) => q.requestId === requestId)?.purpose;
+  const visibleRequests = visibleRecords(
+    w.requests,
+    showTestData,
+    (q) => [q.purpose],
+    (q) => q.requestId === requestId,
+  );
+  const visibleInterests = visibleRecords(w.interests, showTestData, (i) => [
+    i.assetName,
+    requestPurpose(i.requestId),
+  ]);
+  const visibleTransfers = visibleRecords(w.transfers, showTestData, (t) => [
+    t.assetName,
+    requestPurpose(t.requestId),
+  ]);
+  const hiddenTestRecords =
+    visibleRequests.hidden + visibleInterests.hidden + visibleTransfers.hidden;
+  const shownRequests = visibleRequests.rows,
+    shownInterests = visibleInterests.rows,
+    shownTransfers = visibleTransfers.rows;
+  const shownRequestOption = (q: { requestId: string; purpose: string }) =>
+    showTestData || q.requestId === requestId || !isTestRecordName(q.purpose);
+  const transferGroups = groupTransfers(shownTransfers, w, profile);
+  const requestGroups = groupRequests(shownRequests);
   return (
     <section aria-label="Requests and transfers" className="workflow-panel">
       <div className="results-heading">
         <h2>Requests and transfers</h2>
-        <button
-          className="button secondary small"
-          onClick={() => setRevision((n) => n + 1)}
-        >
-          Reload workflows
-        </button>
+        <div className="results-heading-side">
+          {onShowTestDataChange && (
+            <TestDataToggle
+              checked={showTestData}
+              onChange={onShowTestDataChange}
+              hidden={hiddenTestRecords}
+            />
+          )}
+          <button
+            className="button secondary small"
+            onClick={() => setRevision((n) => n + 1)}
+          >
+            Reload workflows
+          </button>
+        </div>
       </div>
       {error && (
         <p className="notice error" role="alert">
@@ -932,17 +980,17 @@ export function WorkflowPanel({
             ["requests", requestGroups.open.length, "Open requests"],
             [
               "interests",
-              w.interests.filter((i) => i.status === "Pending").length,
+              shownInterests.filter((i) => i.status === "Pending").length,
               "Interests awaiting action",
             ],
             [
               "transfers",
-              w.transfers.filter((t) => !terminal.includes(t.state)).length,
+              shownTransfers.filter((t) => !terminal.includes(t.state)).length,
               "Active transfers",
             ],
             [
               "transfers",
-              w.transfers.filter((t) => t.state === "Completed").length,
+              shownTransfers.filter((t) => t.state === "Completed").length,
               "Completed transfers",
             ],
           ].map(([section, count, label], index) => (
@@ -1174,7 +1222,7 @@ export function WorkflowPanel({
               </>
             )}
             <h3>Request tracking</h3>
-            {w.requests.length === 0 && (
+            {shownRequests.length === 0 && (
               <p>No requests are visible in your current scope.</p>
             )}
             {[...requestGroups.open, ...requestGroups.completed].map(
@@ -1454,11 +1502,13 @@ export function WorkflowPanel({
                                 q.status,
                               ),
                           )
-                      ).map((q) => (
-                        <option key={q.requestId} value={q.requestId}>
-                          {q.purpose} ({q.remainingQty} remaining)
-                        </option>
-                      ))}
+                      )
+                        .filter(shownRequestOption)
+                        .map((q) => (
+                          <option key={q.requestId} value={q.requestId}>
+                            {q.purpose} ({q.remainingQty} remaining)
+                          </option>
+                        ))}
                     </select>
                   </Input>
                 </fieldset>
@@ -1552,8 +1602,8 @@ export function WorkflowPanel({
                 )}
               </details>
             )}
-            {w.interests.length === 0 && <p>No linked interests yet.</p>}
-            {w.interests.map((i) => (
+            {shownInterests.length === 0 && <p>No linked interests yet.</p>}
+            {shownInterests.map((i) => (
               <article
                 className="workflow-card"
                 aria-label={`Interest ${i.assetName}`}
@@ -1668,7 +1718,7 @@ export function WorkflowPanel({
             hidden={activeSection !== "transfers"}
           >
             <h2 id="workflow-transfers-title">Transfers</h2>
-            {w.transfers.length === 0 && <p>No approved allocations yet.</p>}
+            {shownTransfers.length === 0 && <p>No approved allocations yet.</p>}
             <h3>Needs your action</h3>
             {transferGroups.needsAction.length === 0 && (
               <p>No transfers currently need action from your roles.</p>

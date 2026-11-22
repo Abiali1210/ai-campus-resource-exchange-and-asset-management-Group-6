@@ -497,6 +497,29 @@ small {
 .results-heading small {
   color: #85917e;
 }
+.results-heading-side {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.test-data-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #5d6a57;
+}
+.test-data-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.test-data-toggle small {
+  color: #85917e;
+}
 .catalogue-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
