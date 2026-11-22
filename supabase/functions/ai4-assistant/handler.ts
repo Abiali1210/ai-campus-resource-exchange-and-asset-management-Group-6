@@ -574,6 +574,80 @@ export function isTransientProviderError(error: unknown): boolean {
   return /^provider_(500|502|503|504)$/.test(message);
 }
 
+// ---------------------------------------------------------------------------
+// Log normalization. Operational logs contain ONLY values from these closed
+// lists: never an error message, prompt, answer, token, header or response
+// text, whatever a provider or library puts into an error.
+// ---------------------------------------------------------------------------
+const STATUS_CAUSES = new Set([
+  "provider_400",
+  "provider_401",
+  "provider_403",
+  "provider_404",
+  "provider_429",
+  "provider_500",
+  "provider_502",
+  "provider_503",
+  "provider_504",
+]);
+export type ProviderFailureCause =
+  | "provider_400"
+  | "provider_401"
+  | "provider_403"
+  | "provider_404"
+  | "provider_429"
+  | "provider_500"
+  | "provider_502"
+  | "provider_503"
+  | "provider_504"
+  | "provider_other_status"
+  | "unconfigured"
+  | "timeout"
+  | "network"
+  | "unknown";
+/** Fixed, non-sensitive category for a provider failure. */
+export function providerFailureCause(error: unknown): ProviderFailureCause {
+  const e = error as { category?: unknown; message?: unknown; name?: unknown };
+  const message = typeof e?.message === "string" ? e.message : "";
+  const name = typeof e?.name === "string" ? e.name : "";
+  if (e?.category === "timeout" || name === "TimeoutError") return "timeout";
+  if (STATUS_CAUSES.has(message)) return message as ProviderFailureCause;
+  if (/^provider_\d{3}$/.test(message)) return "provider_other_status";
+  if (message === "provider_unconfigured") return "unconfigured";
+  if (name === "AbortError" || name === "TypeError") return "network";
+  return "unknown";
+}
+const GOOGLE_STATUSES = new Set([
+  "INVALID_ARGUMENT",
+  "FAILED_PRECONDITION",
+  "OUT_OF_RANGE",
+  "UNAUTHENTICATED",
+  "PERMISSION_DENIED",
+  "NOT_FOUND",
+  "RESOURCE_EXHAUSTED",
+  "CANCELLED",
+  "INTERNAL",
+  "UNAVAILABLE",
+  "DEADLINE_EXCEEDED",
+]);
+/** Google's symbolic error status if it is a known one, otherwise "other". */
+export function googleStatusCategory(status: unknown): string {
+  return typeof status === "string" && GOOGLE_STATUSES.has(status)
+    ? status
+    : "other";
+}
+/** Fetch failure kind for logs: timeout, abort, network or other. */
+export function fetchFailureCategory(error: unknown): string {
+  const name = (error as { name?: unknown })?.name;
+  return name === "TimeoutError"
+    ? "timeout"
+    : name === "AbortError"
+      ? "abort"
+      : name === "TypeError"
+        ? "network"
+        : "other";
+}
+
 export function createAi4AssistantHandler(config: {
   gateway: Ai4Gateway;
   provider: Provider;
@@ -593,7 +667,7 @@ export function createAi4AssistantHandler(config: {
     } catch (e) {
       if (!isTransientProviderError(e)) throw e;
       log(
-        `ai4 provider retry cause=${(e as Error).message} backoff_ms=${backoffMs}`,
+        `ai4 provider retry cause=${providerFailureCause(e)} backoff_ms=${backoffMs}`,
       );
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
       return await config.provider(payload);
@@ -706,17 +780,17 @@ export function createAi4AssistantHandler(config: {
         } satisfies AssistantReply);
       return json({ ...grounded, model: MODEL } satisfies AssistantReply);
     } catch (e) {
-      const err = e as { category?: string; message?: string };
+      // Response and log codes come from a fixed list only.
+      const cause = providerFailureCause(e);
       const code =
-        err.category ??
-        (/429|quota/i.test(err.message ?? "")
-          ? "quota"
-          : /unconfigured/.test(err.message ?? "")
-            ? "unconfigured"
-            : "provider");
-      log(
-        `ai4 provider outcome=error code=${code} cause=${String(err.message ?? "unknown").slice(0, 60)}`,
-      );
+        cause === "timeout"
+          ? "timeout"
+          : cause === "provider_429"
+            ? "quota"
+            : cause === "unconfigured"
+              ? "unconfigured"
+              : "provider";
+      log(`ai4 provider outcome=error code=${code} cause=${cause}`);
       return json({ error: { code } });
     }
   };

@@ -4,7 +4,10 @@ import {
   REFUSAL,
   buildPrompt,
   createAi4AssistantHandler,
+  fetchFailureCategory,
+  googleStatusCategory,
   groundReply,
+  providerFailureCause,
   isTransientProviderError,
   isWorkflowCommand,
   searchItems,
@@ -662,6 +665,37 @@ describe("AI #4 provider retry (issue 1)", () => {
     expect(isTransientProviderError(Error("provider_504"))).toBe(true);
     expect(isTransientProviderError(Error("provider_400"))).toBe(false);
     expect(isTransientProviderError(Error("TimeoutError"))).toBe(false);
+  });
+  it("never logs an unexpected provider error message, only a fixed category", async () => {
+    const secret =
+      "Bearer sk-live-token apikey=AIza-secret prompt: Any projectors in Engineering?";
+    const provider = vi.fn(async () => {
+      throw Object.assign(Error(secret), { category: secret });
+    });
+    const { handler, request, log } = setup(provider);
+    const body = await (
+      await handler(request({ question: "Any projectors in Engineering?" }))
+    ).json();
+    // The response code is also from the fixed list, not the error's text.
+    expect(body).toEqual({ error: { code: "provider" } });
+    const lines = log.mock.calls.map((c) => String(c[0]));
+    expect(lines).toEqual([
+      "ai4 provider outcome=error code=provider cause=unknown",
+    ]);
+    for (const line of lines) {
+      expect(line).not.toContain("Bearer");
+      expect(line).not.toContain("secret");
+      expect(line).not.toContain("projectors");
+    }
+    expect(providerFailureCause(Error("provider_418"))).toBe(
+      "provider_other_status",
+    );
+    expect(googleStatusCategory("UNAVAILABLE")).toBe("UNAVAILABLE");
+    expect(googleStatusCategory("Prompt text <script>")).toBe("other");
+    expect(fetchFailureCategory({ name: "TimeoutError" })).toBe("timeout");
+    expect(fetchFailureCategory({ name: "My custom error text" })).toBe(
+      "other",
+    );
   });
   it("offers Try again only where asking again can help", () => {
     for (const code of ["provider", "timeout", "quota", "context"])
