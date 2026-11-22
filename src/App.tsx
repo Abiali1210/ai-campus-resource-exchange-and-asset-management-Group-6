@@ -15,7 +15,10 @@ import {
 } from "./specificationEditor";
 import type { RequestFormDraft } from "./WorkflowPanel";
 import { AssetArt } from "./AssetArt";
-import { resolveExactAvailableResource } from "./resourceHandoff";
+import {
+  requestablePortions,
+  resolveExactAvailableResource,
+} from "./resourceHandoff";
 import { auditActorLabel, auditEventLabel } from "./workflowPresentation";
 import universityLogo from "./assets/branding/khalifa-university-colour-white-background.jpg";
 import {
@@ -706,12 +709,7 @@ function AssetDetails({
       .then((rows) => {
         if (active)
           setAvailablePortions(
-            rows.filter(
-              (row) =>
-                row.assetId === asset.assetId &&
-                row.state === "Available" &&
-                row.qty > 0,
-            ),
+            requestablePortions(rows, asset.assetId, profile?.departmentId),
           );
       })
       .catch(() => {
@@ -1662,7 +1660,7 @@ export default function App() {
         </header>
         <main className="page-content">
           <section
-            className={`hero${view === "workflows" ? " workflow-hero" : ""}`}
+            className={`hero${view === "workflows" ? " workflow-hero" : profile ? " hero-compact" : ""}`}
           >
             <div>
               {view !== "workflows" && (
@@ -1800,7 +1798,15 @@ export default function App() {
                 }
                 onRequestItem={(item) =>
                   void openAssistantItem(item, (asset) =>
-                    beginResourceRequest(asset),
+                    requestablePortions(
+                      [asset],
+                      asset.assetId,
+                      profile.departmentId,
+                    ).length
+                      ? beginResourceRequest(asset)
+                      : setError(
+                          "This resource belongs to your department, so it cannot be requested.",
+                        ),
                   )
                 }
                 onOpenDraft={(draft) => {

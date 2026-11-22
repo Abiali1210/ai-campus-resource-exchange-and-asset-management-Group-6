@@ -180,6 +180,14 @@ test("catalogue illustrations match item names and stay consistent in asset reco
     path: "test-results/asset-illustrations-desktop.png",
     fullPage: true,
   });
+  await expect(page.locator(".hero")).toHaveClass(/hero-compact/);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "A better home for campus resources.",
+    }),
+  ).toBeVisible();
+  await page.screenshot({ path: "test-results/catalogue-hero-compact.png" });
   await page
     .getByRole("button", { name: "View CO2 fire extinguisher", exact: true })
     .click();
@@ -209,7 +217,11 @@ test("asset overview fits desktop and keeps history and mobile content accessibl
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await mockedProject(page, "requester");
+  // Another department's stock: the owning department cannot request its own.
+  await mockedProject(page, "requester", {
+    ownerDepartmentId: "d7e4c63b-396f-5d67-820a-88cfcca0d650",
+    departmentName: "Science",
+  });
   await login(page);
   await page.getByRole("button", { name: `View ${initial.name}` }).click();
   const dialog = page.getByRole("dialog");
@@ -243,6 +255,21 @@ test("asset overview fits desktop and keeps history and mobile content accessibl
   await expect(
     page.getByRole("button", { name: `View ${initial.name}` }),
   ).toBeFocused();
+});
+
+test("the owning department is not offered its own resource to request", async ({
+  page,
+}) => {
+  await mockedProject(page, "requester");
+  await login(page);
+  await page.getByRole("button", { name: `View ${initial.name}` }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("heading", { name: "Technical specifications" }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("heading", { name: "Request this resource" }),
+  ).toHaveCount(0);
 });
 
 test("asset history shows plain-language events and actor names, never codes or user IDs", async ({

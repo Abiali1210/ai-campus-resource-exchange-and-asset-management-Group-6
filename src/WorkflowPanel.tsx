@@ -11,10 +11,16 @@ import type { RequestDraft } from "./ai4";
 import {
   clearHandoffPortion,
   compatibleRequests,
-  eligiblePortions,
+  requestablePortions,
   selectedPortionIsStale,
   preferredCompatibleRequest,
 } from "./resourceHandoff";
+import {
+  portionOptionLabels,
+  searchPortions,
+  suitableForRequest,
+  suitablePortions,
+} from "./interestPicker";
 import {
   auditEventLabel,
   groupRequests,
@@ -627,7 +633,17 @@ export function WorkflowPanel({
     [specs, setSpecs] = useState<RequirementRow[]>(savedForm?.specs ?? []),
     [busy, setBusy] = useState(false);
   const [requestId, setRequestId] = useState(""),
-    [portionId, setPortionId] = useState("");
+    [portionId, setPortionId] = useState(""),
+    [itemSearch, setItemSearch] = useState("");
+  const [collapsedRequests, setCollapsedRequests] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const toggleRequest = (id: string) =>
+    setCollapsedRequests((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   // App retains this user-scoped draft while this panel is unmounted by navigation.
   // Do not depend on the callback identity: App updates it on ordinary renders.
   const saveFormRef = useRef(onFormChange);
@@ -774,13 +790,40 @@ export function WorkflowPanel({
       (rep && q.departmentId === profile.departmentId),
   );
   const selected = own.find((q) => q.requestId === requestId);
-  const selectedAsset = catalogue.find((a) => a.portionId === portionId);
+  const selectedAsset = catalogue.find(
+    (a) =>
+      a.portionId === portionId &&
+      (!selected || suitableForRequest(selected, a)),
+  );
   const staleHandoff =
     loaded && selectedPortionIsStale(selectedResource, catalogue);
-  const availableHandoffPortions = eligiblePortions(
+  const availableHandoffPortions = requestablePortions(
     catalogue,
     selectedResource?.assetId ?? "",
+    profile.departmentId,
   );
+  // Interest picker: only items the server could approve for the chosen request.
+  const pickerCandidates = suitablePortions(
+    selectedResource
+      ? availableHandoffPortions
+      : catalogue.filter(
+          (a) =>
+            a.state === "Available" &&
+            a.qty > 0 &&
+            (!selected || selected.categoryId === a.categoryId),
+        ),
+    selected ?? null,
+  );
+  const pickerLabels = portionOptionLabels(pickerCandidates.rows);
+  const pickerOptions = searchPortions(pickerCandidates.rows, itemSearch);
+  if (
+    portionId &&
+    !pickerOptions.some((a) => a.portionId === portionId) &&
+    pickerCandidates.rows.some((a) => a.portionId === portionId)
+  )
+    pickerOptions.unshift(
+      pickerCandidates.rows.find((a) => a.portionId === portionId)!,
+    );
   const compatible = compatibleRequests(
     w.requests,
     profile.userId,
@@ -1137,6 +1180,7 @@ export function WorkflowPanel({
             {[...requestGroups.open, ...requestGroups.completed].map(
               (q, index) => {
                 const requirements = formatSpecifications(q.specifications);
+                const collapsed = collapsedRequests.has(q.requestId);
                 return (
                   <div key={q.requestId}>
                     {index === requestGroups.open.length &&
@@ -1162,100 +1206,87 @@ export function WorkflowPanel({
                             {labelDay(q.requiredDate)}
                           </time>
                         </p>
+                        <button
+                          type="button"
+                          className="button secondary small request-toggle"
+                          aria-expanded={!collapsed}
+                          aria-controls={`request-body-${q.requestId}`}
+                          onClick={() => toggleRequest(q.requestId)}
+                        >
+                          {collapsed ? "Show details" : "Hide details"}
+                        </button>
                       </header>
-                      <dl className="workflow-facts workflow-quantities">
-                        <div>
-                          <dt>Requested</dt>
-                          <dd>{q.requestedQty}</dd>
-                        </div>
-                        <div>
-                          <dt>Accepted</dt>
-                          <dd>{q.acceptedQty}</dd>
-                        </div>
-                        <div>
-                          <dt>Allocated</dt>
-                          <dd>{q.allocatedQty}</dd>
-                        </div>
-                        <div>
-                          <dt>Remaining</dt>
-                          <dd>{q.remainingQty}</dd>
-                        </div>
-                      </dl>
-                      <p className="workflow-next-action">
-                        <strong>Next action:</strong>{" "}
-                        {["Closed", "Canceled", "Fulfilled"].includes(q.status)
-                          ? "No action required."
-                          : q.remainingQty > 0
-                            ? "Requester or receiving representative: choose an item in Interests. The supplier representative then reviews the reservation."
-                            : "Follow the active transfers in Transfers for release, delivery and receipt."}
-                      </p>
-                      <dl className="workflow-facts request-facts">
-                        <div>
-                          <dt>Department</dt>
-                          <dd>{department(q.departmentId)}</dd>
-                        </div>
-                        <div>
-                          <dt>Destination</dt>
-                          <dd>{q.destination}</dd>
-                        </div>
-                        <div>
-                          <dt>Minimum condition</dt>
-                          <dd>{q.condition}</dd>
-                        </div>
-                      </dl>
-                      <h4>Technical requirements</h4>
-                      {requirements.length === 0 ? (
-                        <p>None specified.</p>
-                      ) : (
-                        <dl className="workflow-facts request-facts">
-                          {requirements.map((s, index) => (
-                            <div key={`${index}:${s.label}`}>
-                              <dt>{s.label}</dt>
-                              <dd>{s.value}</dd>
-                            </div>
-                          ))}
+                      <div
+                        id={`request-body-${q.requestId}`}
+                        className="workflow-card-body"
+                        hidden={collapsed}
+                      >
+                        <dl className="workflow-facts workflow-quantities">
+                          <div>
+                            <dt>Requested</dt>
+                            <dd>{q.requestedQty}</dd>
+                          </div>
+                          <div>
+                            <dt>Accepted</dt>
+                            <dd>{q.acceptedQty}</dd>
+                          </div>
+                          <div>
+                            <dt>Allocated</dt>
+                            <dd>{q.allocatedQty}</dd>
+                          </div>
+                          <div>
+                            <dt>Remaining</dt>
+                            <dd>{q.remainingQty}</dd>
+                          </div>
                         </dl>
-                      )}
-                      {own.includes(q) &&
-                        q.status === "Open" &&
-                        q.remainingQty > 0 && (
-                          <div className="ai2-panel">
-                            <p className="muted">
-                              AI recommendations rank catalogue matches; scores
-                              are ranking signals, not probabilities. Catalogue
-                              search remains available regardless of AI results.
-                            </p>
-                            <div className="workflow-card-actions">
-                              <button
-                                type="button"
-                                className="button secondary small"
-                                onClick={() => {
-                                  setActiveSection("interests");
-                                  setRequestId(q.requestId);
-                                }}
-                              >
-                                Find catalogue items
-                              </button>
-                              <button
-                                type="button"
-                                className="button small"
-                                disabled={ai2[q.requestId]?.loading}
-                                onClick={() => findMatches(q.requestId)}
-                              >
-                                {ai2[q.requestId]?.loading
-                                  ? "Finding recommendations…"
-                                  : "Get AI recommendations"}
-                              </button>
-                            </div>
-                            {ai2[q.requestId]?.loading && (
-                              <p role="status">
-                                Preparing recommendations. The first run may
-                                take longer while the service starts.
+                        <p className="workflow-next-action">
+                          <strong>Next action:</strong>{" "}
+                          {["Closed", "Canceled", "Fulfilled"].includes(
+                            q.status,
+                          )
+                            ? "No action required."
+                            : q.remainingQty > 0
+                              ? "Requester or receiving representative: choose an item in Interests. The supplier representative then reviews the reservation."
+                              : "Follow the active transfers in Transfers for release, delivery and receipt."}
+                        </p>
+                        <dl className="workflow-facts request-facts">
+                          <div>
+                            <dt>Department</dt>
+                            <dd>{department(q.departmentId)}</dd>
+                          </div>
+                          <div>
+                            <dt>Destination</dt>
+                            <dd>{q.destination}</dd>
+                          </div>
+                          <div>
+                            <dt>Minimum condition</dt>
+                            <dd>{q.condition}</dd>
+                          </div>
+                        </dl>
+                        <h4>Technical requirements</h4>
+                        {requirements.length === 0 ? (
+                          <p>None specified.</p>
+                        ) : (
+                          <dl className="workflow-facts request-facts">
+                            {requirements.map((s, index) => (
+                              <div key={`${index}:${s.label}`}>
+                                <dt>{s.label}</dt>
+                                <dd>{s.value}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        )}
+                        {own.includes(q) &&
+                          q.status === "Open" &&
+                          q.remainingQty > 0 && (
+                            <div className="ai2-panel">
+                              <p className="muted">
+                                AI recommendations rank catalogue matches;
+                                scores are ranking signals, not probabilities.
+                                Catalogue search remains available regardless of
+                                AI results.
                               </p>
-                            )}
-                            {ai2[q.requestId]?.error && (
-                              <p className="notice" role="status">
-                                {fallbackCopy}{" "}
+                              <div className="workflow-card-actions">
                                 <button
                                   type="button"
                                   className="button secondary small"
@@ -1266,83 +1297,117 @@ export function WorkflowPanel({
                                 >
                                   Find catalogue items
                                 </button>
-                              </p>
-                            )}
-                            {ai2[q.requestId]?.outcome === "no_candidates" && (
-                              <p>
-                                No catalogue matches were found. You can still
-                                search the catalogue.
-                              </p>
-                            )}
-                            {visibleRecommendations(
-                              ai2[q.requestId]?.rows ?? [],
-                            ).map((r) => (
-                              <RecommendationCard
-                                key={r.recommendationId}
-                                row={r}
-                                maxQty={Math.min(
-                                  q.remainingQty,
-                                  r.availableQty,
-                                )}
-                                view={() =>
-                                  onViewResource?.({
-                                    assetId: r.assetId,
-                                    portionId: r.portionId,
+                                <button
+                                  type="button"
+                                  className="button small"
+                                  disabled={ai2[q.requestId]?.loading}
+                                  onClick={() => findMatches(q.requestId)}
+                                >
+                                  {ai2[q.requestId]?.loading
+                                    ? "Finding recommendations…"
+                                    : "Get AI recommendations"}
+                                </button>
+                              </div>
+                              {ai2[q.requestId]?.loading && (
+                                <p role="status">
+                                  Preparing recommendations. The first run may
+                                  take longer while the service starts.
+                                </p>
+                              )}
+                              {ai2[q.requestId]?.error && (
+                                <p className="notice" role="status">
+                                  {fallbackCopy}{" "}
+                                  <button
+                                    type="button"
+                                    className="button secondary small"
+                                    onClick={() => {
+                                      setActiveSection("interests");
+                                      setRequestId(q.requestId);
+                                    }}
+                                  >
+                                    Find catalogue items
+                                  </button>
+                                </p>
+                              )}
+                              {ai2[q.requestId]?.outcome ===
+                                "no_candidates" && (
+                                <p>
+                                  No catalogue matches were found. You can still
+                                  search the catalogue.
+                                </p>
+                              )}
+                              {visibleRecommendations(
+                                ai2[q.requestId]?.rows ?? [],
+                              ).map((r) => (
+                                <RecommendationCard
+                                  key={r.recommendationId}
+                                  row={r}
+                                  maxQty={Math.min(
+                                    q.remainingQty,
+                                    r.availableQty,
+                                  )}
+                                  view={() =>
+                                    onViewResource?.({
+                                      assetId: r.assetId,
+                                      portionId: r.portionId,
+                                      requestId: q.requestId,
+                                    })
+                                  }
+                                  done={done}
+                                  onReviewed={(decision, interestId) =>
+                                    updateAi2((s) => ({
+                                      ...s,
+                                      [q.requestId]: {
+                                        ...s[q.requestId],
+                                        rows: s[q.requestId].rows.map((item) =>
+                                          item.recommendationId ===
+                                          r.recommendationId
+                                            ? {
+                                                ...item,
+                                                reviewState: decision,
+                                                interestId,
+                                              }
+                                            : item,
+                                        ),
+                                      },
+                                    }))
+                                  }
+                                />
+                              ))}
+                            </div>
+                          )}
+                        {own.includes(q) &&
+                          !["Closed", "Canceled", "Fulfilled"].includes(
+                            q.status,
+                          ) &&
+                          q.allocatedQty === 0 && (
+                            <footer className="workflow-card-actions">
+                              <details>
+                                <summary>
+                                  Close or cancel remaining need
+                                </summary>
+                                <ActionForm
+                                  action={
+                                    q.acceptedQty > 0
+                                      ? "closeRequest"
+                                      : "cancelRequest"
+                                  }
+                                  base={{
                                     requestId: q.requestId,
-                                  })
-                                }
-                                done={done}
-                                onReviewed={(decision, interestId) =>
-                                  updateAi2((s) => ({
-                                    ...s,
-                                    [q.requestId]: {
-                                      ...s[q.requestId],
-                                      rows: s[q.requestId].rows.map((item) =>
-                                        item.recommendationId ===
-                                        r.recommendationId
-                                          ? {
-                                              ...item,
-                                              reviewState: decision,
-                                              interestId,
-                                            }
-                                          : item,
-                                      ),
-                                    },
-                                  }))
-                                }
-                              />
-                            ))}
-                          </div>
-                        )}
-                      {own.includes(q) &&
-                        !["Closed", "Canceled", "Fulfilled"].includes(
-                          q.status,
-                        ) &&
-                        q.allocatedQty === 0 && (
-                          <footer className="workflow-card-actions">
-                            <details>
-                              <summary>Close or cancel remaining need</summary>
-                              <ActionForm
-                                action={
-                                  q.acceptedQty > 0
-                                    ? "closeRequest"
-                                    : "cancelRequest"
-                                }
-                                base={{
-                                  requestId: q.requestId,
-                                  expectedVersion: q.version,
-                                }}
-                                workspace={w}
-                                button={
-                                  q.acceptedQty > 0
-                                    ? "Close unmet need"
-                                    : "Cancel request"
-                                }
-                                onDone={done}
-                              />
-                            </details>
-                          </footer>
-                        )}
+                                    expectedVersion: q.version,
+                                  }}
+                                  workspace={w}
+                                  button={
+                                    q.acceptedQty > 0
+                                      ? "Close unmet need"
+                                      : "Cancel request"
+                                  }
+                                  onDone={done}
+                                />
+                              </details>
+                            </footer>
+                          )}
+                      </div>
                     </article>
                   </div>
                 );
@@ -1427,29 +1492,42 @@ export function WorkflowPanel({
                 )}
                 <fieldset>
                   <legend>Offered resource</legend>
+                  <Input label="Search items">
+                    <input
+                      type="search"
+                      value={itemSearch}
+                      placeholder="Name, department or location"
+                      onChange={(e) => setItemSearch(e.target.value)}
+                    />
+                  </Input>
                   <Input label="Published item">
                     <select
-                      value={portionId}
+                      value={
+                        pickerOptions.some((a) => a.portionId === portionId)
+                          ? portionId
+                          : ""
+                      }
                       onChange={(e) => setPortionId(e.target.value)}
                     >
                       <option value="">Choose current portion</option>
-                      {(selectedResource
-                        ? availableHandoffPortions
-                        : catalogue.filter(
-                            (a) =>
-                              a.state === "Available" &&
-                              a.qty > 0 &&
-                              (!selected ||
-                                selected.categoryId === a.categoryId),
-                          )
-                      ).map((a) => (
+                      {pickerOptions.map((a) => (
                         <option key={a.portionId} value={a.portionId}>
-                          {a.name} · {a.departmentName} · {a.qty} available ·{" "}
-                          {a.condition} · {a.portionId.slice(0, 8)}
+                          {pickerLabels.get(a.portionId)}
                         </option>
                       ))}
                     </select>
                   </Input>
+                  {itemSearch.trim() && pickerOptions.length === 0 && (
+                    <p className="muted">No items match this search.</p>
+                  )}
+                  {pickerCandidates.hidden > 0 && (
+                    <p className="muted">
+                      {pickerCandidates.hidden}{" "}
+                      {pickerCandidates.hidden === 1 ? "item" : "items"} hidden:
+                      condition needs assessment, is below this request's
+                      minimum, or specifications do not match.
+                    </p>
+                  )}
                 </fieldset>
                 {selected && selectedAsset && !staleHandoff && (
                   <ActionForm

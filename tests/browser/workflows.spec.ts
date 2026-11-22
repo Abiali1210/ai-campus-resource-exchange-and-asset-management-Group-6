@@ -272,6 +272,18 @@ test("request through separate approval/release, assigned dispatch and accepted 
         .locator("..")
         .getByRole("definition"),
     ).toHaveText("3");
+    const toggle = requestCard.getByRole("button", { name: "Hide details" });
+    await toggle.click();
+    await expect(
+      requestCard.getByRole("button", { name: "Show details" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      requestCard.getByText("Remaining", { exact: true }),
+    ).toBeHidden();
+    await requestCard.getByRole("button", { name: "Show details" }).click();
+    await expect(
+      requestCard.getByText("Remaining", { exact: true }),
+    ).toBeVisible();
     await page
       .getByRole("navigation", { name: "Workflow sections" })
       .getByRole("button", { name: "Interests", exact: true })
@@ -280,6 +292,11 @@ test("request through separate approval/release, assigned dispatch and accepted 
       .getByRole("combobox", { name: "Open request", exact: true })
       .selectOption({ label: "Synthetic UI teaching need (3 remaining)" });
     await page.getByLabel("Published item").selectOption(p.stock.portionId);
+    await expect(
+      page.getByLabel("Published item").locator("option:checked"),
+    ).not.toContainText(p.stock.portionId.slice(0, 8));
+    await page.getByLabel("Search items").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "test-results/interest-picker.png" });
     await page.getByLabel("Selection note").fill("HDMI evidence reviewed");
     await page
       .getByRole("button", { name: "Record Interest", exact: true })

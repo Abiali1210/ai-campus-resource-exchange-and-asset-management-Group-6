@@ -1726,6 +1726,29 @@ small {
 .workflow-hero .hero-subtitle {
   line-height: 1.5;
 }
+/* Signed-in pages: a shorter hero so catalogue results start on the first screen. */
+.hero.hero-compact {
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.hero-compact .eyebrow {
+  display: none;
+}
+.hero-compact .hero-title {
+  max-width: none;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  margin-bottom: 0.35rem;
+}
+.hero-compact .hero-subtitle {
+  max-width: 640px;
+  line-height: 1.5;
+}
+.hero-compact .hero-actions {
+  padding-top: 0;
+}
+.request-toggle {
+  flex-shrink: 0;
+}
 .workflow-facts dt {
   color: #5f6e62;
   font-size: 0.8rem;
