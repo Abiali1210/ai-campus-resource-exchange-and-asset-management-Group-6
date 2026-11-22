@@ -1524,6 +1524,18 @@ small {
 .workflow-card p {
   line-height: 1.6;
 }
+.workflow-card .match-strength {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  margin-bottom: 0.2rem;
+}
+.workflow-card .match-note {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
 .workflow-field {
   display: flex;
   flex-direction: column;

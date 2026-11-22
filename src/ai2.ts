@@ -60,7 +60,45 @@ export async function reviewRecommendation(
   const value = (data?.data ?? data) as { interestId?: string };
   return value;
 }
-export const isWeakRecommendation = (score: number) => score < 60;
+/**
+ * Match strength (design 12.1, Phase 6 polish).
+ *
+ * The ranking formula is unchanged: Rank = 100 x (0.60F + 0.15T + 0.10K +
+ * 0.10W + 0.05E). A factor whose evidence is missing contributes 0 and its
+ * weight is not redistributed, so missing evidence also caps the highest rank
+ * a recommendation can reach. While timing, cost, waste and emissions evidence
+ * is unavailable that cap is 60, so a fixed "rank below 60" rule labelled every
+ * recommendation weak. Strength is therefore judged against the cap: the rank
+ * as a percentage of the rank achievable with the evidence on record. With all
+ * optional evidence missing this equals the compatibility score; with all of it
+ * present it equals the rank itself.
+ *
+ * Each optional factor is identified by the warning ai2-match records when its
+ * evidence is missing. An unrecognised warning leaves the cap higher, which
+ * lowers the adjusted score, so a wording change errs towards "weak".
+ */
+export const WEAK_MATCH_THRESHOLD = 60;
+const RANK_BASE_WEIGHT = 60;
+const OPTIONAL_RANK_FACTORS = [
+  { weight: 15, missing: "Delivery timing unavailable" },
+  { weight: 10, missing: "Transfer and repair costs unavailable" },
+  { weight: 10, missing: "Diverted fraction unavailable" },
+  { weight: 5, missing: "Avoided-emissions evidence unavailable" },
+];
+type StrengthInput = Pick<Recommendation, "finalRankScore" | "missingEvidence">;
+export function achievableRankScore(missingEvidence: string[]): number {
+  return OPTIONAL_RANK_FACTORS.reduce(
+    (max, f) => (missingEvidence.includes(f.missing) ? max : max + f.weight),
+    RANK_BASE_WEIGHT,
+  );
+}
+export function evidenceAdjustedScore(row: StrengthInput): number {
+  const score =
+    (100 * row.finalRankScore) / achievableRankScore(row.missingEvidence);
+  return Math.max(0, Math.min(100, score));
+}
+export const isWeakRecommendation = (row: StrengthInput) =>
+  evidenceAdjustedScore(row) < WEAK_MATCH_THRESHOLD;
 export const visibleRecommendations = (rows: Recommendation[]) =>
   rows.slice(0, 5);
 export const fallbackCopy =

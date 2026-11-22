@@ -31,6 +31,7 @@ import {
   reviewRecommendation,
   visibleRecommendations,
   isWeakRecommendation,
+  achievableRankScore,
   type Recommendation,
   type MatchState,
 } from "./ai2";
@@ -501,14 +502,25 @@ function RecommendationCard({
           <span className="badge">{row.reviewState}</span>
         </h4>
       </header>
-      <p>Ranking indicator, not a probability.</p>
-      <p>
-        Ranking score: {row.finalRankScore.toFixed(1)}
-        {isWeakRecommendation(row.finalRankScore) && (
+      <p className="match-strength">
+        <strong>
+          Compatibility: {row.compatibilityScore.toFixed(1)} / 100
+        </strong>{" "}
+        {isWeakRecommendation(row) ? (
           <span className="badge warn">Weak match</span>
-        )}{" "}
-        · Compatibility: {row.compatibilityScore.toFixed(1)} · {row.condition} ·{" "}
-        {row.availableQty} available
+        ) : (
+          <span className="badge">Good match</span>
+        )}
+      </p>
+      <p>
+        Ranking score: {row.finalRankScore.toFixed(1)} of{" "}
+        {achievableRankScore(row.missingEvidence)} possible with the evidence on
+        record · {row.condition} · {row.availableQty} available
+      </p>
+      <p className="match-note">
+        Scores are ranking indicators, not probabilities. Missing evidence adds
+        nothing to the ranking score, so the match label compares the score with
+        what the recorded evidence allows.
       </p>
       <p>{row.reason}</p>
       {row.missingEvidence.length > 0 && (
