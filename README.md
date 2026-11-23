@@ -9,6 +9,23 @@ assists with matching, campus questions, and report summaries.
 
 [Open the live prototype](https://ai-campus-exchange-g6.pages.dev/)
 
+## Submitted Phase 6 deliverables — start here
+
+**Submitted versions confirmed by Abdulrahman on 23 November 2026.**
+
+| Open this                                                                                              | Purpose                                                  |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| **[Submitted report v2.0 — Word](docs/phase-6/COSC336_Group6_Phase6_Implementation_Report_v2.0.docx)** | Exact submitted report; supersedes earlier report drafts |
+| **[Submitted presentation](docs/phase-6/COSC336_Group6_Phase6_Presentation.pptx)**                     | Exact submitted slide deck                               |
+| **[Four-person demo guide](docs/phase-6/demonstration-guide.md)**                                      | Rehearsal steps and explanations for each teammate       |
+| **[Submission record and rehearsal checklist](docs/phase-6/submission-checklist.md)**                  | What is archived and what the team should practise       |
+
+The submitted files are preserved without content changes. Supporting Markdown
+notes are not the source of the submitted Word report. Older v1.0 DOCX/PDF files
+remain as earlier repository versions and are **not** the submitted v2.0 report.
+See the [archive verification record](docs/phase-6/evidence/submission/verification.md)
+for exact file checksums and evidence boundaries.
+
 ## Current Prototype
 
 The application includes:
@@ -115,6 +132,10 @@ transitions, and audit evidence. UI visibility is not an authorization boundary.
 
 ## Project Documents
 
-- Phase 6 implementation report: [PDF](docs/phase-6/COSC336_Group6_Phase6_Implementation_Report_v1.0.pdf) |
-  [DOCX](docs/phase-6/COSC336_Group6_Phase6_Implementation_Report_v1.0.docx)
-- [Phase 6 presentation](docs/phase-6/COSC336_Group6_Phase6_Presentation.pptx)
+- **Submitted Phase 6 report:** [Word v2.0](docs/phase-6/COSC336_Group6_Phase6_Implementation_Report_v2.0.docx).
+- **Submitted Phase 6 presentation:** [PowerPoint](docs/phase-6/COSC336_Group6_Phase6_Presentation.pptx).
+- [Demo guide](docs/phase-6/demonstration-guide.md) and [submission record](docs/phase-6/submission-checklist.md).
+- [Phase 6 scope and historical planning](docs/phase-6/README.md).
+
+The older v1.0 report and PDF are retained for history. A PDF of submitted v2.0
+has not been generated or assumed equivalent to the older PDF.

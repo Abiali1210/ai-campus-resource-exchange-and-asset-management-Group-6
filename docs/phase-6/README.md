@@ -1,4 +1,31 @@
-# Phase 6 minimum implementation plan
+# Phase 6 submitted files and preparation
+
+Updated 23 November 2026. The following attachments were identified by Abdulrahman
+as the submitted deliverables and are archived byte for byte:
+
+- **[Submitted report v2.0](COSC336_Group6_Phase6_Implementation_Report_v2.0.docx)**.
+- **[Submitted presentation](COSC336_Group6_Phase6_Presentation.pptx)**.
+- [Four-person demo guide](demonstration-guide.md).
+- [Submission record and rehearsal checklist](submission-checklist.md).
+- [File identity and verification record](evidence/submission/verification.md).
+
+The report and deck are the submission baseline. Earlier Word/PDF versions and
+historical plans below do not supersede them. `implementation-report.md` is now an
+index to the submitted package, not a synchronized source for the Word report.
+The old draft builder and its duplicate screenshot crops were removed from this
+PR to prevent rebuilding an outdated report over the archive.
+
+Current agreed ownership: Abdulrahman — foundation/catalogue; Muhammad Awais —
+requests/transfers and final report/presentation; Abi — matching; Ahmed — AI 5
+reporting, C9 and assistant. This follows the approved ownership update in main
+commit `d8b3803` and submitted report Section 8.
+
+The application baseline for this archival update is main `b7c93ee`. It already
+includes PR 27 polish. The historical handoffs document their respective dates;
+read the [polish handoff](handoffs/07-phase6-polish.md) for its recorded checks.
+Do not rerun migrations merely because an older assignment box remains unchecked.
+
+## Historical scope and task allocation
 
 Updated 20 November 2026. **Phase 6 minimum: C1–C6 and AI features #2 and #5.**
 Abdulrahman clarified that the team should implement only the highlighted lab
