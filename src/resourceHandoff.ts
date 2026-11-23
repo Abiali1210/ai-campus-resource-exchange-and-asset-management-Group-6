@@ -8,6 +8,18 @@ export function eligiblePortions(rows: AssetView[], assetId: string) {
   );
 }
 
+// Portions another department could request: the owning department cannot
+// approve its own request, so its own portions are never offered to it.
+export function requestablePortions(
+  rows: AssetView[],
+  assetId: string,
+  departmentId: string | null | undefined,
+) {
+  return eligiblePortions(rows, assetId).filter(
+    (row) => !departmentId || row.ownerDepartmentId !== departmentId,
+  );
+}
+
 export function selectedPortionIsStale(
   selected: { portionId: string } | null,
   catalogue: AssetView[],

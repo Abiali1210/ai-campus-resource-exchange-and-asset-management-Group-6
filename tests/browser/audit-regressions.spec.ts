@@ -15,6 +15,9 @@ async function project(page: Page) {
     assistantCalls: 0,
     release: () => {},
     failReply: false,
+    // Hosted Gemini sometimes answers 503; the function then replies
+    // {"error":{"code":"provider"}} with HTTP 200.
+    providerBusyOnce: false,
   };
   let row = {
     ...fixture.assets[0],
@@ -108,6 +111,10 @@ async function project(page: Page) {
     }
     if (name === "ai4-assistant") {
       const number = ++state.assistantCalls;
+      if (state.providerBusyOnce) {
+        state.providerBusyOnce = false;
+        return send({ error: { code: "provider" } });
+      }
       if (number === 1) {
         await gate;
         if (state.failReply) return send({ error: { code: "context" } }, 503);
@@ -188,6 +195,36 @@ for (const failure of [false, true])
     ).toHaveCount(0);
     await expect(page.getByRole("alert")).toHaveCount(0);
   });
+
+test("a failed assistant answer can be retried in place with Try again", async ({
+  page,
+}) => {
+  const p = await project(page);
+  p.state.providerBusyOnce = true;
+  await p.login();
+  await page
+    .getByRole("button", { name: "Campus assistant", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "Ask the assistant", exact: true })
+    .fill("my requests");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "The assistant is unavailable right now",
+  );
+  await page.screenshot({
+    path: "test-results/assistant-try-again.png",
+    fullPage: false,
+  });
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect(
+    page.getByText("Current account reply", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  // The failed answer is replaced; the question is not asked twice in the log.
+  await expect(page.getByText("my requests", { exact: true })).toHaveCount(1);
+  expect(p.state.assistantCalls).toBe(2);
+});
 
 test("unchanged structured specifications survive a description-only save", async ({
   page,

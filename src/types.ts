@@ -81,6 +81,8 @@ export interface AuditEvent {
   event: string;
   occurredAt: string;
   actorId: string | null;
+  // Display name of the acting profile, returned by asset_detail.
+  actorName?: string | null;
   before: unknown;
   after: unknown;
 }

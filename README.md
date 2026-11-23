@@ -1,155 +1,141 @@
 # AI-Powered Campus Resource Exchange and Asset Management
 
-**COSC 336 — Introduction to Software Engineering · Group 6 · Fall 2026**
+**COSC 336 - Introduction to Software Engineering, Group 6, Fall 2026**
 
-## Phase 6 deliverables — start here
+An internal university platform for discovering and reusing campus resources,
+coordinating authorized transfers, and maintaining auditable asset life-cycle
+records. Deterministic business rules protect inventory and permissions while AI
+assists with matching, campus questions, and report summaries.
 
-**Prepared 22 November 2026 for team review.**
+[Open the live prototype](https://ai-campus-exchange-g6.pages.dev/)
 
-| Open this                                                                                       | What it contains                                                              |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| **[Word report — 6 pages](docs/phase-6/COSC336_Group6_Phase6_Implementation_Report_v1.0.docx)** | Environment, implemented features, test results and three screenshot excerpts |
-| **[Four-person demonstration guide](docs/phase-6/demonstration-guide.md)**                      | Each member's presentation steps, account roles and explanations              |
-| **[Submission checklist](docs/phase-6/submission-checklist.md)**                                | Required review, remaining checks and upload preparation                      |
+## Submitted Phase 6 deliverables — start here
 
-**Team action:** read the report, confirm your contribution and rehearse your part.
-Abi's hosted migration is recorded as complete in issue #23. Remaining verification
-limits are listed in the checklist. The report source and supporting evidence are
-under [Phase 6 documentation](docs/phase-6/README.md).
+**Submitted versions confirmed by Abdulrahman on 23 November 2026.**
 
-Semester project: **Intelligent, AI-Powered Circular Campus Resource Exchange and
-Asset Life Cycle Management System**.
+| Open this                                                                                              | Purpose                                                  |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| **[Submitted report v2.0 — Word](docs/phase-6/COSC336_Group6_Phase6_Implementation_Report_v2.0.docx)** | Exact submitted report; supersedes earlier report drafts |
+| **[Submitted presentation](docs/phase-6/COSC336_Group6_Phase6_Presentation.pptx)**                     | Exact submitted slide deck                               |
+| **[Four-person demo guide](docs/phase-6/demonstration-guide.md)**                                      | Rehearsal steps and explanations for each teammate       |
+| **[Submission record and rehearsal checklist](docs/phase-6/submission-checklist.md)**                  | What is archived and what the team should practise       |
 
-The project is an internal university platform for discovering and reusing campus
-resources, coordinating authorized transfers, and maintaining asset life-cycle
-records. It combines conventional workflows with AI-assisted classification,
-matching, recommendations, natural-language assistance, and reporting.
+The submitted files are preserved without content changes. Supporting Markdown
+notes are not the source of the submitted Word report. Older v1.0 DOCX/PDF files
+remain as earlier repository versions and are **not** the submitted v2.0 report.
+See the [archive verification record](docs/phase-6/evidence/submission/verification.md)
+for exact file checksums and evidence boundaries.
 
-## Start here
+## Current Prototype
 
-- [Read the project brief (PDF)](docs/Project-September2026.pdf)
+The application includes:
 
-**Phase 1 — Initial Plan and Requirement Gathering Document, version 1.0**
+- Authentication, departments, roles, and server-side authorization.
+- Asset registration, publication, catalogue search, and condition tracking.
+- Requests, supplier interest, approval, reservation, dispatch, receipt, disputes,
+  returns, and append-only workflow history.
+- AI-assisted resource matching with deterministic eligibility and human approval.
+- Database-calculated reports with reviewed AI-written summaries.
+- A caller-scoped campus assistant and activity reporting with CSV export.
 
-- [Read the finalized report (PDF)](docs/phase-1/COSC336_Group6_Phase1_v1.0.pdf)
-- [Download the editable report (DOCX)](docs/phase-1/COSC336_Group6_Phase1_v1.0.docx)
+The shared environment contains synthetic accounts and catalogue data. AI features
+are advisory: they do not bypass authorization, approve transfers, or calculate
+authoritative report facts.
 
-**Phase 2 — Feasibility Study, version 1.1**
+## Quick Start
 
-- [Read the finalized report (PDF)](docs/phase-2/COSC336_Group6_Phase2_v1.1.pdf)
-- [Download the editable report (DOCX)](docs/phase-2/COSC336_Group6_Phase2_v1.1.docx)
+Use Node.js 22:
 
-**Phase 3 — Software Requirements Specification, version 1.2**
-
-- [Read the finalized specification (PDF)](docs/phase-3/COSC336_Group6_Phase3_SRS_v1.2.pdf)
-- [Download the editable specification (DOCX)](docs/phase-3/COSC336_Group6_Phase3_SRS_v1.2.docx)
-
-**Phases 4–5 — Architecture and Detailed Design, version 1.4**
-
-- [Read the design document (PDF)](docs/phase-4-5/COSC336_Group6_Phase4_5_Design_v1.4.pdf)
-- [Download the editable design document (DOCX)](docs/phase-4-5/COSC336_Group6_Phase4_5_Design_v1.4.docx)
-
-PDFs are the reading copies; DOCX files are their editable counterparts.
-
-**Phase 6 — Sequential implementation plan**
-
-Start with [the shared plan](docs/phase-6/README.md), then your assigned task:
-
-1. [Abdulrahman — foundation and catalogue](docs/phase-6/tasks/01-abdulrahman.md)
-2. [Ahmed — requests, approval and transfer](docs/phase-6/tasks/02-ahmed.md)
-3. [Abi Ali — AI #2 matching and ranking](docs/phase-6/tasks/03-abi-ali.md)
-4. [Muhammad Awais — AI #5 generated report and integration](docs/phase-6/tasks/04-muhammad-awais.md)
-
-Each task includes prerequisites, acceptance checks, an AI-assistant starting prompt
-and a report/handoff responsibility. [The shared report](docs/phase-6/implementation-report.md)
-records the lab minimum: C1–C6 and AI #2/#5. All are implemented; C9 activity
-reports and AI #4 assistant were subsequently merged. The broader semester scope
-remains partly deferred. Read the [integration/UI handoff](docs/phase-6/handoffs/05-integration-and-ui.md)
-for current checks and the team's hosted verification checklist. Abdulrahman
-reported instructor stack approval on 8 November.
-
-The [20 November hosted walkthrough](docs/phase-6/reviews/2026-11-20/hosted-role-walkthrough.md)
-records all nine roles, the completed synthetic transfer and live AI/report reader
-journey. Its historical findings were addressed in PR #25; issue #23 is closed with
-[Abi's hosted migration and acceptance confirmation](https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6/issues/23#issuecomment-7070239791).
-Read the new checklist rather than treating older pending statements as current.
-
-## Run the current prototype
-
-Use Node.js 22 (`npm ci`, then `npm run dev`) and open http://127.0.0.1:5173.
-For local database development/testing, start Docker Desktop with WSL integration,
-then run `npm run supabase:start`; use `npm run supabase:status`,
-`npm run supabase:stop`, or `npm run supabase:reset` as needed. This project-local
-Supabase stack is for local development, not deployment. CI validates with GitHub
-Actions and does not deploy. Cloudflare builds the frontend from main; Supabase
-schema and function deployments are separate. The shared project already contains
-synthetic accounts/data. Check its actual migration/function history before any
-hosted work and read [setup and verification](docs/phase-6/setup.md); routine
-checkout must not reseed the shared project. With no environment configuration,
-`npm run dev` opens an explicitly read-only synthetic preview. AI services require
-the appropriate backend setup; ordinary catalogue/workflow operations do not
-require an AI provider call.
-
-Part 2 adds requests, separate reservation/release decisions, scheduling/dispatch,
-accepted receipt, disputes/returns and conserved partial quantities. Open **Requests
-and transfers** after sign-in. Read [Ahmed's handoff](docs/phase-6/handoffs/02-ahmed.md)
-for migrations, synthetic workflow fixtures, native concurrency checks and the
-demonstration. Hosted evidence and remaining limits are in the current Phase 6
-report and checklist. `npm run test:db` runs
-both foundation and workflow checks; `npm run test:db:native` requires a disposable
-PostgreSQL test cluster. No shared database reset is needed.
-
-## Repository organization
-
-```text
-src/                         React application and shared TypeScript services/types
-  assets/branding/           Supplied official logo and source provenance
-supabase/
-  migrations/                Ordered, additive database schema and business operations
-  functions/foundation/      Authenticated account administration gateway
-  seed.sql                   Synthetic departments/categories (not login accounts)
-scripts/                     Account/workflow seeds, database checks and fixture validation
-tests/
-  browser/                   Chrome journeys; test adapters are identified in each file
-  fixtures/                  Synthetic data and expected workflow quantities
-  *.test.ts                  Domain, gateway and workflow client tests
-docs/
-  phase-1/ ... phase-4-5/     Submitted Word/PDF references, organized by phase
-  phase-6/
-    README.md                Scope, owner sequence and current progress
-    setup.md                 Shared setup and verification commands
-    implementation-report.md Shared report with a section for each owner
-    tasks/                   Numbered owner assignments
-    contracts/               Interfaces and rules later owners must preserve
-    handoffs/                What was delivered, tested and left pending
-    sources/                 Supplied Phase 6 lab slides
-.github/workflows/            Automated formatting, unit/database and build checks
+```bash
+npm ci
+npm run dev
 ```
 
-Start with `src/App.tsx` and `src/api.ts` for Abdulrahman's foundation, then
-`src/WorkflowPanel.tsx` and `src/workflows.ts` for Part 2. Database authority lives
-in the ordered SQL migrations, not in the screen controls. The submitted
-documents remain unchanged; earlier revisions remain available in Git history.
+Open <http://127.0.0.1:5173>. Without environment configuration, the application
+opens an explicitly read-only synthetic preview.
 
-`node_modules/`, `dist/`, `test-results/` and `.workflow-validation/` are ignored
-local dependencies/outputs, not submission source. Do not put credentials or test
-database files in the tracked application folders.
+For a configured frontend, copy `.env.example` to an ignored local environment file
+and set only the browser-safe values:
 
-## Formatting and checks
+```dotenv
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```
 
-Run `npm run format` to format supported source/configuration/Markdown files and
-`npm run format:check` to check them. The check is included in CI. Submitted
-Word/PDF/PowerPoint files, credentials, SQL without a configured formatter and
-generated/local directories are excluded from automatic formatting.
+Never place a service-role key, database password, provider key, or other server
+secret in a `VITE_` variable or commit it to Git.
 
-Run `npm test`, `npm run test:db`, `npm run test:browser` and `npm run build` for
-the application checks. Fixture definitions are explained in
-[tests/fixtures/README.md](tests/fixtures/README.md); actual execution evidence is
-recorded in the owner handoffs, separately from planned test cases.
+### Local Supabase
 
-## Team
+Docker Desktop with WSL integration is required for the disposable local stack:
 
-- Abi Ali Murtaza Ghadiyali
-- Ahmed Mohamed Moustafa Ghandour
-- Abdulrahman Feras Junaid
-- Muhammad Awais Afzal Mirza
+```bash
+npm run supabase:start
+npm run supabase:status
+npm run supabase:stop
+```
+
+`npm run supabase:reset` is for the disposable local stack only. Never reset or
+reseed the shared hosted project. Read the [Phase 6 setup guide](docs/phase-6/setup.md)
+and [Supabase notes](supabase/README.md) before migrations, account provisioning,
+seeding, or Edge Function deployment.
+
+Cloudflare deploys the frontend separately from Supabase migrations and Edge
+Functions. A successful frontend build does not establish that backend changes are
+deployed.
+
+## Checks
+
+```bash
+npm test                 # TypeScript unit and component tests
+npm run test:db          # PGlite database suites
+npm run test:db:native   # Disposable native PostgreSQL checks
+npm run test:browser     # Playwright journeys
+npm run build            # Type checking and production build
+npm run format:check     # Formatting verification
+```
+
+Native database and browser checks have additional environment requirements. See
+the [Phase 6 setup guide](docs/phase-6/setup.md) and
+[fixture documentation](tests/fixtures/README.md).
+
+## Repository Map
+
+```text
+.
+|-- src/                         React application and domain helpers
+|   |-- assets/                  Branding and interface artwork
+|   |-- App.tsx                  Application shell and role workspaces
+|   `-- api.ts                   Supabase client operations
+|-- supabase/
+|   |-- migrations/              Ordered schema and business operations
+|   |-- functions/               Authenticated Edge Functions
+|   `-- seed.sql                 Synthetic departments and categories
+|-- scripts/                     Database checks and explicit data utilities
+|-- tests/
+|   |-- browser/                 Playwright user journeys
+|   |-- fixtures/                Synthetic fixtures and expected quantities
+|   `-- *.test.ts                Unit, component, and gateway tests
+|-- docs/
+|   |-- phase-1/                 Initial plan and requirements
+|   |-- phase-2/                 Feasibility study
+|   |-- phase-3/                 Software Requirements Specification
+|   |-- phase-4-5/               Architecture and detailed design
+|   `-- phase-6/                 Implementation report and presentation
+|-- .github/workflows/           Automated validation and database checks
+|-- package.json                 Commands and dependencies
+`-- README.md                    Project entry point
+```
+
+PostgreSQL migrations and RPCs are authoritative for permissions, quantities, state
+transitions, and audit evidence. UI visibility is not an authorization boundary.
+
+## Project Documents
+
+- **Submitted Phase 6 report:** [Word v2.0](docs/phase-6/COSC336_Group6_Phase6_Implementation_Report_v2.0.docx).
+- **Submitted Phase 6 presentation:** [PowerPoint](docs/phase-6/COSC336_Group6_Phase6_Presentation.pptx).
+- [Demo guide](docs/phase-6/demonstration-guide.md) and [submission record](docs/phase-6/submission-checklist.md).
+- [Phase 6 scope and historical planning](docs/phase-6/README.md).
+
+The older v1.0 report and PDF are retained for history. A PDF of submitted v2.0
+has not been generated or assumed equivalent to the older PDF.

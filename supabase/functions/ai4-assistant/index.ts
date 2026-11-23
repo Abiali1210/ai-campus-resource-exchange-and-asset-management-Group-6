@@ -1,6 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   createAi4AssistantHandler,
+  fetchFailureCategory,
+  googleStatusCategory,
   MODEL,
   type Ai4Gateway,
 } from "./handler.ts";
@@ -46,15 +48,12 @@ const gateway: Ai4Gateway = {
 };
 const apiKey = Deno.env.get("GEMINI_API_KEY") ?? "";
 // Google's error body carries a symbolic status such as RESOURCE_EXHAUSTED or
-// PERMISSION_DENIED. Only that code and the reason are logged, never the message
-// text, the key or any prompt content.
+// UNAVAILABLE. Only a known status from a fixed list is logged ("other"
+// otherwise), never the message text, details, the key or any prompt content.
 async function googleErrorCode(response: Response): Promise<string> {
   try {
     const body = await response.json();
-    const reason = body?.error?.details?.find?.(
-      (d: { reason?: string }) => d?.reason,
-    )?.reason;
-    return `${body?.error?.status ?? "unknown"}${reason ? `/${reason}` : ""}`;
+    return googleStatusCategory(body?.error?.status);
   } catch {
     return "unparsed";
   }
@@ -75,7 +74,7 @@ async function probeModel(): Promise<void> {
     );
   } catch (e) {
     console.log(
-      `ai4 probe failed=${(e as Error).name} ms=${Date.now() - started}`,
+      `ai4 probe failed=${fetchFailureCategory(e)} ms=${Date.now() - started}`,
     );
   }
 }
@@ -108,7 +107,7 @@ Deno.serve(
         );
       } catch (e) {
         console.log(
-          `ai4 provider failed=${(e as Error).name} ms=${Date.now() - started}`,
+          `ai4 provider failed=${fetchFailureCategory(e)} ms=${Date.now() - started}`,
         );
         // Diagnostic: a cheap model lookup tells key/model problems apart
         // from a slow generation. Logs Google's status code only.

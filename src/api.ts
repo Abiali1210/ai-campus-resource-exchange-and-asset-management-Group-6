@@ -23,6 +23,12 @@ const configured = Boolean(
   url && key && !url.includes("your-project") && !key.includes("your-"),
 );
 const client = configured ? createClient(url!, key!) : null;
+/**
+ * The one browser Supabase client. Every module reuses it so that a single
+ * GoTrue auth client owns the session (two clients sharing one storage key
+ * cause the "Multiple GoTrueClient instances" warning and can race on refresh).
+ */
+export const supabaseClient: SupabaseClient | null = client;
 const operationKey = () => crypto.randomUUID();
 export class ServiceError extends Error {
   constructor(

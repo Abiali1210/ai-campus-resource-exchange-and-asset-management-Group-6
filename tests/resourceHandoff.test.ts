@@ -5,6 +5,7 @@ import {
   eligiblePortions,
   selectedPortionIsStale,
   preferredCompatibleRequest,
+  requestablePortions,
   resolveExactAvailableResource,
 } from "../src/resourceHandoff";
 import type { AssetView } from "../src/types";
@@ -90,6 +91,16 @@ describe("selected-resource handoff rules", () => {
       ),
     ).toHaveLength(1);
     expect(compatibleRequests([request()], "u", "d", false, null)).toEqual([]);
+  });
+  it("never offers a department its own portions to request", () => {
+    const own = asset({ portionId: "own", ownerDepartmentId: "d" });
+    const other = asset({ portionId: "other", ownerDepartmentId: "x" });
+    expect(requestablePortions([own, other], "a", "d")).toEqual([other]);
+    expect(requestablePortions([own], "a", "d")).toEqual([]);
+    expect(
+      requestablePortions([own, asset({ state: "Reserved" })], "a", "x"),
+    ).toEqual([own]);
+    expect(requestablePortions([own], "a", undefined)).toEqual([own]);
   });
   it("detects missing, unavailable, and empty selected portions as stale", () => {
     expect(selectedPortionIsStale({ portionId: "p" }, [asset()])).toBe(false);

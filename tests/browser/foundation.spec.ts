@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import type { AssetView, Profile } from "../../src/types";
+import type { AssetView, AuditEvent, Profile } from "../../src/types";
 const fixture = JSON.parse(
   readFileSync(new URL("../fixtures/foundation.json", import.meta.url), "utf8"),
 );
@@ -35,6 +35,7 @@ async function mockedProject(
   role = "representative",
   overrides: Partial<AssetView> = {},
   otherRows: AssetView[] = [],
+  history: AuditEvent[] = [],
 ) {
   let row = { ...initial, ...overrides };
   const calls: string[] = [];
@@ -84,7 +85,7 @@ async function mockedProject(
         asset:
           [row, ...otherRows].find((a) => a.portionId === requested) ?? row,
         attachments: [],
-        history: [],
+        history,
       });
     }
     if (name === "set_publication") {
@@ -179,6 +180,14 @@ test("catalogue illustrations match item names and stay consistent in asset reco
     path: "test-results/asset-illustrations-desktop.png",
     fullPage: true,
   });
+  await expect(page.locator(".hero")).toHaveClass(/hero-compact/);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "A better home for campus resources.",
+    }),
+  ).toBeVisible();
+  await page.screenshot({ path: "test-results/catalogue-hero-compact.png" });
   await page
     .getByRole("button", { name: "View CO2 fire extinguisher", exact: true })
     .click();
@@ -208,7 +217,11 @@ test("asset overview fits desktop and keeps history and mobile content accessibl
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await mockedProject(page, "requester");
+  // Another department's stock: the owning department cannot request its own.
+  await mockedProject(page, "requester", {
+    ownerDepartmentId: "d7e4c63b-396f-5d67-820a-88cfcca0d650",
+    departmentName: "Science",
+  });
   await login(page);
   await page.getByRole("button", { name: `View ${initial.name}` }).click();
   const dialog = page.getByRole("dialog");
@@ -242,6 +255,154 @@ test("asset overview fits desktop and keeps history and mobile content accessibl
   await expect(
     page.getByRole("button", { name: `View ${initial.name}` }),
   ).toBeFocused();
+});
+
+test("test records are hidden by default and return with Show test data", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const fixtureRow = {
+    ...initial,
+    assetId: randomUUID(),
+    portionId: randomUUID(),
+    name: "[Part 2 fixture v1] Something",
+  };
+  await mockedProject(page, "representative", {}, [fixtureRow]);
+  await login(page);
+  const realCard = page.getByRole("button", { name: `View ${initial.name}` });
+  const testCard = page.getByRole("button", {
+    name: "View [Part 2 fixture v1] Something",
+  });
+  await expect(realCard).toBeVisible();
+  await expect(testCard).toHaveCount(0);
+  await expect(page.getByText("1 test record hidden")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Available resources (1)" }),
+  ).toBeVisible();
+  const toggle = page.getByRole("checkbox", { name: "Show test data" });
+  await expect(toggle).not.toBeChecked();
+  await toggle.check();
+  await expect(testCard).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Available resources (2)" }),
+  ).toBeVisible();
+  await expect(page.getByText("1 test record hidden")).toHaveCount(0);
+  await page.screenshot({ path: "test-results/test-data-toggle.png" });
+  // The preference persists across a reload.
+  await page.reload();
+  await expect(
+    page.getByRole("checkbox", { name: "Show test data" }),
+  ).toBeChecked();
+});
+
+test("the owning department is not offered its own resource to request", async ({
+  page,
+}) => {
+  await mockedProject(page, "requester");
+  await login(page);
+  await page.getByRole("button", { name: `View ${initial.name}` }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("heading", { name: "Technical specifications" }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("heading", { name: "Request this resource" }),
+  ).toHaveCount(0);
+});
+
+test("asset history shows plain-language events and actor names, never codes or user IDs", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const event = (
+    code: string,
+    actorId: string | null,
+    actorName: string | null | undefined,
+    occurredAt: string,
+  ): AuditEvent => ({
+    auditId: randomUUID(),
+    event: code,
+    actorId,
+    actorName,
+    occurredAt,
+    before: null,
+    after: { reason: "Synthetic history entry" },
+  });
+  const history = [
+    event(
+      "transfer.receive",
+      randomUUID(),
+      "Synthetic representative-Science",
+      "2026-11-20T10:30:00Z",
+    ),
+    event(
+      "transfer.dispatch",
+      randomUUID(),
+      "Synthetic facilities-Engineering",
+      "2026-11-20T09:00:00Z",
+    ),
+    event(
+      "reservation.approved",
+      representative.userId,
+      representative.name,
+      "2026-11-19T12:00:00Z",
+    ),
+    event(
+      "asset.condition_assessed",
+      randomUUID(),
+      null,
+      "2026-11-18T08:00:00Z",
+    ),
+    event(
+      "asset.published",
+      representative.userId,
+      representative.name,
+      "2026-11-17T08:00:00Z",
+    ),
+    event(
+      "asset.saved",
+      representative.userId,
+      representative.name,
+      "2026-11-16T08:00:00Z",
+    ),
+    event("asset.saved", null, null, "2026-11-15T08:00:00Z"),
+  ];
+  await mockedProject(page, "representative", {}, [], history);
+  await login(page);
+  await page.getByRole("button", { name: `View ${initial.name}` }).click();
+  const dialog = page.getByRole("dialog");
+  const section = dialog.locator(".asset-history");
+  await section
+    .locator("summary")
+    .filter({ hasText: "Asset history (7)" })
+    .click();
+  const rows = section.locator(".history-row");
+  await expect(rows).toHaveCount(7);
+  await expect(rows.locator("strong")).toHaveText([
+    "Receipt recorded",
+    "Dispatched",
+    "Reservation approved",
+    "Asset condition assessed",
+    "Listing published",
+    "Record saved",
+    "Record saved",
+  ]);
+  await expect(rows.locator("small").filter({ hasText: /^By / })).toHaveText([
+    "By Synthetic representative-Science",
+    "By Synthetic facilities-Engineering",
+    `By ${representative.name}`,
+    "By Unknown user",
+    `By ${representative.name}`,
+    `By ${representative.name}`,
+    "By System",
+  ]);
+  const visible = await section.innerText();
+  expect(visible).not.toMatch(/\b(asset|transfer|reservation)\.[A-Za-z_]+/);
+  expect(visible).not.toMatch(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+  );
+  await section.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "test-results/asset-history-labels.png" });
 });
 
 test("long asset records wrap and remain scrollable without clipping", async ({
@@ -297,6 +458,17 @@ test("server form failure preserves entered data and editable specifications", a
   await mockedProject(page);
   await login(page);
   await page.getByRole("button", { name: /Register/ }).click();
+  const unitHint = page
+    .getByRole("dialog")
+    .getByText("Individual assets always contain one unit.");
+  await expect(unitHint).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Tracking mode", exact: true })
+    .selectOption("batch");
+  await expect(unitHint).toHaveCount(0);
+  await page
+    .getByRole("combobox", { name: "Tracking mode", exact: true })
+    .selectOption("individual");
   await page
     .getByLabel("Asset name *", { exact: true })
     .fill("New synthetic display");

@@ -60,6 +60,15 @@ export const ASSISTANT_ERRORS: Record<string, string> = {
 export function assistantErrorMessage(code: string): string {
   return ASSISTANT_ERRORS[code] ?? ASSISTANT_ERRORS.provider;
 }
+/**
+ * Failures that may succeed if the same question is asked again (a busy or
+ * slow AI provider, or a record lookup that failed). Input, session and
+ * configuration errors need the user or an administrator to change something.
+ */
+const RETRYABLE = new Set(["provider", "timeout", "quota", "context"]);
+export function isRetryableAssistantError(code: string): boolean {
+  return RETRYABLE.has(code) || !(code in ASSISTANT_ERRORS);
+}
 
 /** Shape check so a malformed function response never renders as an answer. */
 export function isAssistantReply(x: unknown): x is AssistantReply {

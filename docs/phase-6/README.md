@@ -1,24 +1,29 @@
-# Phase 6 minimum implementation plan
+# Phase 6 submitted files and preparation
 
-## Deliverables prepared on 22 November 2026
+Updated 23 November 2026. The following attachments were identified by Abdulrahman
+as the submitted deliverables and are archived byte for byte:
 
-- [Editable Word report](COSC336_Group6_Phase6_Implementation_Report_v1.0.docx)
-  and its [maintained source](implementation-report.md).
-- [Four person demonstration guide](demonstration-guide.md) and
-  [submission and review checklist](submission-checklist.md).
-- [Verification and screenshot provenance](evidence/submission/verification.md).
+- **[Submitted report v2.0](COSC336_Group6_Phase6_Implementation_Report_v2.0.docx)**.
+- **[Submitted presentation](COSC336_Group6_Phase6_Presentation.pptx)**.
+- [Four-person demo guide](demonstration-guide.md).
+- [Submission record and rehearsal checklist](submission-checklist.md).
+- [File identity and verification record](evidence/submission/verification.md).
 
-The current application baseline is main `514048c`. Issue #23 is **closed**:
-[Abi recorded the applied selection-note migration and successful hosted checks](https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6/issues/23#issuecomment-7070239791).
-Older assignment boxes and handoffs below are historical. Do not reapply a recorded
-migration or infer that every other hosted check passed from issue closure.
-The report and checklist distinguish remaining evidence limits and team review.
+The report and deck are the submission baseline. Earlier Word/PDF versions and
+historical plans below do not supersede them. `implementation-report.md` is now an
+index to the submitted package, not a synchronized source for the Word report.
+The old draft builder and its duplicate screenshot crops were removed from this
+PR to prevent rebuilding an outdated report over the archive.
 
-The Word file is generated from `implementation-report.md` by
-`scripts/build-phase6-report.py` using python-docx and Pillow in the bundled
-document runtime. Rebuild and render/inspect the pages after changing the source;
-do not edit the Word and Markdown copies independently. The full original hosted
-screenshots remain in `reviews/2026-11-20/hosted-evidence/`.
+Current agreed ownership: Abdulrahman — foundation/catalogue; Muhammad Awais —
+requests/transfers and final report/presentation; Abi — matching; Ahmed — AI 5
+reporting, C9 and assistant. This follows the approved ownership update in main
+commit `d8b3803` and submitted report Section 8.
+
+The application baseline for this archival update is main `b7c93ee`. It already
+includes PR 27 polish. The historical handoffs document their respective dates;
+read the [polish handoff](handoffs/07-phase6-polish.md) for its recorded checks.
+Do not rerun migrations merely because an older assignment box remains unchecked.
 
 ## Historical scope and task allocation
 

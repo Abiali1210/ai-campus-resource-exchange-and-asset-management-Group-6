@@ -1,41 +1,40 @@
-# Phase 6 submission checklist
+# Phase 6 submission record and demonstration preparation
 
-Prepared 22 November 2026. The deck requires draft implementation of C1–C6 and AI 2/5, plus an environment/selected-features report. It does not prescribe a page count, separate presentation, video, code ZIP or upload format. Confirm the actual deadline and portal instructions; do not create extra submissions by assumption.
+Updated 23 November 2026. Abdulrahman confirmed that the attached v2.0 report and
+presentation were submitted. This records that confirmation; this task did not
+upload coursework or independently inspect a submission portal.
 
-## Prepared package
+## Submitted archive
 
-- [x] Required features implemented at application baseline `514048c`; C9/AI 4 identified as additions and deferred scope stated.
-- [x] [Report source](implementation-report.md) consolidated against code and evidence. Historical details remain in Git and handoffs.
-- [x] [Editable Word report](COSC336_Group6_Phase6_Implementation_Report_v1.0.docx) prepared with selected hosted screenshots.
-- [x] [Four person demo guide](demonstration-guide.md) prepared as a rehearsal aid.
-- [x] Issue 23 checked: closed with [Abi's hosted migration and acceptance confirmation](https://github.com/Abiali1210/ai-campus-resource-exchange-and-asset-management-Group-6/issues/23#issuecomment-7070239791). Do not reapply the migration from an outdated checklist.
-- [x] Unit/database tests, type check and build refreshed for unchanged application code. See [verification record](evidence/submission/verification.md) for boundaries and document checks.
+- [x] Exact [report v2.0](COSC336_Group6_Phase6_Implementation_Report_v2.0.docx) archived unchanged.
+- [x] Exact [presentation](COSC336_Group6_Phase6_Presentation.pptx) archived unchanged.
+- [x] README highlights the submitted files and separates them from older v1.0 documents.
+- [x] [File identity record](evidence/submission/verification.md) records matching SHA-256 hashes.
+- [x] Guides use the approved contribution assignments in submitted report Section 8.
 
-## Team review before upload
+## Team preparation
 
-- [ ] Everyone reads the Word report and verifies names, IDs, contribution descriptions and AI assistance statement. Do not claim review until it happens.
-- [ ] Confirm the lab deadline, location and required file formats. Submit the report and working implementation access as actually requested; no PDF, video or extra slide deck is assumed.
-- [ ] Make the reviewed document branch available remotely if the team needs GitHub access. Local file creation does not publish or submit coursework.
-- [ ] Confirm repository access, app revision and working [hosted link](https://ai-campus-exchange-g6.pages.dev/).
-- [ ] Rehearse once; each member explains their contribution and approval/custody and AI/human boundaries. Record the results below.
+- [ ] Keep the portal receipt or submission confirmation privately with the team.
+- [ ] Everyone reads slides 1–9 and understands the whole reuse journey.
+- [ ] Each member studies their own report sections and traces one operation through frontend service and backend checks.
+- [ ] Rehearse the [four-person guide](demonstration-guide.md) with labelled synthetic records and explicit account handovers.
+- [ ] Know the fallback if AI or the network fails; use the archived evidence honestly.
+- [ ] Explain that reported Playwright results are local, while CI separately runs unit/database/build/native checks.
+- [ ] Ahmed checks the CSV output against the scoped table if demonstrating export; distinguish local automated coverage from a hosted file inspection.
+- [ ] Abi explains recommendation decisions, embedding freshness and missing evidence; Muhammad Awais explains allocation and receipt-controlled custody.
+- [ ] Confirm current accounts and function availability before a live demo. Do not reset/reseed the shared project or reapply recorded migrations.
 
-## Resolve or disclose verification limits
+Preparing this archive does not establish every teammate's review, understanding
+or rehearsal. The submitted report is preserved even where a small editorial
+clarification would improve it; future corrections should be clearly versioned.
 
-- [ ] Abi: demonstrate real recommendation accept/reject, fresh embeddings and manual fallback. Earlier hosted testing observed results but did not submit those decisions.
-- [ ] Awais: confirm deployed AI 5 timeout and corrected AI 4 handler versions. Source and frontend checks do not establish function versions; checking does not authorize a deployment.
-- [ ] Ahmed: download and inspect synthetic C9 CSVs against the permitted table; confirm costs are absent. Local export passed; hosted contents are unverified after the browser tool timeout.
-- [ ] Abdulrahman with Ahmed: hosted smoke after PR 25 for session switching, catalogue retry, typed specifications and draft retention using disposable labelled records. These regressions passed locally; not every branch was manually replayed live.
+## Rehearsal record
 
-Preserve any uncompleted check as a limitation in the report. Do not add deferred modules, reset data or repeat recorded migrations to complete this list.
-
-## Rehearsal and submission record
-
-| Field                           | Team entry       |
-| ------------------------------- | ---------------- |
-| Rehearsal date and participants | Not yet recorded |
-| App revision and test prefix    | Not yet recorded |
-| Completed checks and evidence   | Not yet recorded |
-| Remaining limitations explained | Not yet recorded |
-| Report reviewed by              | Not yet recorded |
-| Deadline and format confirmed   | Not yet recorded |
-| Submitted by and confirmation   | Not yet recorded |
+| Field                                  | Team entry                                   |
+| -------------------------------------- | -------------------------------------------- |
+| Submission status                      | Confirmed by Abdulrahman on 23 November 2026 |
+| Portal confirmation                    | Retained by the team; not inspected here     |
+| Rehearsal date and participants        | Not yet recorded                             |
+| App revision and synthetic test prefix | Not yet recorded                             |
+| Checks performed and observed results  | Not yet recorded                             |
+| Uncompleted checks and fallback plan   | Not yet recorded                             |
