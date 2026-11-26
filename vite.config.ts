@@ -15,5 +15,16 @@ export default defineConfig({
       },
     },
   },
-  test: { include: ["tests/**/*.test.ts"] },
+  test: {
+    include: ["tests/**/*.test.ts"],
+    // White-box evidence for Phase 7: statement/branch/function/line coverage
+    // of the client logic. React views are exercised by the Playwright suite.
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      exclude: ["src/main.tsx", "src/types.ts"],
+      reporter: ["text", "json-summary", "html"],
+      reportsDirectory: "coverage",
+    },
+  },
 });
