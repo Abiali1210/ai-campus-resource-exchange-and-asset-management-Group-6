@@ -116,6 +116,28 @@ describe("AI5 generation", () => {
         v2Facts,
       ),
     ).toBeNull();
+    expect(
+      compileV2Narrative({ ...structured, demand: "40.0% open rate" }, v2Facts),
+    ).not.toBeNull();
+  });
+  it("normalizes embedded line breaks and tabs before compiling five lines", () => {
+    const v2Facts = {
+      ...facts,
+      non_open_requests: 12,
+      open_request_rate_percent: 40,
+      units_per_completed_transfer: 0.7,
+    };
+    const input = {
+      headline: "  Requests\n remain\tactive ",
+      demand: "20 submitted\r\nrequests",
+      transferActivity: "Transfers\t recorded",
+      interpretation: "Demand\r remains visible",
+      limitation: "Recorded activity only",
+    };
+    expect(compileV2Narrative(input, v2Facts)).toBe(
+      "Headline: Requests remain active\nDemand: 20 submitted requests\nTransfer activity: Transfers recorded\nInterpretation: Demand remains visible\nLimitation: Recorded activity only",
+    );
+    expect(input.headline).toBe("  Requests\n remain\tactive ");
   });
   it("accepts reordered facts and natural number words in v2", () => {
     const v2Facts = {
@@ -181,6 +203,29 @@ describe("AI5 generation", () => {
         hostedFacts,
       ),
     ).not.toBeNull();
+  });
+  it("compares decimal and integer metric tokens by numeric value but keeps percent semantics", () => {
+    const v2Facts = {
+      requests_submitted: 18,
+      open_requests: 17,
+      non_open_requests: 1,
+      open_request_rate_percent: 94,
+      completed_transfers: 2,
+      units_successfully_transferred: 4,
+      units_per_completed_transfer: 2.0,
+    };
+    const narrative = (ratio: string, percent = "94%") => ({
+      headline: "Recorded activity",
+      demand: `17 of 18 remain open; 1 is non-open at ${percent}`,
+      transferActivity: `4 units across 2 transfers, averaging ${ratio} units per transfer`,
+      interpretation: "Activity remains visible",
+      limitation: "Recorded activity only",
+    });
+    expect(compileV2Narrative(narrative("2"), v2Facts)).not.toBeNull();
+    expect(compileV2Narrative(narrative("2.0"), v2Facts)).not.toBeNull();
+    expect(compileV2Narrative(narrative("3"), v2Facts)).toBeNull();
+    expect(compileV2Narrative(narrative("2", "94.0%"), v2Facts)).not.toBeNull();
+    expect(compileV2Narrative(narrative("2", "93%"), v2Facts)).toBeNull();
   });
   it("returns an error for malformed v2 provider narratives without saving fallback text", async () => {
     const v2Snapshot = {
@@ -566,6 +611,23 @@ describe("AI5 generation", () => {
     expect(x.gateway.context).not.toHaveBeenCalled();
     expect(x.provider).not.toHaveBeenCalled();
     expect(x.gateway.save).not.toHaveBeenCalled();
+  });
+  it("keeps provider errors categorized as provider and save errors as persistence", async () => {
+    const providerFailure = setup(
+      vi.fn(async () => {
+        throw Error("provider down");
+      }),
+    );
+    expect(
+      (await (await providerFailure.handler(providerFailure.request())).json())
+        .error.code,
+    ).toBe("provider");
+
+    const saveFailure = setup();
+    saveFailure.gateway.save.mockRejectedValue(Error("database detail"));
+    const response = await saveFailure.handler(saveFailure.request());
+    expect((await response.json()).error.code).toBe("persistence");
+    expect(response.status).toBe(200);
   });
   it("does not consult replay after authentication failure", async () => {
     const x = setup();

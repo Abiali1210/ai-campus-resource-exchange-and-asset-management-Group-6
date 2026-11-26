@@ -130,6 +130,11 @@ try {
       });
       const open = await h.request(3);
       const snapshot = await capture(admin, "facts-1");
+      const ratioText = await db.query(
+        "select facts->>'units_per_completed_transfer' ratio_text from public.ai5_report_snapshots where snapshot_id=$1",
+        [snapshot.snapshot_id],
+      );
+      assert.equal(ratioText.rows[0].ratio_text, "2.0");
       assert.deepEqual(snapshot.facts, {
         requests_submitted: 9,
         open_requests: 5,
@@ -139,6 +144,62 @@ try {
         open_request_rate_percent: 56,
         units_per_completed_transfer: 2,
       });
+      const integerRatioText = v2Text(snapshot.facts);
+      const saveIntegerRatio = (key, text) =>
+        as(admin, "select public.ai5_save_generation($1,$2,$3,$4,$5::jsonb)", [
+          snapshot.snapshot_id,
+          key,
+          "gemini-3.5-flash-lite",
+          text,
+          JSON.stringify({ request: "test" }),
+        ]);
+      await saveIntegerRatio("integer-ratio-regression", integerRatioText);
+      for (const spelling of ["2", "2.0"]) {
+        const equivalentRatioText = integerRatioText.replace(
+          "averaging 2 units",
+          `averaging ${spelling} units`,
+        );
+        assert.equal(
+          (await db.query("select public.ai5_text_valid($1,$2::jsonb) valid", [
+            equivalentRatioText,
+            JSON.stringify(snapshot.facts),
+          ])).rows[0].valid,
+          true,
+        );
+      }
+      const normalizedText =
+        "Headline: Recorded activity\nDemand: 5 of 9 submitted requests remain open; 4 is non-open, for a 56% open-request rate\nTransfer activity: 4 units were transferred across 2 completed transfers, averaging 2 units per completed transfer\nInterpretation: Demand remains visible across the reporting snapshot\nLimitation: These figures describe recorded activity only";
+      assert.equal(
+        (
+          await db.query("select public.ai5_text_valid($1,$2::jsonb) valid", [
+            normalizedText,
+            JSON.stringify(snapshot.facts),
+          ])
+        ).rows[0].valid,
+        true,
+      );
+      for (const invalid of [
+        integerRatioText.replace("averaging 2 units", "averaging 2.0% units"),
+        integerRatioText.replace("averaging 2 units", "averaging 3 units"),
+      ]) {
+        assert.equal(
+          (
+            await db.query("select public.ai5_text_valid($1,$2::jsonb) valid", [
+              invalid,
+              JSON.stringify(snapshot.facts),
+            ])
+          ).rows[0].valid,
+          false,
+        );
+      }
+      const wrongRatioText = integerRatioText.replace(
+        "averaging 2 units",
+        "averaging 3 units",
+      );
+      await assert.rejects(
+        () => saveIntegerRatio("integer-ratio-invalid", wrongRatioText),
+        /unsupported narrative/,
+      );
       const qualifyingActivity = await db.query(
         "select min(ts) ts from (select submitted_at ts from public.resource_requests where submitted_at<=$1 union all select h.recorded_at from public.handovers h join public.transfers t using(transfer_id) where t.state='Completed' and h.kind in ('Receipt','Reconciliation') and h.accepted and h.recorded_at<=$1) activity",
         [snapshot.captured_at],

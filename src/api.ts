@@ -155,6 +155,8 @@ export class FoundationService {
           "Summary response was invalid; snapshot facts remain available and authoritative.",
         validation:
           "Summary could not be validated; snapshot facts remain available and authoritative.",
+        persistence:
+          "Summary could not be saved; snapshot facts remain available and authoritative.",
       };
       const code = String(data.error.code);
       throw new ServiceError(
