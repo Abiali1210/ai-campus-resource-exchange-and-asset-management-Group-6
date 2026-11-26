@@ -1,5 +1,9 @@
 # Phase 7 testing evidence
 
+Report: [COSC336_Group6_Phase7_Testing_Report_v1.0.docx](COSC336_Group6_Phase7_Testing_Report_v1.0.docx)
+([PDF](COSC336_Group6_Phase7_Testing_Report_v1.0.pdf)). System and acceptance
+results are pending and go in v1.1.
+
 Evidence base for the Phase 7 testing report (objective, strategy, test case
 tables, conclusion). Branch `docs/phase-7-testing`, run on 26 November 2026
 against commit `7a3e5ed` (main `444c1cb` plus the Phase 7 test additions).
