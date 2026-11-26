@@ -1,0 +1,75 @@
+
+> circular-campus@0.1.0 test:db
+> node scripts/test-ai2-schema.mjs && node scripts/test-database.mjs && node scripts/test-workflows.mjs && node scripts/test-ai5-reports.mjs && node scripts/test-ai5-outcomes.mjs && node scripts/test-c9-report.mjs
+
+PASS AI2 pure SQL contract assertions (not native behavior)
+PASS first administrator provisioning is service-only and atomic
+PASS anonymous and inactive access denied
+PASS technical administrator cannot mutate assets or trust browser roles
+PASS asset save and publication are atomic and return typed projection
+PASS requester sees marketplace without financial data or private audit
+PASS cross-department representative cannot edit or expose finance
+PASS all nine role classes obey marketplace and specialist scope
+PASS combined quantity, location, fractional age and availability filters work
+PASS publication retry is idempotent and stale updates rejected
+PASS invalid quantities and missing registration fields roll back
+PASS catalogue cannot change quantity or certify condition during editing
+PASS database rejects stock conservation violations
+PASS deactivation revokes existing authenticated profile access
+PASS profile and business audit cannot be rewritten by ordinary roles
+PASS unknown condition is visible while unsafe or allocated stock cannot publish or withdraw
+PASS provisioning payloads accept every fixture asset and preserve batch quantity
+
+16 PostgreSQL core integration checks passed.
+Not tested here: live Supabase Auth/JWT verification, Auth Admin provisioning or hosted Edge account administration.
+PASS selection reasons follow permitted interests without exposing request history
+PASS direct table and helper access denied to all ordinary roles
+PASS request validation and role boundaries; forged department ignored
+PASS Interest links selection without allocation; supplier scope limited to linked needs
+PASS reservation rejects wrong role/department and identity self-approval across roles
+PASS mandatory category/specifications/condition and positive quantity gates roll back
+PASS partial allocation conserves leaves; remaining demand blocks competing stock
+PASS rejection is retained separately and leaves stock/demand open
+PASS separate release approval; strict self/department and assigned Facilities authority
+PASS complete journey: dispatch changes physical tracking; receipt changes formal custody once
+PASS pre-dispatch cancellation and release rejection restore demand without clearing unsafe condition
+PASS short/unsafe receipt stays disputed, allocated and in supplier formal custody
+PASS reconciled full acceptance retains original discrepancy and completes exactly once
+PASS supplier-confirmed full returns restore demand; unsafe/unknown never become available
+PASS request cancellation/partial closure require reconciled allocations
+PASS stale versions and stable operation keys reject changed inputs and duplicate outcomes
+PASS audit actor/time/reason and integration events commit with mutation or roll back together
+PASS review regression: cancellation preserves an unsafe state even with a usable condition
+PASS review regression: physical holder is independent from observer and must be an active participant
+PASS review regression: terminal transfer tracking cannot expose later unrelated movement
+PASS synthetic recipe fixtures reproduce matching/report input quantities
+PASS review regression: original Interest supplier remains private and authoritative after ownership changes
+PASS selected leaf detail is correct after splitting and rejects mismatched/inaccessible portions
+PASS removing requester role revokes own request access and mutation
+PASS requester and assigned Facilities cannot read costs in direct RPC responses or nested history
+PASS participant representatives retain exact costs and distinguish zero or unrecorded from restricted
+PASS financial read permission follows current explicit roles and participant departments, including multirole users
+PASS asset audit and both detail RPCs redact old transfer costs for later unrelated owners without altering audit evidence
+PASS financial projection helpers cannot be called directly by authenticated or anonymous API roles
+PASS asset history names actors and shows a split batch's permitted transfer trail without widening access
+
+30 workflow PostgreSQL integration checks passed (PGlite, synthetic Auth adapter).
+No live Supabase Auth/JWT/hosted service claims. Concurrency is tested only by test:concurrency on native PostgreSQL.
+PASS facts count only completed transfers, excluding returned, disputed, canceled, and in-transit transfers
+PASS completed transfer facts require accepted receipt or reconciliation evidence by capture time and count each transfer once
+PASS role denial, retry idempotency, immutable rows and workspace permissions/limit
+PASS narrative authorization, exact snapshot binding, lifecycle and visibility
+
+4 AI5 PGlite database checks passed.
+PASS breakdown separates completed, pending, disputed, canceled, returned
+PASS department and period filters
+PASS only business administrators; validation of period and scope
+PASS report lifecycle is audited once per real change, without narrative text
+
+4 AI5 outcome/audit PostgreSQL checks passed (PGlite, synthetic Auth adapter).
+PASS admin sees every request and transfer with derived fields
+PASS non-admins only see rows they can already access
+PASS department and period filters
+PASS validation and anonymous denial
+
+4 C9 activity report PostgreSQL checks passed (PGlite, synthetic Auth adapter).

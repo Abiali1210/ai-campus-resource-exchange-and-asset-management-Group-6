@@ -1,0 +1,67 @@
+Running test-workflows.mjs in fresh disposable database workflow_af684d108487498597614aee432605cc
+PASS selection reasons follow permitted interests without exposing request history
+PASS direct table and helper access denied to all ordinary roles
+PASS request validation and role boundaries; forged department ignored
+PASS Interest links selection without allocation; supplier scope limited to linked needs
+PASS reservation rejects wrong role/department and identity self-approval across roles
+PASS mandatory category/specifications/condition and positive quantity gates roll back
+PASS partial allocation conserves leaves; remaining demand blocks competing stock
+PASS rejection is retained separately and leaves stock/demand open
+PASS separate release approval; strict self/department and assigned Facilities authority
+PASS complete journey: dispatch changes physical tracking; receipt changes formal custody once
+PASS pre-dispatch cancellation and release rejection restore demand without clearing unsafe condition
+PASS short/unsafe receipt stays disputed, allocated and in supplier formal custody
+PASS reconciled full acceptance retains original discrepancy and completes exactly once
+PASS supplier-confirmed full returns restore demand; unsafe/unknown never become available
+PASS request cancellation/partial closure require reconciled allocations
+PASS stale versions and stable operation keys reject changed inputs and duplicate outcomes
+PASS audit actor/time/reason and integration events commit with mutation or roll back together
+PASS review regression: cancellation preserves an unsafe state even with a usable condition
+PASS review regression: physical holder is independent from observer and must be an active participant
+PASS review regression: terminal transfer tracking cannot expose later unrelated movement
+PASS synthetic recipe fixtures reproduce matching/report input quantities
+PASS review regression: original Interest supplier remains private and authoritative after ownership changes
+PASS selected leaf detail is correct after splitting and rejects mismatched/inaccessible portions
+PASS removing requester role revokes own request access and mutation
+PASS requester and assigned Facilities cannot read costs in direct RPC responses or nested history
+PASS participant representatives retain exact costs and distinguish zero or unrecorded from restricted
+PASS financial read permission follows current explicit roles and participant departments, including multirole users
+PASS asset audit and both detail RPCs redact old transfer costs for later unrelated owners without altering audit evidence
+PASS financial projection helpers cannot be called directly by authenticated or anonymous API roles
+PASS asset history names actors and shows a split batch's permitted transfer trail without widening access
+30 workflow PostgreSQL integration checks passed (native PostgreSQL, synthetic Auth adapter).
+Running test-workflow-concurrency.mjs in fresh disposable database workflow_5d8b18e75ae140e0ac86be5884ca438f
+PASS overlapping approvals for the last unit: exactly one commits (two independent blocked sessions observed)
+PASS overlapping allocations on different stock against remaining demand: exactly one commits
+PASS overlapping identical operation retries return one reservation and one audit outcome
+PASS overlapping partial batch approvals preserve active-leaf conservation and reject stale parent
+4 native PostgreSQL concurrency checks passed. Synthetic Auth adapter; no hosted Supabase evidence.
+Running test-ai2-native.mjs in fresh disposable database workflow_1da7766ffdeb41fb9ca0ae2bab7fe15c
+PASS AI2 native representative embedding source is narrow and upsert is atomic
+PASS AI2 native request source is caller-scoped and exposes category label only
+PASS AI2 native schema vectors reject 383/385 dimensions and enforce one embedding per asset
+PASS AI2 native whole-asset scope and inactive owning department reject source refresh
+PASS AI2 native direct authenticated embedding and run writes/updates denied
+PASS AI2 native authenticated and anon cannot execute persistence; browser cannot fabricate runs
+PASS AI2 native candidate access rejects unauthorized caller
+PASS AI2 native candidate projection excludes vector and caps results at twenty
+PASS AI2 native similarity ordering uses fixed 384-dimensional vectors
+PASS AI2 native closed request and no remaining demand excluded by candidate RPC
+PASS AI2 native unavailable and unsafe stock excluded by candidate RPC
+PASS AI2 native wrong category, specification, and condition excluded by candidate RPC
+PASS AI2 native missing and stale embeddings excluded by candidate RPC
+PASS AI2 native save run exact retry is idempotent
+PASS AI2 native no-candidates is saved as failed/no_candidates with empty visible results
+PASS AI2 native false no_candidates is rejected when the authoritative set is nonempty
+PASS AI2 native trusted save detects candidate mutation, addition, and removal after retrieval
+PASS AI2 native stale request version and stale candidate are rejected by trusted save
+PASS AI2 native explicit unauthorized and inactive actors rejected
+PASS AI2 native more than five recommendations rejected
+PASS AI2 native unknown and ineligible candidates rejected
+PASS AI2 native unauthorized run read and review rejected
+PASS AI2 native rejection changes no interests, request, or stock
+PASS AI2 native acceptance creates exactly one Interest without reservation or stock change
+PASS AI2 native acceptance exact retry does not duplicate Interest
+PASS AI2 native stale stock prevents recommendation acceptance
+PASS AI2 native stale request prevents recommendation acceptance
+AI2 native: 27 tests passed
