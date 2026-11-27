@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import seed from "../tests/fixtures/foundation.json";
 import { matchesFilters, validateAsset } from "./domain";
+import { mapAi5Error } from "./ai5Editing";
 import type {
   AccountInput,
   AssetDetail,
@@ -76,7 +77,15 @@ export class FoundationService {
     args: Record<string, unknown> = {},
   ): Promise<T> {
     const { data, error } = await this.db.rpc(name, args);
-    if (error) throw new ServiceError(error.message, error.code);
+    if (error) {
+      const message = mapAi5Error(error.message);
+      throw new ServiceError(
+        message,
+        error.message.match(
+          /AI5_(TEXT_EMPTY|TEXT_TOO_LONG|UNSUPPORTED_NUMBER|INVALID_STATE|FORBIDDEN|NOT_FOUND)/,
+        )?.[0] || error.code,
+      );
+    }
     return data as T;
   }
   onIdentityChange(callback: (userId: string | null) => void): () => void {

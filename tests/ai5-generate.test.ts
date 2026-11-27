@@ -227,6 +227,42 @@ describe("AI5 generation", () => {
     expect(compileV2Narrative(narrative("2", "94.0%"), v2Facts)).not.toBeNull();
     expect(compileV2Narrative(narrative("2", "93%"), v2Facts)).toBeNull();
   });
+  it("keeps generated v2 output structurally strict and rejects fabricated numeric forms", () => {
+    const v2Facts = {
+      requests_submitted: 18,
+      open_requests: 17,
+      non_open_requests: 1,
+      open_request_rate_percent: 94,
+      completed_transfers: 2,
+      units_successfully_transferred: 4,
+      units_per_completed_transfer: 2,
+    };
+    const valid = {
+      headline: "Activity snapshot",
+      demand: "18 submitted; 17 open; 1 non-open; 94% rate",
+      transferActivity: "2 transfers and 4 units at 2.0 units per transfer",
+      interpretation: "Recorded activity is visible",
+      limitation: "This snapshot does not establish causes",
+    };
+    expect(compileV2Narrative(valid, v2Facts)).not.toBeNull();
+    for (const transferActivity of [
+      "3 transfers and 4 units",
+      "$2 transfers and 4 units",
+      "+2 transfers and 4 units",
+      "2e2 transfers and 4 units",
+      "2 transfers and 4 units at 2.0%",
+    ]) {
+      expect(
+        compileV2Narrative({ ...valid, transferActivity }, v2Facts),
+      ).toBeNull();
+    }
+    expect(
+      compileV2Narrative(
+        { ...valid, demand: "17 open; 18 submitted" },
+        v2Facts,
+      ),
+    ).not.toBeNull();
+  });
   it("returns an error for malformed v2 provider narratives without saving fallback text", async () => {
     const v2Snapshot = {
       ...snapshot,

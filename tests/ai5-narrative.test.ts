@@ -28,4 +28,23 @@ describe("AI5 narrative presentation", () => {
       text: "Headline: Incomplete\nDemand: no remaining sections",
     });
   });
+  it("keeps arbitrary user-edited prose as safe readable plain text", () => {
+    const text =
+      "A new headline\nNo required headings; wording remains user-authored.";
+    expect(parseAi5Narrative(text)).toEqual({ kind: "plain", text });
+  });
+  it("renders the complete five-label briefing even when labels are reordered", () => {
+    expect(
+      parseAi5Narrative(
+        "Limitation: Not causal\nInterpretation: Mixed\nTransfer activity: Two transfers\nDemand: One request\nHeadline: Activity",
+      ),
+    ).toEqual({
+      kind: "structured",
+      headline: "Activity",
+      demand: "One request",
+      transferActivity: "Two transfers",
+      interpretation: "Mixed",
+      limitation: "Not causal",
+    });
+  });
 });

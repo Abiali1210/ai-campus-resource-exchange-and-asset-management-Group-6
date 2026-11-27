@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
-import { normalizeAi5NumberWords } from "./ai5NumberWords";
 import { formatAi5PeriodDate, formatAi5Timestamp } from "./ai5Dates";
 import type { Ai5WorkspaceItem, Department } from "./types";
 import { Ai5Outcomes } from "./Ai5Outcomes";
 import { parseAi5Narrative } from "./ai5Narrative";
+import { normalizeAi5EditText } from "./ai5Editing";
 
 type CardFeedback = {
   id: string;
@@ -12,14 +12,6 @@ type CardFeedback = {
   message: string;
 };
 const actor = (name?: string | null, id?: string | null) => name || id || "—";
-const validationMessage = (error: unknown) => {
-  const message = error instanceof Error ? error.message : "";
-  return /number|fact|metric|snapshot|validation|check constraint/i.test(
-    message,
-  )
-    ? "Narrative numbers must match the displayed snapshot facts."
-    : message || "Could not save the narrative.";
-};
 
 export function Ai5ReportPanel({
   isAdmin,
@@ -154,7 +146,6 @@ export function Ai5ReportPanel({
             ? (drafts[n.narrative_id] ?? n.current_text ?? "")
             : "";
           const dirty = !!n && value !== (n.current_text ?? "");
-          const facts = Object.values(s.facts);
           const labels: Record<string, string> = {
             requests_submitted: "Requests submitted",
             open_requests: "Open requests",
@@ -215,8 +206,8 @@ export function Ai5ReportPanel({
                             aria-describedby={`ai5-help-${n.narrative_id}`}
                           />
                           <small id={`ai5-help-${n.narrative_id}`}>
-                            Up to 600 characters. Numbers must match the bound
-                            snapshot facts; database validation is final.
+                            You may freely edit the wording. Any numeric values
+                            must match the displayed snapshot facts.
                           </small>
                         </label>
                         <div className="workflow-card-actions">
@@ -224,29 +215,20 @@ export function Ai5ReportPanel({
                             className="button small"
                             disabled={!!working || !dirty || !value.trim()}
                             onClick={() => {
-                              const normalized = normalizeAi5NumberWords(
-                                value,
-                                facts,
-                              );
+                              const normalized = normalizeAi5EditText(value);
                               void act(
                                 n.narrative_id,
                                 async () => {
-                                  try {
-                                    await api.editAi5Narrative(
-                                      n.narrative_id,
-                                      normalized.text,
-                                    );
-                                  } catch (e) {
-                                    throw new Error(validationMessage(e));
-                                  }
+                                  await api.editAi5Narrative(
+                                    n.narrative_id,
+                                    normalized,
+                                  );
                                   setDrafts((current) => ({
                                     ...current,
-                                    [n.narrative_id]: normalized.text,
+                                    [n.narrative_id]: normalized,
                                   }));
                                 },
-                                normalized.normalized
-                                  ? "Saved; metric number words were normalized to digits."
-                                  : "Draft saved.",
+                                "Draft saved.",
                               );
                             }}
                           >
