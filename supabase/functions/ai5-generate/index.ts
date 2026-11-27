@@ -42,7 +42,14 @@ const gateway: Ai5Gateway = {
       p_text: summary,
       p_metadata: metadata,
     });
-    if (error || !data) throw Error("save_failed");
+    if (error || !data) {
+      console.error("AI5 save stage failed", {
+        stage: "save",
+        code: error?.code ?? null,
+        message: error?.message ?? "empty response",
+      });
+      throw Object.assign(Error("persistence"), { category: "persistence" });
+    }
     return data;
   },
 };

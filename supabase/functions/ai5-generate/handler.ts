@@ -100,25 +100,24 @@ export function compileV2Narrative(
     keys.some((key) => !Object.hasOwn(input, key))
   )
     return null;
-  if (
-    keys.some(
-      (key) =>
-        typeof input[key] !== "string" ||
-        !(input[key] as string).trim() ||
-        (input[key] as string).length > 180,
-    )
-  )
-    return null;
+  const fields: Record<string, string> = {};
+  for (const key of keys) {
+    if (typeof input[key] !== "string") return null;
+    const field = (input[key] as string).trim().replace(/\s+/g, " ");
+    if (!field || field.length > 180) return null;
+    fields[key] = field;
+  }
   const sections = [
-    `Headline: ${input.headline}`,
-    `Demand: ${input.demand}`,
-    `Transfer activity: ${input.transferActivity}`,
-    `Interpretation: ${input.interpretation}`,
-    `Limitation: ${input.limitation}`,
+    `Headline: ${fields.headline}`,
+    `Demand: ${fields.demand}`,
+    `Transfer activity: ${fields.transferActivity}`,
+    `Interpretation: ${fields.interpretation}`,
+    `Limitation: ${fields.limitation}`,
   ];
   const output = sections.join("\n");
   if (output.length > 600) return null;
   if (/[$€£]/.test(output)) return null;
+  if (/[-+]\s*\d|\d\s*[eE][+-]?\d/.test(output)) return null;
   if (
     /\b(?:sustainability|emissions?|savings?|waste|cost|maintenance|forecast|recommendation)\b/i.test(
       output,
@@ -127,16 +126,26 @@ export function compileV2Narrative(
     return null;
   const tokens = output.match(/\d+(?:\.\d+)?%?/g) ?? [];
   for (const token of tokens) {
-    if (token.includes(".")) {
-      if (token !== String(facts.units_per_completed_transfer)) return null;
-    } else if (token.endsWith("%")) {
-      if (token !== `${facts.open_request_rate_percent}%`) return null;
-    } else if (
-      !V2_FACT_KEYS.some(
-        (key) => Number.isInteger(facts[key]) && token === String(facts[key]),
+    if (token.endsWith("%")) {
+      const numericToken = Number(token.slice(0, -1));
+      if (
+        !Number.isFinite(numericToken) ||
+        numericToken !== Number(facts.open_request_rate_percent)
       )
-    )
-      return null;
+        return null;
+    } else {
+      const numericToken = Number(token);
+      if (
+        !Number.isFinite(numericToken) ||
+        !V2_FACT_KEYS.some(
+          (key) =>
+            typeof facts[key] === "number" &&
+            Number.isFinite(facts[key]) &&
+            numericToken === facts[key],
+        )
+      )
+        return null;
+    }
   }
   if (
     (output.match(/%/g) ?? []).length !==
@@ -317,26 +326,31 @@ export function createAi5GenerateHandler(config: {
             : null;
       if (!summary)
         throw Object.assign(Error("malformed"), { category: "malformed" });
-      const saved = await config.gateway.save(
-        token,
-        input.snapshotId,
-        input.idempotencyKey,
-        MODEL,
-        summary,
-        {
-          provider: "google-generate-content",
-          contract: "generate-content-v1beta",
-          response_format: "application/json",
-          ...(typeof (result as any)?.responseId === "string" &&
-          (result as any).responseId.length <= 256
-            ? { provider_response_id: (result as any).responseId }
-            : {}),
-          ...(typeof (result as any)?.modelVersion === "string" &&
-          (result as any).modelVersion.length <= 128
-            ? { model_version: (result as any).modelVersion }
-            : {}),
-        },
-      );
+      let saved;
+      try {
+        saved = await config.gateway.save(
+          token,
+          input.snapshotId,
+          input.idempotencyKey,
+          MODEL,
+          summary,
+          {
+            provider: "google-generate-content",
+            contract: "generate-content-v1beta",
+            response_format: "application/json",
+            ...(typeof (result as any)?.responseId === "string" &&
+            (result as any).responseId.length <= 256
+              ? { provider_response_id: (result as any).responseId }
+              : {}),
+            ...(typeof (result as any)?.modelVersion === "string" &&
+            (result as any).modelVersion.length <= 128
+              ? { model_version: (result as any).modelVersion }
+              : {}),
+          },
+        );
+      } catch {
+        throw Object.assign(Error("persistence"), { category: "persistence" });
+      }
       return json({ ...responseBase, summary, report: saved });
     } catch (e) {
       const err = e as { category?: string; message?: string };

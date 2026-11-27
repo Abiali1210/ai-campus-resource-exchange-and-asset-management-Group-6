@@ -26,7 +26,7 @@ const h = await testDatabase();
 const { db, as, person, requester, rep, receiver, facilities, dispatched } = h;
 const admin = person("business_administrator");
 const denied = (fn) =>
-  assert.rejects(fn, /Forbidden|Unauthorized|permission denied/);
+  assert.rejects(fn, /AI5_FORBIDDEN|Forbidden|Unauthorized|permission denied/);
 const capture = (user, key) =>
   as(user, "select public.ai5_capture_report($1) result", [key]).then(
     (r) => r.rows[0].result,
@@ -130,6 +130,11 @@ try {
       });
       const open = await h.request(3);
       const snapshot = await capture(admin, "facts-1");
+      const ratioText = await db.query(
+        "select facts->>'units_per_completed_transfer' ratio_text from public.ai5_report_snapshots where snapshot_id=$1",
+        [snapshot.snapshot_id],
+      );
+      assert.equal(ratioText.rows[0].ratio_text, "2.0");
       assert.deepEqual(snapshot.facts, {
         requests_submitted: 9,
         open_requests: 5,
@@ -139,6 +144,108 @@ try {
         open_request_rate_percent: 56,
         units_per_completed_transfer: 2,
       });
+      const integerRatioText = v2Text(snapshot.facts);
+      const saveIntegerRatio = (key, text) =>
+        as(admin, "select public.ai5_save_generation($1,$2,$3,$4,$5::jsonb)", [
+          snapshot.snapshot_id,
+          key,
+          "gemini-3.5-flash-lite",
+          text,
+          JSON.stringify({ request: "test" }),
+        ]);
+      const integerRatioNarrative = await saveIntegerRatio(
+        "integer-ratio-regression",
+        integerRatioText,
+      );
+      const integerRatioEdited = await as(
+        admin,
+        "select public.ai5_edit_narrative($1,$2) result",
+        [
+          integerRatioNarrative.rows[0].ai5_save_generation.narrative_id,
+          integerRatioText.replace("averaging 2 units", "averaging 2.0 units"),
+        ],
+      );
+      assert.match(
+        integerRatioEdited.rows[0].result.current_text,
+        /averaging 2\.0 units/,
+      );
+      for (const spelling of ["2", "2.0"]) {
+        const equivalentRatioText = integerRatioText.replace(
+          "averaging 2 units",
+          `averaging ${spelling} units`,
+        );
+        assert.equal(
+          (
+            await db.query("select public.ai5_text_valid($1,$2::jsonb) valid", [
+              equivalentRatioText,
+              JSON.stringify(snapshot.facts),
+            ])
+          ).rows[0].valid,
+          true,
+        );
+      }
+      const normalizedText =
+        "Headline: Recorded activity\nDemand: 5 of 9 submitted requests remain open; 4 is non-open, for a 56% open-request rate\nTransfer activity: 4 units were transferred across 2 completed transfers, averaging 2 units per completed transfer\nInterpretation: Demand remains visible across the reporting snapshot\nLimitation: These figures describe recorded activity only";
+      assert.equal(
+        (
+          await db.query("select public.ai5_text_valid($1,$2::jsonb) valid", [
+            normalizedText,
+            JSON.stringify(snapshot.facts),
+          ])
+        ).rows[0].valid,
+        true,
+      );
+      assert.equal(
+        (
+          await db.query(
+            "select public.ai5_generated_text_valid($1,$2::jsonb) valid",
+            [normalizedText, JSON.stringify(snapshot.facts)],
+          )
+        ).rows[0].valid,
+        true,
+      );
+      for (const invalidGenerated of [
+        normalizedText.replace("Headline:", "Title:"),
+        normalizedText.replace("4 units", "999 units"),
+        normalizedText.replace("4 units", "$4 units"),
+        normalizedText.replace("4 units", "+4 units"),
+        normalizedText.replace("4 units", "4e2 units"),
+        normalizedText.replace("56%", "57%"),
+        normalizedText.replace("56%", "56%%"),
+      ]) {
+        assert.equal(
+          (
+            await db.query(
+              "select public.ai5_generated_text_valid($1,$2::jsonb) valid",
+              [invalidGenerated, JSON.stringify(snapshot.facts)],
+            )
+          ).rows[0].valid,
+          false,
+          `generated form must stay rejected: ${invalidGenerated}`,
+        );
+      }
+      for (const invalid of [
+        integerRatioText.replace("averaging 2 units", "averaging 2.0% units"),
+        integerRatioText.replace("averaging 2 units", "averaging 3 units"),
+      ]) {
+        assert.equal(
+          (
+            await db.query("select public.ai5_text_valid($1,$2::jsonb) valid", [
+              invalid,
+              JSON.stringify(snapshot.facts),
+            ])
+          ).rows[0].valid,
+          false,
+        );
+      }
+      const wrongRatioText = integerRatioText.replace(
+        "averaging 2 units",
+        "averaging 3 units",
+      );
+      await assert.rejects(
+        () => saveIntegerRatio("integer-ratio-invalid", wrongRatioText),
+        /unsupported narrative/,
+      );
       const qualifyingActivity = await db.query(
         "select min(ts) ts from (select submitted_at ts from public.resource_requests where submitted_at<=$1 union all select h.recorded_at from public.handovers h join public.transfers t using(transfer_id) where t.state='Completed' and h.kind in ('Receipt','Reconciliation') and h.accepted and h.recorded_at<=$1) activity",
         [snapshot.captured_at],
@@ -407,6 +514,16 @@ try {
         legacyText,
       );
       await assert.rejects(
+        () =>
+          save(
+            admin,
+            oldSnapshotId,
+            "legacy-decimal-rejected",
+            "Report covers 1.5 requests.",
+          ),
+        /unsupported narrative/,
+      );
+      await assert.rejects(
         () => save(admin, oldSnapshotId, "legacy-invalid", "999 requests."),
         /unsupported narrative/,
       );
@@ -479,6 +596,103 @@ try {
         edited.current_text,
         v2Text(snap.facts, "Edited operational activity"),
       );
+      const freeform = `  A completely different heading and order.\r\nOnly ${snap.facts.open_requests} matters here, repeated ${snap.facts.open_requests}.\r\nThe rate is ${snap.facts.open_request_rate_percent}%; ratio ${snap.facts.units_per_completed_transfer}.  `;
+      const freeformSaved = await call(admin, "ai5_edit_narrative", [
+        row.narrative_id,
+        freeform,
+      ]);
+      assert.equal(
+        freeformSaved.current_text,
+        freeform.trim().replace(/\r\n/g, "\n"),
+      );
+      const lfEdited = await call(admin, "ai5_edit_narrative", [
+        row.narrative_id,
+        " \tAn arbitrary headline.\n\nRepeated   spaces remain. \t",
+      ]);
+      assert.equal(
+        lfEdited.current_text,
+        "An arbitrary headline.\n\nRepeated   spaces remain.",
+      );
+      const editRpcSamples = [
+        text,
+        `Activity remains mixed. Only ${snap.facts.open_requests}; again ${snap.facts.open_requests}.`,
+        `Reordered facts: ${snap.facts.completed_transfers}, ${snap.facts.requests_submitted}; rate ${snap.facts.open_request_rate_percent}%.`,
+        `Equivalent ratio ${Number(snap.facts.units_per_completed_transfer).toFixed(1)}.`,
+        `Seven units is wording; ${snap.facts.units_successfully_transferred} is the numeric fact.`,
+        "A fully arbitrary headline and nonnumeric prose are accepted.",
+        "A label can say item999 and run-999 without making either a numeric claim.",
+      ];
+      for (const sample of editRpcSamples) {
+        const saved = await call(admin, "ai5_edit_narrative", [
+          row.narrative_id,
+          sample,
+        ]);
+        assert.equal(saved.current_text, sample, `saved copy: ${sample}`);
+      }
+      for (const accepted of [
+        `Only ${snap.facts.units_per_completed_transfer}.`,
+        `Ratio ${Number(snap.facts.units_per_completed_transfer).toFixed(1)}; ${snap.facts.open_request_rate_percent}%`,
+        `Any labels or ordering: ${snap.facts.completed_transfers}, ${snap.facts.requests_submitted}, ${snap.facts.completed_transfers}.`,
+        "Natural number words such as seven are not parsed as numeric tokens.",
+        "An arbitrary headline with item999 and run-999 labels remains prose.",
+      ]) {
+        assert.equal(
+          (
+            await db.query("select public.ai5_text_valid($1,$2::jsonb) valid", [
+              accepted,
+              JSON.stringify(snap.facts),
+            ])
+          ).rows[0].valid,
+          true,
+          `accepted text: ${accepted}`,
+        );
+      }
+      const seventeenFacts = {
+        requests_submitted: 17,
+        open_requests: 1,
+        non_open_requests: 16,
+        open_request_rate_percent: 17,
+        completed_transfers: 2,
+        units_successfully_transferred: 3,
+        units_per_completed_transfer: 1.5,
+      };
+      const validateText = async (value, facts = seventeenFacts) =>
+        (
+          await db.query("select public.ai5_text_valid($1,$2::jsonb) valid", [
+            value,
+            JSON.stringify(facts),
+          ])
+        ).rows[0].valid;
+      assert.equal(await validateText("17"), true, "unsigned 17 is a fact");
+      for (const signed of ["- 17", "+ 17", "-  17", "+\t17", "- \t  17"]) {
+        assert.equal(
+          await validateText(signed),
+          false,
+          `signed claim rejected: ${JSON.stringify(signed)}`,
+        );
+      }
+      assert.equal(await validateText("A well-known hyphenated phrase."), true);
+      for (const rejected of [
+        "",
+        "999",
+        `Wrong rate ${snap.facts.open_request_rate_percent + 1}%`,
+        `Wrong fraction ${snap.facts.units_per_completed_transfer + 1}.0`,
+        `${snap.facts.open_requests}/999`,
+        `Signed +${snap.facts.open_requests}`,
+        `Exponent ${snap.facts.open_requests}e2`,
+        `Date 2026-11-27`,
+        `Malformed percent ${snap.facts.open_request_rate_percent}%rate`,
+      ]) {
+        assert.equal(
+          (
+            await db.query("select public.ai5_text_valid($1,$2::jsonb) valid", [
+              rejected,
+              JSON.stringify(snap.facts),
+            ])
+          ).rows[0].valid,
+          false,
+        );
+      }
       const afterEdit = await as(
         admin,
         "select * from public.ai5_narrative_workspace()",
@@ -493,15 +707,84 @@ try {
       await assert.rejects(
         () =>
           call(admin, "ai5_edit_narrative", [row.narrative_id, "999 requests"]),
-        /Validation/,
+        /AI5_UNSUPPORTED_NUMBER: 999/,
+      );
+      await assert.rejects(
+        () => call(admin, "ai5_edit_narrative", [row.narrative_id, " \n "]),
+        /AI5_TEXT_EMPTY/,
       );
       await assert.rejects(
         () =>
           call(admin, "ai5_edit_narrative", [
             row.narrative_id,
-            "Report claims impact.",
+            "x".repeat(601),
           ]),
-        /Validation/,
+        /AI5_TEXT_TOO_LONG/,
+      );
+      await assert.rejects(
+        () =>
+          call(admin, "ai5_edit_narrative", [
+            crypto.randomUUID(),
+            "Missing narrative",
+          ]),
+        /AI5_NOT_FOUND/,
+      );
+      await assert.rejects(
+        () =>
+          call(admin, "ai5_edit_narrative", [
+            row.narrative_id,
+            "Report claims 999 impact.",
+          ]),
+        /AI5_UNSUPPORTED_NUMBER/,
+      );
+      for (const unauthorized of [rep, person("system_administrator")]) {
+        if (unauthorized !== rep) {
+          await db.query(
+            "update public.profiles set active=false where user_id=$1",
+            [unauthorized.userId],
+          );
+        }
+        await denied(() =>
+          call(unauthorized, "ai5_edit_narrative", [row.narrative_id, "Text"]),
+        );
+        await denied(() =>
+          call(unauthorized, "ai5_mark_ready", [row.narrative_id]),
+        );
+        await denied(() =>
+          call(unauthorized, "ai5_publish_narrative", [row.narrative_id]),
+        );
+        if (unauthorized !== rep) {
+          await db.query(
+            "update public.profiles set active=true where user_id=$1",
+            [unauthorized.userId],
+          );
+        }
+      }
+
+      const editableText = v2Text(snap.facts, "Reviewable free prose");
+      const invalidDrafts = [
+        ["", /AI5_TEXT_EMPTY/],
+        ["x".repeat(601), /AI5_TEXT_TOO_LONG/],
+        ["unsupported 999", /AI5_UNSUPPORTED_NUMBER: 999/],
+      ];
+      // Temporarily bypass the production CHECK only in this disposable test
+      // database so transitions are tested against corrupted stored values.
+      await db.query(
+        "alter table public.ai5_report_narratives drop constraint ai5_report_narratives_current_text_check",
+      );
+      for (const [invalidText, expectedError] of invalidDrafts) {
+        await db.query(
+          "update public.ai5_report_narratives set current_text=$2 where narrative_id=$1",
+          [row.narrative_id, invalidText],
+        );
+        await assert.rejects(
+          () => call(admin, "ai5_mark_ready", [row.narrative_id]),
+          expectedError,
+        );
+      }
+      await db.query(
+        "update public.ai5_report_narratives set current_text=$2 where narrative_id=$1",
+        [row.narrative_id, editableText],
       );
       const ready = await call(admin, "ai5_mark_ready", [row.narrative_id]);
       assert.equal(ready.status, "Ready");
@@ -520,7 +803,29 @@ try {
       await assert.rejects(
         () =>
           call(admin, "ai5_edit_narrative", [row.narrative_id, "Late edit"]),
-        /Invalid transition|Validation or invalid transition/,
+        /AI5_INVALID_STATE/,
+      );
+      const invalidReadyTexts = [
+        ["", /AI5_TEXT_EMPTY/],
+        ["x".repeat(601), /AI5_TEXT_TOO_LONG/],
+        ["unsupported 999", /AI5_UNSUPPORTED_NUMBER: 999/],
+      ];
+      for (const [invalidText, expectedError] of invalidReadyTexts) {
+        await db.query(
+          "update public.ai5_report_narratives set current_text=$2 where narrative_id=$1",
+          [row.narrative_id, invalidText],
+        );
+        await assert.rejects(
+          () => call(admin, "ai5_publish_narrative", [row.narrative_id]),
+          expectedError,
+        );
+      }
+      await db.query(
+        "update public.ai5_report_narratives set current_text=$2 where narrative_id=$1",
+        [row.narrative_id, editableText],
+      );
+      await db.query(
+        "alter table public.ai5_report_narratives add constraint ai5_report_narratives_current_text_check check(length(trim(current_text)) between 1 and 600)",
       );
       const published = await call(admin, "ai5_publish_narrative", [
         row.narrative_id,
@@ -529,7 +834,12 @@ try {
       assert.deepEqual(await countSources(), beforeEdit);
       await assert.rejects(
         () => call(admin, "ai5_publish_narrative", [row.narrative_id]),
-        /Invalid transition/,
+        /AI5_INVALID_STATE/,
+      );
+      await assert.rejects(
+        () =>
+          call(admin, "ai5_edit_narrative", [row.narrative_id, editableText]),
+        /AI5_INVALID_STATE/,
       );
       await assert.rejects(
         () =>
