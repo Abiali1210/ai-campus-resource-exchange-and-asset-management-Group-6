@@ -128,12 +128,23 @@ export function compileV2Narrative(
   for (const token of tokens) {
     if (token.endsWith("%")) {
       const numericToken = Number(token.slice(0, -1));
-      if (!Number.isFinite(numericToken) || numericToken !== Number(facts.open_request_rate_percent)) return null;
+      if (
+        !Number.isFinite(numericToken) ||
+        numericToken !== Number(facts.open_request_rate_percent)
+      )
+        return null;
     } else {
       const numericToken = Number(token);
-      if (!Number.isFinite(numericToken) || !V2_FACT_KEYS.some((key) =>
-        typeof facts[key] === "number" && Number.isFinite(facts[key]) && numericToken === facts[key],
-      )) return null;
+      if (
+        !Number.isFinite(numericToken) ||
+        !V2_FACT_KEYS.some(
+          (key) =>
+            typeof facts[key] === "number" &&
+            Number.isFinite(facts[key]) &&
+            numericToken === facts[key],
+        )
+      )
+        return null;
     }
   }
   if (
