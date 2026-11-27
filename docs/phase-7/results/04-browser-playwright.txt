@@ -1,0 +1,52 @@
+Phase 7 Playwright browser suite evidence
+
+Execution date/time: 2026-11-26 17:58:40 UTC / 2026-11-26 21:58:40 +04
+Commit: 030163739d54a3e56d7f3e05944fba047e8af937
+Node: v24.18.0
+npm: 11.16.0
+@playwright/test: 1.65.0
+Google Chrome: 152.0.7977.64
+Command: npm run test:browser
+Configured retries: 0 (no retries configured in playwright.config.ts)
+Actual exit status: 0
+
+Complete Playwright output (ANSI/control sequences removed):
+
+> circular-campus@0.1.0 test:browser
+> playwright test
+
+
+Running 30 tests using 1 worker
+
+  ✓   1 tests/browser/asset-history.spec.ts:8:1 › receiving representative sees the transferred batch's trail with names in the asset record (2.6s)
+  ✓   2 tests/browser/audit-regressions.spec.ts:160:3 › discard pending assistant success after account change (1.9s)
+  ✓   3 tests/browser/audit-regressions.spec.ts:160:3 › discard pending assistant error after account change (1.9s)
+  ✓   4 tests/browser/audit-regressions.spec.ts:199:1 › a failed assistant answer can be retried in place with Try again (1.6s)
+  ✓   5 tests/browser/audit-regressions.spec.ts:229:1 › unchanged structured specifications survive a description-only save (825ms)
+  ✓   6 tests/browser/audit-regressions.spec.ts:253:1 › catalogue failure has a persistent unavailable state and recoverable retry (667ms)
+  ✓   7 tests/browser/audit-regressions.spec.ts:280:1 › a pending assistant reply is invalidated by an account switch in another tab (2.1s)
+  ✓   8 tests/browser/foundation.spec.ts:134:1 › catalogue illustrations match item names and stay consistent in asset records (1.6s)
+  ✓   9 tests/browser/foundation.spec.ts:216:1 › asset overview fits desktop and keeps history and mobile content accessible (1.0s)
+  ✓  10 tests/browser/foundation.spec.ts:260:1 › test records are hidden by default and return with Show test data (1.0s)
+  ✓  11 tests/browser/foundation.spec.ts:298:1 › the owning department is not offered its own resource to request (665ms)
+  ✓  12 tests/browser/foundation.spec.ts:313:1 › asset history shows plain-language events and actor names, never codes or user IDs (903ms)
+  ✓  13 tests/browser/foundation.spec.ts:408:1 › long asset records wrap and remain scrollable without clipping (933ms)
+  ✓  14 tests/browser/foundation.spec.ts:441:1 › configured UI: sign in and publish/withdraw (956ms)
+  ✓  15 tests/browser/foundation.spec.ts:455:1 › server form failure preserves entered data and editable specifications (777ms)
+  ✓  16 tests/browser/foundation.spec.ts:494:1 › requester UI does not expose registration or account administration (662ms)
+  ✓  17 tests/browser/foundation.spec.ts:516:1 › desktop account controls remain reachable with a full menu and long profile name (686ms)
+  ✓  18 tests/browser/foundation.spec.ts:558:1 › mobile catalogue has no horizontal overflow (778ms)
+  ✓  19 tests/browser/foundation.spec.ts:597:1 › technical administrator sees account management without implicit catalogue authority (556ms)
+  ✓  20 tests/browser/preview.spec.ts:37:1 › synthetic preview supports filtering and details without simulated authentication (1.2s)
+  ✓  21 tests/browser/workflows.spec.ts:255:1 › request through separate approval/release, assigned dispatch and accepted receipt (5.6s)
+  ✓  22 tests/browser/workflows.spec.ts:437:1 › AI match strength is judged against the evidence on record, not a fixed rank of 60 (2.5s)
+  ✓  23 tests/browser/workflows.spec.ts:499:1 › AI matching outage leaves manual interest selection usable and does not allocate stock (2.5s)
+  ✓  24 tests/browser/workflows.spec.ts:543:1 › calculated report survives an AI outage and requires human editing and publication (4.3s)
+  ✓  25 tests/browser/workflows.spec.ts:633:1 › financial costs stay hidden from requester and Facilities tracking while representatives can read them (3.9s)
+  ✓  26 tests/browser/workflows.spec.ts:695:1 › split and mixed-owner stock hides catalogue actions that the database forbids (3.0s)
+  ✓  27 tests/browser/workflows.spec.ts:751:1 › uncertain committed response retains request entries and reuses operation key (2.7s)
+  ✓  28 tests/browser/workflows.spec.ts:787:1 › stale request selection preserves entered note; mobile tracking has no overflow (2.4s)
+  ✓  29 tests/browser/workflows.spec.ts:832:1 › C9 activity report lists permitted requests/transfers and exports CSV (3.1s)
+  ✓  30 tests/browser/workflows.spec.ts:876:1 › request draft survives navigation, clears on submit and never crosses logout (3.3s)
+
+  30 passed (59.6s)

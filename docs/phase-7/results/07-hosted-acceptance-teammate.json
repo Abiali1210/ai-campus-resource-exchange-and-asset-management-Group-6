@@ -1,0 +1,70 @@
+{
+  "site": "https://ai-campus-exchange-g6.pages.dev/",
+  "cases": [
+    {
+      "id": "TC-ACC-01",
+      "result": "Pass",
+      "actual": "Finance opened Rigol DS1054Z asset; recorded unit value AED 400 was visible. No edit/publish controls. This case verifies asset value, not an unrelated transfer cost.",
+      "date": "2026-11-27",
+      "operator": "assistant via browser UI"
+    },
+    {
+      "id": "TC-ACC-02",
+      "result": "Pass",
+      "actual": "Procurement browsed Rigol asset read-only: no edit, publish or request/approval controls; Finance unit value absent.",
+      "date": "2026-11-27",
+      "operator": "assistant via browser UI"
+    },
+    {
+      "id": "TC-ACC-03",
+      "result": "Pass",
+      "actual": "Inactive account sign-in returned to signed-out gate twice; no workspace or records displayed. No explanatory denial message remained visible.",
+      "date": "2026-11-27",
+      "operator": "assistant via browser UI"
+    },
+    {
+      "id": "TC-ACC-04",
+      "result": "Fail",
+      "actual": "Created PHASE7-2026-11-27-01 request for 2 Good HDMI monitors; hosted Get AI recommendations returned No catalogue matches were found. No recommendation could be accepted, so the required AI-created Interest/no-allocation substep was not completed. Data/index eligibility cause not established.",
+      "date": "2026-11-27",
+      "operator": "assistant via browser UI"
+    },
+    {
+      "id": "TC-ACC-05",
+      "result": "Pass",
+      "actual": "Manual fallback Interest for PHASE7-2026-11-27-01 reserved and released separately; Facilities scheduled and dispatched 2. Receipt of 1 stayed Disputed with formal Engineering custody. Reconciliation of 2 Good units completed and moved formal custody/location to Science. History shows named actors/times for reservation, release, dispatch, nonaccepted receipt and reconciliation.",
+      "date": "2026-11-27",
+      "operator": "assistant via browser UI"
+    },
+    {
+      "id": "TC-ACC-06",
+      "result": "Pass",
+      "actual": "New hosted snapshot: 24 submitted, 20 open, 4 non-open, 5 completed transfers, 10 units, 83% open, 2 units/transfer. Live Gemini generated draft; assistant reviewed and saved supported edit, Mark ready was disabled while unsaved, then Ready and explicitly authorized Published. Sustainability read Phase seven synthetic acceptance report with no draft editor or Publish control. Assistant-run evidence, not student sign-off.",
+      "date": "2026-11-27",
+      "operator": "assistant via browser UI"
+    },
+    {
+      "id": "TC-ACC-07",
+      "result": "Pass",
+      "actual": "Maintenance asked Approve all transfers; assistant explicitly refused approval/reservation/transfer/disposal and directed to authorized workflow.",
+      "date": "2026-11-27",
+      "operator": "assistant via browser UI"
+    },
+    {
+      "id": "TC-ACC-08",
+      "result": "Pass",
+      "actual": "System administrator opened Accounts & roles with Create/Edit account and 13 profiles including inactive status; no catalogue/register/business-approval navigation. No account changes made.",
+      "date": "2026-11-27",
+      "operator": "assistant via browser UI"
+    }
+  ],
+  "operator": "Assistant-operated UI walkthrough authorized by Abdulrahman; not human acceptance sign-off",
+  "date": "2026-11-27",
+  "localSourceBaseline": "fb0352c",
+  "hostedVersion": "Not independently pinned; observations are of the deployed UI on the execution date",
+  "summary": {
+    "executed": 8,
+    "passed": 7,
+    "failed": 1
+  }
+}
