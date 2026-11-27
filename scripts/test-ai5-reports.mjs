@@ -647,6 +647,31 @@ try {
           `accepted text: ${accepted}`,
         );
       }
+      const seventeenFacts = {
+        requests_submitted: 17,
+        open_requests: 1,
+        non_open_requests: 16,
+        open_request_rate_percent: 17,
+        completed_transfers: 2,
+        units_successfully_transferred: 3,
+        units_per_completed_transfer: 1.5,
+      };
+      const validateText = async (value, facts = seventeenFacts) =>
+        (
+          await db.query("select public.ai5_text_valid($1,$2::jsonb) valid", [
+            value,
+            JSON.stringify(facts),
+          ])
+        ).rows[0].valid;
+      assert.equal(await validateText("17"), true, "unsigned 17 is a fact");
+      for (const signed of ["- 17", "+ 17", "-  17", "+\t17", "- \t  17"]) {
+        assert.equal(
+          await validateText(signed),
+          false,
+          `signed claim rejected: ${JSON.stringify(signed)}`,
+        );
+      }
+      assert.equal(await validateText("A well-known hyphenated phrase."), true);
       for (const rejected of [
         "",
         "999",

@@ -8,8 +8,10 @@ declare
 begin
  if p_text is null or length(btrim(replace(replace(p_text,E'\r\n',E'\n'),E'\r',E'\n'),E' \t\n\r\f\v')) not between 1 and 600
     or jsonb_typeof(p_facts)<>'object' then return false; end if;
- normalized:=btrim(replace(replace(p_text,E'\r\n',E'\n'),E'\r',E'\n'),E' \t\n\r\f\v');
- for token in select m[2] from regexp_matches(normalized,'(^|[^[:alnum:]_-])([+-]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)%?)(?![[:alnum:]_-])','g') as m loop
+  normalized:=btrim(replace(replace(p_text,E'\r\n',E'\n'),E'\r',E'\n'),E' \t\n\r\f\v');
+  -- Dotted numeric text is intentionally not comprehensively disambiguated from identifiers/versions.
+  if normalized ~ '(^|[^[:alnum:]_-])[+-][[:space:]]+[0-9]' then return false; end if;
+  for token in select m[2] from regexp_matches(normalized,'(^|[^[:alnum:]_-])([+-]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)%?)(?![[:alnum:]_-])','g') as m loop
    if token !~ '^[0-9]+(?:\.[0-9]+)?%?$' then return false; end if;
    if token like '%\%%' escape '\' then
      if token !~ '^[0-9]+(?:\.[0-9]+)?%$' or substring(token from 1 for length(token)-1)::numeric is distinct from (p_facts->>'open_request_rate_percent')::numeric then return false; end if;
