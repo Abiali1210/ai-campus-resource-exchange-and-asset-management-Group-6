@@ -55,7 +55,6 @@ npm run build         # Type check and production build
 | 6     | Implementation                      | [Report](docs/phase-6/COSC336_Group6_Phase6_Implementation_Report_v2.0.docx) · [Presentation](docs/phase-6/COSC336_Group6_Phase6_Presentation.pptx)                                         |
 | 7     | Testing                             | [Report PDF](docs/phase-7/COSC336_Group6_Phase7-testing-report-v1.2.pdf) · [Editable DOCX](docs/phase-7/COSC336_Group6_Phase7-testing-report-v1.2.docx) · [Results](docs/phase-7/README.md) |
 
-
 ## Repository map
 
 ```text
