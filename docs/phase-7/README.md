@@ -1,3 +1,32 @@
+# Phase 7 system and hosted acceptance follow-up
+
+Updated 27 November 2026. **Executed with findings; this is not an all-pass sign-off.**
+
+- **[Testing report v1.1 Word](COSC336_Group6_Phase7_Testing_Report_v1.1.docx)**. Word only, as requested; PDF conversion was stopped. The final shortened conclusion was not re-rendered after export stalled.
+- [Raw Chrome output](results/04-browser-playwright.txt): **29 / 30 journeys passed**. The report's 13 representative cases are **12 Pass / 1 Fail**; see the [exact case mapping](results/system-case-map.json).
+- [Hosted acceptance observations](results/05-hosted-acceptance.json): **7 / 8 passed**, operated by the assistant with Abdulrahman's authorization. This is not human/student acceptance sign-off.
+- [Findings and team follow-up](results/06-findings.md), with current screenshots in [evidence](evidence/).
+
+PR #28 and its test branch were already merged. This follow-up uses
+`codex/phase7-system-acceptance` from current main `fb0352c`, including PR #29.
+It does not modify the application or tests, reset data, migrate the hosted project
+or change permissions. Unit/integration counts below are historical v1.0 results;
+they were not rerun or silently attributed to the newer baseline.
+
+## Remaining work
+
+- Ahmed: review the stale numeric-error wording assertion in TC-SYS-12, then rerun the full journey through publication after a separate reviewed correction. The app rejected the bad number; the old assertion stopped the local journey.
+- Abi: inspect why hosted matching returned no results for the labelled request despite a suitable manual candidate. Eligibility/index/provider cause is unconfirmed. Repeat recommendation acceptance with controlled eligible data.
+- Team: review the evidence and provide human acceptance sign-off. All eight browser-operated scenarios were attempted; seven passed.
+
+The `PHASE7-2026-11-27-01` request and completed two-unit transfer remain as
+synthetic evidence. The in-app Published report is titled **Phase seven synthetic
+acceptance report** (numbers are constrained by the snapshot, so its label is
+spelled out). It explicitly identifies assistant-operated synthetic coursework.
+No coursework submission was performed. All sessions were signed out at the end.
+
+## Historical v1.0 evidence
+
 # Phase 7 testing evidence
 
 Report: [COSC336_Group6_Phase7_Testing_Report_v1.0.docx](COSC336_Group6_Phase7_Testing_Report_v1.0.docx)
@@ -78,7 +107,7 @@ implemented, so they have no tests.
 
 Every implemented requirement has at least one test at two or more levels.
 
-## Outstanding
+## Outstanding as recorded in v1.0
 
 - **System tests (Playwright).** Not rerun: the config uses the Google Chrome
   channel, which is not installed on this machine, and CI does not run this

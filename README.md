@@ -9,6 +9,13 @@ assists with matching, campus questions, and report summaries.
 
 [Open the live prototype](https://ai-campus-exchange-g6.pages.dev/)
 
+## Phase 7 testing follow-up
+
+**27 November: browser 29/30 passed; hosted scenarios 7/8 passed.**
+The current [testing report and findings](docs/phase-7/README.md) include the
+unresolved validation-message assertion and empty AI matching result. These are
+recorded failures, not an all-pass or human acceptance sign-off.
+
 ## Submitted Phase 6 deliverables — start here
 
 **Submitted versions confirmed by Abdulrahman on 23 November 2026.**

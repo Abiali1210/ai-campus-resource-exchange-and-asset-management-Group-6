@@ -1,0 +1,116 @@
+{
+  "testedCommit": "fb0352c",
+  "date": "2026-11-27",
+  "environment": "Local Chrome; synthetic Auth/HTTP or PGlite adapters; not hosted acceptance",
+  "cases": [
+    {
+      "id": "TC-SYS-01",
+      "title": "configured UI: sign in and publish/withdraw",
+      "file": "tests/browser/foundation.spec.ts",
+      "handoffFile": "foundation.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    },
+    {
+      "id": "TC-SYS-02",
+      "title": "requester UI does not expose registration or account administration",
+      "file": "tests/browser/foundation.spec.ts",
+      "handoffFile": "foundation.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    },
+    {
+      "id": "TC-SYS-03",
+      "title": "technical administrator sees account management without implicit catalogue authority",
+      "file": "tests/browser/foundation.spec.ts",
+      "handoffFile": "foundation.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    },
+    {
+      "id": "TC-SYS-04",
+      "title": "server form failure preserves entered data and editable specifications",
+      "file": "tests/browser/foundation.spec.ts",
+      "handoffFile": "foundation.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    },
+    {
+      "id": "TC-SYS-05",
+      "title": "mobile catalogue has no horizontal overflow",
+      "file": "tests/browser/foundation.spec.ts",
+      "handoffFile": "foundation.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    },
+    {
+      "id": "TC-SYS-06",
+      "title": "request draft survives navigation, clears on submit and never crosses logout",
+      "file": "tests/browser/workflows.spec.ts",
+      "handoffFile": "workflows.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    },
+    {
+      "id": "TC-SYS-07",
+      "title": "request through separate approval/release, assigned dispatch and accepted receipt",
+      "file": "tests/browser/workflows.spec.ts",
+      "handoffFile": "workflows.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    },
+    {
+      "id": "TC-SYS-08",
+      "title": "the owning department is not offered its own resource to request",
+      "file": "tests/browser/foundation.spec.ts",
+      "handoffFile": "foundation.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    },
+    {
+      "id": "TC-SYS-09",
+      "title": "asset history shows plain-language events and actor names, never codes or user IDs",
+      "file": "tests/browser/foundation.spec.ts",
+      "handoffFile": "foundation.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    },
+    {
+      "id": "TC-SYS-10",
+      "title": "C9 activity report lists permitted requests/transfers and exports CSV",
+      "file": "tests/browser/workflows.spec.ts",
+      "handoffFile": "workflows.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    },
+    {
+      "id": "TC-SYS-11",
+      "title": "AI matching outage leaves manual interest selection usable and does not allocate stock",
+      "file": "tests/browser/workflows.spec.ts",
+      "handoffFile": "workflows.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    },
+    {
+      "id": "TC-SYS-12",
+      "title": "calculated report survives an AI outage and requires human editing and publication",
+      "file": "tests/browser/workflows.spec.ts",
+      "handoffFile": "workflows.spec.ts",
+      "result": "Fail",
+      "actual": "Application rejected 99999 with new wording: Numeric value must match displayed snapshot facts; browser assertion expected old Narrative numbers must match text. Later steps of this journey did not execute."
+    },
+    {
+      "id": "TC-SYS-13",
+      "title": "a failed assistant answer can be retried in place with Try again",
+      "file": "tests/browser/audit-regressions.spec.ts",
+      "handoffFile": "audit-regressions.spec.ts",
+      "result": "Pass",
+      "actual": "Existing browser assertion sequence completed successfully; see exact title in raw log."
+    }
+  ],
+  "suite": {
+    "passed": 29,
+    "failed": 1,
+    "total": 30
+  }
+}
